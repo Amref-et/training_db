@@ -163,6 +163,7 @@
                     @if($user?->hasPermission('menus.view'))<a class="{{ request()->routeIs('admin.sidebar-menus.*') ? 'active' : '' }}" href="{{ route('admin.sidebar-menus.index') }}">Sidebar Menus</a>@endif
                     @if($user?->hasPermission('appearance.view'))<a class="{{ request()->routeIs('admin.appearance.*') ? 'active' : '' }}" href="{{ route('admin.appearance.edit') }}">Appearance</a>@endif
                     @if($user?->hasPermission('appearance.view'))<a class="{{ request()->routeIs('admin.settings.env.*') ? 'active' : '' }}" href="{{ route('admin.settings.env.edit') }}">Env Settings</a>@endif
+                    @if($user?->hasPermission('api_management.view'))<a class="{{ request()->routeIs('admin.api-management.*') ? 'active' : '' }}" href="{{ route('admin.api-management.index') }}">API Management</a>@endif
                     @if($user?->hasPermission('users.view'))<a class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}" href="{{ route('admin.users.index') }}">Users</a>@endif
                     @if($user?->hasPermission('users.view'))<a class="{{ request()->routeIs('admin.user-activity-logs.*') ? 'active' : '' }}" href="{{ route('admin.user-activity-logs.index') }}">User Activity Log</a>@endif
                     @if($user?->hasPermission('roles.view'))<a class="{{ request()->routeIs('admin.roles.*') ? 'active' : '' }}" href="{{ route('admin.roles.index') }}">Roles</a>@endif

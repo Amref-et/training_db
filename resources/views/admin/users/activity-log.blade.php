@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
 @section('eyebrow', 'Access Control')
-@section('title', 'User Activity Log')
-@section('subtitle', 'Track admin user activities and actions.')
+@section('title', 'Audit Log')
+@section('subtitle', 'Track admin activity, authentication events, and audited data changes.')
 
 @section('actions')
 <div class="d-flex gap-2">
@@ -23,6 +23,15 @@
                 <option value="">All users</option>
                 @foreach($users as $user)
                     <option value="{{ $user->id }}" @selected($selectedUserId === (int) $user->id)>{{ $user->name }} ({{ $user->email }})</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <label class="form-label">Type</label>
+            <select name="log_type" class="form-select">
+                <option value="">All</option>
+                @foreach($logTypes as $logType)
+                    <option value="{{ $logType }}" @selected($selectedLogType === $logType)>{{ ucfirst($logType) }}</option>
                 @endforeach
             </select>
         </div>
@@ -58,11 +67,12 @@
                 <tr>
                     <th>When</th>
                     <th>User</th>
+                    <th>Type</th>
                     <th>Action</th>
+                    <th>Record</th>
                     <th>Method</th>
                     <th>Status</th>
-                    <th>Route</th>
-                    <th>Path</th>
+                    <th>Event</th>
                     <th>IP</th>
                     <th>Details</th>
                 </tr>
@@ -72,17 +82,44 @@
                     <tr>
                         <td>{{ optional($log->occurred_at)->format('Y-m-d H:i:s') ?: '-' }}</td>
                         <td>{{ $log->user?->name ?? 'Unknown' }}</td>
+                        <td>
+                            @php($type = $log->log_type ?: 'activity')
+                            <span class="badge {{ $type === 'audit' ? 'text-bg-dark' : ($type === 'auth' ? 'text-bg-warning' : 'text-bg-light border') }}">
+                                {{ ucfirst($type) }}
+                            </span>
+                        </td>
                         <td>{{ $log->action ?: '-' }}</td>
+                        <td>
+                            @if($log->auditable_type || $log->auditable_label)
+                                <div class="small fw-semibold">{{ $log->auditable_label ?: class_basename((string) $log->auditable_type).' #'.$log->auditable_id }}</div>
+                                <div class="text-secondary small">{{ class_basename((string) $log->auditable_type) }}{{ $log->auditable_id ? ' #'.$log->auditable_id : '' }}</div>
+                            @else
+                                -
+                            @endif
+                        </td>
                         <td><span class="badge text-bg-light border">{{ $log->method ?: '-' }}</span></td>
                         <td>{{ $log->status_code ?: '-' }}</td>
-                        <td><code>{{ $log->route_name ?: '-' }}</code></td>
-                        <td><small>{{ $log->path ?: '-' }}</small></td>
+                        <td>
+                            <div><code>{{ $log->event_key ?: '-' }}</code></div>
+                            <div class="text-secondary small">{{ $log->route_name ?: $log->path ?: '-' }}</div>
+                        </td>
                         <td>{{ $log->ip_address ?: '-' }}</td>
                         <td>
-                            @if(!empty($log->metadata))
+                            @if(!empty($log->metadata) || !empty($log->old_values) || !empty($log->new_values))
                                 <details>
                                     <summary class="small">View</summary>
-                                    <pre class="small mb-0">{{ json_encode($log->metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                    @if(!empty($log->old_values))
+                                        <div class="small fw-semibold mt-2">Before</div>
+                                        <pre class="small mb-2">{{ json_encode($log->old_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                    @endif
+                                    @if(!empty($log->new_values))
+                                        <div class="small fw-semibold">After</div>
+                                        <pre class="small mb-2">{{ json_encode($log->new_values, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                    @endif
+                                    @if(!empty($log->metadata))
+                                        <div class="small fw-semibold">Metadata</div>
+                                        <pre class="small mb-0">{{ json_encode($log->metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                    @endif
                                 </details>
                             @else
                                 -
@@ -91,7 +128,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center text-secondary py-4">No activity logs found.</td>
+                        <td colspan="10" class="text-center text-secondary py-4">No audit logs found.</td>
                     </tr>
                 @endforelse
             </tbody>

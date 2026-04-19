@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AppearanceController;
 use App\Http\Controllers\AdminSidebarMenuController;
+use App\Http\Controllers\Api\OpenApiController;
+use App\Http\Controllers\ApiManagementController;
 use App\Http\Controllers\CrudBuilderController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EnvSettingsController;
@@ -25,6 +27,7 @@ Route::get('/', [WebsiteController::class, 'home'])->name('home');
 Route::get('/pages/{slug}', [WebsiteController::class, 'show'])->name('pages.show');
 Route::get('/public/pages/{slug}', [WebsiteController::class, 'show']);
 Route::get('/embed/training-events-calendar', [TrainingEventsCalendarController::class, 'embed'])->name('training-events-calendar.embed');
+Route::get('/api/openapi.json', [OpenApiController::class, 'json'])->name('api.openapi');
 
 require __DIR__.'/auth.php';
 
@@ -79,6 +82,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
     Route::put('appearance', [AppearanceController::class, 'update'])->middleware('permission:appearance.update')->name('appearance.update');
     Route::get('settings/env', [EnvSettingsController::class, 'edit'])->middleware('permission:appearance.view')->name('settings.env.edit');
     Route::put('settings/env', [EnvSettingsController::class, 'update'])->middleware('permission:appearance.update')->name('settings.env.update');
+    Route::get('api-management', [ApiManagementController::class, 'index'])->middleware('permission:api_management.view')->name('api-management.index');
+    Route::get('api-management/docs', [OpenApiController::class, 'docs'])->middleware('permission:api_management.view')->name('api-management.docs');
+    Route::put('api-management/dhis2', [ApiManagementController::class, 'updateDhis2'])->middleware('permission:api_management.update')->name('api-management.dhis2.update');
+    Route::post('api-management/dhis2/test', [ApiManagementController::class, 'testDhis2'])->middleware('permission:api_management.update')->name('api-management.dhis2.test');
+    Route::get('api-management/dhis2/preview/{trainingEvent}', [ApiManagementController::class, 'previewTrainingEventPayload'])->middleware('permission:api_management.view')->name('api-management.dhis2.preview');
+    Route::post('api-management/dhis2/sync', [ApiManagementController::class, 'syncTrainingEvent'])->middleware('permission:api_management.update')->name('api-management.dhis2.sync');
+    Route::post('api-management/tokens', [ApiManagementController::class, 'createToken'])->middleware('permission:api_management.update')->name('api-management.tokens.store');
+    Route::delete('api-management/tokens/{token}', [ApiManagementController::class, 'destroyToken'])->middleware('permission:api_management.update')->name('api-management.tokens.destroy');
 
     Route::get('users', [UserController::class, 'index'])->middleware('permission:users.view')->name('users.index');
     Route::get('users/create', [UserController::class, 'create'])->middleware('permission:users.create')->name('users.create');

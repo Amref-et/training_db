@@ -52,6 +52,9 @@ class CrudBuilderController extends Controller
         $data['table_name'] = Str::snake($data['table_name']);
 
         $crud = $service->create($data);
+        $this->audit()->logModelCreated($crud, 'Generated CRUD created', [
+            'schema' => $crud->schema,
+        ]);
 
         return redirect('admin/'.$crud->slug)
             ->with('success', 'Table and CRUD generated successfully.');
@@ -66,7 +69,11 @@ class CrudBuilderController extends Controller
         );
 
         try {
+            $beforeState = $this->audit()->snapshotModel($crud);
+            $crudId = $crud->id;
+            $crudLabel = $crud->name;
             $service->delete($crud);
+            $this->audit()->logModelDeleted(GeneratedCrud::class, $crudId, $crudLabel, $beforeState, 'Generated CRUD deleted');
         } catch (\Throwable $e) {
             report($e);
 

@@ -9,6 +9,7 @@ class PermissionRegistry
         'pages' => ['view', 'create', 'update', 'delete'],
         'menus' => ['view', 'create', 'update', 'delete'],
         'appearance' => ['view', 'update'],
+        'api_management' => ['view', 'update'],
         'users' => ['view', 'create', 'update', 'delete'],
         'roles' => ['view', 'create', 'update', 'delete'],
         'crud_builder' => ['view', 'create', 'delete'],

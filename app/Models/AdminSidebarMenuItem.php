@@ -104,6 +104,7 @@ class AdminSidebarMenuItem extends Model
             'clipboard' => 'bi-clipboard-data',
             'layers' => 'bi-collection',
             'workflow' => 'bi-diagram-3',
+            'cloud-arrow-up' => 'bi-cloud-arrow-up',
         ];
 
         if (isset($map[$icon])) {

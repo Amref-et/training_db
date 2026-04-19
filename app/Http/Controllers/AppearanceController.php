@@ -27,6 +27,8 @@ class AppearanceController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $colorRule = ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'];
+        $settings = WebsiteSetting::current();
+        $beforeState = $this->audit()->snapshotModel($settings);
 
         $validated = $request->validate([
             'site_name' => 'nullable|string|max:255',
@@ -83,7 +85,6 @@ class AppearanceController extends Controller
             'custom_js' => 'nullable|string',
         ]);
 
-        $settings = WebsiteSetting::current();
         $settings->fill(array_merge(WebsiteSetting::defaults(), $validated));
 
         if ($request->hasFile('header_logo_file')) {
@@ -106,6 +107,8 @@ class AppearanceController extends Controller
         $settings->show_admin_link = $request->boolean('show_admin_link');
         $settings->show_login_link = $request->boolean('show_login_link');
         $settings->save();
+        $settings->refresh();
+        $this->audit()->logModelUpdated($settings, $beforeState, 'Appearance settings updated');
 
         $section = trim((string) $request->input('_section'));
         $redirectRoute = match ($section) {

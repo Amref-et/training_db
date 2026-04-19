@@ -228,6 +228,11 @@ class ManagedResourceController extends Controller
 
         $model = $modelClass::create($data);
         $this->syncRelations($model, $relationPayload);
+        $model->refresh();
+        $this->audit()->logModelCreated($model, $config['singular'].' created', [
+            'resource' => $resource,
+            'relations' => $relationPayload,
+        ]);
 
         return redirect()->route('admin.'.$config['path'].'.index')->with('success', $config['singular'].' created successfully.');
     }
@@ -310,6 +315,7 @@ class ManagedResourceController extends Controller
     {
         $config = ResourceRegistry::get($resource);
         $model = $this->findRecord($config, $record);
+        $beforeState = $this->audit()->snapshotModel($model);
 
         $data = $this->preparePayload($request, $config, $model);
         $this->applyHierarchyConstraints($resource, $data);
@@ -317,6 +323,11 @@ class ManagedResourceController extends Controller
 
         $model->update($data);
         $this->syncRelations($model, $relationPayload);
+        $model->refresh();
+        $this->audit()->logModelUpdated($model, $beforeState, $config['singular'].' updated', [
+            'resource' => $resource,
+            'relations' => $relationPayload,
+        ]);
 
         return redirect()->route('admin.'.$config['path'].'.index')->with('success', $config['singular'].' updated successfully.');
     }
@@ -325,9 +336,16 @@ class ManagedResourceController extends Controller
     {
         $config = ResourceRegistry::get($resource);
         $model = $this->findRecord($config, $record);
+        $beforeState = $this->audit()->snapshotModel($model);
+        $modelKey = $model->getKey();
+        $modelClass = get_class($model);
+        $modelLabel = trim((string) ($beforeState['project_name'] ?? $beforeState['event_name'] ?? $beforeState['title'] ?? $beforeState['name'] ?? $beforeState['email'] ?? ''));
 
         $this->deleteAttachedFiles($config, $model);
         $model->delete();
+        $this->audit()->logModelDeleted($modelClass, $modelKey, $modelLabel !== '' ? $modelLabel : $config['singular'].' #'.$modelKey, $beforeState, $config['singular'].' deleted', [
+            'resource' => $resource,
+        ]);
 
         return redirect()->route('admin.'.$config['path'].'.index')->with('success', $config['singular'].' deleted successfully.');
     }
@@ -352,6 +370,13 @@ class ManagedResourceController extends Controller
     public function exportOrganizations(): StreamedResponse
     {
         $fileName = 'organizations-export-'.now()->format('Ymd-His').'.csv';
+        $this->audit()->logCustom('Organizations exported', 'organizations.export', [
+            'auditable_type' => Organization::class,
+            'metadata' => [
+                'exported_records' => Organization::query()->count(),
+                'file_name' => $fileName,
+            ],
+        ]);
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -434,6 +459,11 @@ class ManagedResourceController extends Controller
         } catch (\RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
         }
+
+        $this->audit()->logCustom('Organizations imported', 'organizations.import', [
+            'auditable_type' => Organization::class,
+            'metadata' => $result,
+        ]);
 
         $successMessage = 'Organization import completed: '.$result['created'].' created, '.$result['updated'].' updated';
         if ($result['skipped'] > 0) {
@@ -770,6 +800,13 @@ class ManagedResourceController extends Controller
     public function exportParticipants(): StreamedResponse
     {
         $fileName = 'participants-export-'.now()->format('Ymd-His').'.csv';
+        $this->audit()->logCustom('Participants exported', 'participants.export', [
+            'auditable_type' => Participant::class,
+            'metadata' => [
+                'exported_records' => Participant::query()->count(),
+                'file_name' => $fileName,
+            ],
+        ]);
 
         return response()->streamDownload(function () {
             $handle = fopen('php://output', 'w');
@@ -1068,6 +1105,16 @@ class ManagedResourceController extends Controller
         }
 
         fclose($handle);
+
+        $this->audit()->logCustom('Participants imported', 'participants.import', [
+            'auditable_type' => Participant::class,
+            'metadata' => [
+                'created' => $created,
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'errors' => $errors,
+            ],
+        ]);
 
         $successMessage = 'Participant import completed: '.$created.' created, '.$updated.' updated';
         if ($skipped > 0) {

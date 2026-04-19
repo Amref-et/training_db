@@ -36,6 +36,16 @@ class RoleController extends Controller
 
         $role = Role::create(['name' => $data['name']]);
         $role->permissions()->sync($data['permission_ids'] ?? []);
+        $role->load('permissions');
+        $this->audit()->logCustom('Role created', 'role.created', [
+            'auditable_type' => Role::class,
+            'auditable_id' => $role->id,
+            'auditable_label' => $role->name,
+            'new_values' => [
+                'name' => $role->name,
+                'permissions' => $role->permissions->pluck('slug')->all(),
+            ],
+        ]);
 
         return redirect()->route('admin.roles.index')->with('success', 'Role created successfully.');
     }
@@ -53,6 +63,11 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        $beforeValues = [
+            'name' => $role->name,
+            'permissions' => $role->permissions()->pluck('slug')->all(),
+        ];
+
         $data = $request->validate([
             'name' => 'required|string|max:255|unique:roles,name,'.$role->id,
             'permission_ids' => 'nullable|array',
@@ -61,6 +76,17 @@ class RoleController extends Controller
 
         $role->update(['name' => $data['name']]);
         $role->permissions()->sync($data['permission_ids'] ?? []);
+        $role->load('permissions');
+        $this->audit()->logCustom('Role updated', 'role.updated', [
+            'auditable_type' => Role::class,
+            'auditable_id' => $role->id,
+            'auditable_label' => $role->name,
+            'old_values' => $beforeValues,
+            'new_values' => [
+                'name' => $role->name,
+                'permissions' => $role->permissions->pluck('slug')->all(),
+            ],
+        ]);
 
         return redirect()->route('admin.roles.index')->with('success', 'Role updated successfully.');
     }
@@ -71,7 +97,19 @@ class RoleController extends Controller
             return back()->with('error', 'This role is assigned to one or more users.');
         }
 
+        $beforeValues = [
+            'name' => $role->name,
+            'permissions' => $role->permissions()->pluck('slug')->all(),
+        ];
+        $roleId = $role->id;
+        $roleName = $role->name;
         $role->delete();
+        $this->audit()->logCustom('Role deleted', 'role.deleted', [
+            'auditable_type' => Role::class,
+            'auditable_id' => $roleId,
+            'auditable_label' => $roleName,
+            'old_values' => $beforeValues,
+        ]);
 
         return redirect()->route('admin.roles.index')->with('success', 'Role deleted successfully.');
     }

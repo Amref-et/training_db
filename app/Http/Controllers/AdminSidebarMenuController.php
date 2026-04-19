@@ -48,6 +48,8 @@ class AdminSidebarMenuController extends Controller
     {
         $menu = AdminSidebarMenuItem::query()->create($this->validated($request));
         $this->syncChildrenSection($menu);
+        $menu->refresh();
+        $this->audit()->logModelCreated($menu, 'Admin sidebar item created');
 
         return redirect()->route('admin.sidebar-menus.index')->with('success', 'Sidebar menu item created successfully.');
     }
@@ -59,15 +61,22 @@ class AdminSidebarMenuController extends Controller
 
     public function update(Request $request, AdminSidebarMenuItem $sidebarMenu): RedirectResponse
     {
+        $beforeState = $this->audit()->snapshotModel($sidebarMenu);
         $sidebarMenu->update($this->validated($request, $sidebarMenu));
         $this->syncChildrenSection($sidebarMenu->fresh());
+        $sidebarMenu->refresh();
+        $this->audit()->logModelUpdated($sidebarMenu, $beforeState, 'Admin sidebar item updated');
 
         return redirect()->route('admin.sidebar-menus.index')->with('success', 'Sidebar menu item updated successfully.');
     }
 
     public function destroy(AdminSidebarMenuItem $sidebarMenu): RedirectResponse
     {
+        $beforeState = $this->audit()->snapshotModel($sidebarMenu);
+        $menuId = $sidebarMenu->id;
+        $menuLabel = $sidebarMenu->title;
         $sidebarMenu->delete();
+        $this->audit()->logModelDeleted(AdminSidebarMenuItem::class, $menuId, $menuLabel, $beforeState, 'Admin sidebar item deleted');
 
         return redirect()->route('admin.sidebar-menus.index')->with('success', 'Sidebar menu item deleted successfully.');
     }
@@ -76,6 +85,9 @@ class AdminSidebarMenuController extends Controller
     {
         $replace = $request->boolean('replace_existing');
         AdminSidebarMenuDefaults::seedSuggested($replace);
+        $this->audit()->logCustom('Suggested admin sidebar seeded', 'sidebar.seeded', [
+            'metadata' => ['replace_existing' => $replace],
+        ]);
 
         return redirect()->route('admin.sidebar-menus.index')->with('success', 'Suggested sidebar structure loaded successfully.');
     }
@@ -92,11 +104,12 @@ class AdminSidebarMenuController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
-        AdminSidebarMenuSection::query()->create([
+        $section = AdminSidebarMenuSection::query()->create([
             'name' => trim((string) $data['name']),
             'sort_order' => (int) ($data['sort_order'] ?? 0),
             'is_active' => $request->boolean('is_active', true),
         ]);
+        $this->audit()->logModelCreated($section, 'Admin sidebar section created');
 
         return redirect()->route('admin.sidebar-menus.index')->with('success', 'Sidebar section created successfully.');
     }
@@ -106,6 +119,8 @@ class AdminSidebarMenuController extends Controller
         if (! Schema::hasTable('admin_sidebar_menu_sections')) {
             return redirect()->route('admin.sidebar-menus.index')->with('error', 'Sidebar sections table is not ready yet.');
         }
+
+        $beforeState = $this->audit()->snapshotModel($section);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100', Rule::unique('admin_sidebar_menu_sections', 'name')->ignore($section->id)],
@@ -126,6 +141,8 @@ class AdminSidebarMenuController extends Controller
                 'section_sort_order' => $section->sort_order,
                 'updated_at' => now(),
             ]);
+        $section->refresh();
+        $this->audit()->logModelUpdated($section, $beforeState, 'Admin sidebar section updated');
 
         return redirect()->route('admin.sidebar-menus.index')->with('success', 'Sidebar section updated successfully.');
     }
@@ -137,6 +154,8 @@ class AdminSidebarMenuController extends Controller
         }
 
         $deletedSectionName = trim((string) $section->name);
+        $beforeState = $this->audit()->snapshotModel($section);
+        $sectionId = $section->id;
         $section->delete();
 
         $fallbackSection = $this->defaultSection();
@@ -156,6 +175,9 @@ class AdminSidebarMenuController extends Controller
                 'section_sort_order' => (int) $fallbackSection->sort_order,
                 'updated_at' => now(),
             ]);
+        $this->audit()->logModelDeleted(AdminSidebarMenuSection::class, $sectionId, $deletedSectionName, $beforeState, 'Admin sidebar section deleted', [
+            'fallback_section' => $fallbackSection->name,
+        ]);
 
         return redirect()
             ->route('admin.sidebar-menus.index')

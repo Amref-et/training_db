@@ -30,7 +30,8 @@ class MenuController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        WebsiteMenuItem::create($this->validated($request));
+        $menu = WebsiteMenuItem::create($this->validated($request));
+        $this->audit()->logModelCreated($menu, 'Website menu item created');
 
         return redirect()->route('admin.menus.index')->with('success', 'Menu item created successfully.');
     }
@@ -42,14 +43,21 @@ class MenuController extends Controller
 
     public function update(Request $request, WebsiteMenuItem $menu): RedirectResponse
     {
+        $beforeState = $this->audit()->snapshotModel($menu);
         $menu->update($this->validated($request, $menu));
+        $menu->refresh();
+        $this->audit()->logModelUpdated($menu, $beforeState, 'Website menu item updated');
 
         return redirect()->route('admin.menus.index')->with('success', 'Menu item updated successfully.');
     }
 
     public function destroy(WebsiteMenuItem $menu): RedirectResponse
     {
+        $beforeState = $this->audit()->snapshotModel($menu);
+        $menuId = $menu->id;
+        $menuLabel = $menu->title;
         $menu->delete();
+        $this->audit()->logModelDeleted(WebsiteMenuItem::class, $menuId, $menuLabel, $beforeState, 'Website menu item deleted');
 
         return redirect()->route('admin.menus.index')->with('success', 'Menu item deleted successfully.');
     }

@@ -192,6 +192,7 @@ class TrainingWorkflowController extends Controller
         ]);
 
         $event = TrainingEvent::query()->create($data);
+        $this->audit()->logModelCreated($event, 'Training workflow event created');
 
         return redirect()
             ->route('admin.training-workflow.index', ['event_id' => $event->id, 'step' => 2])
@@ -242,6 +243,16 @@ class TrainingWorkflowController extends Controller
             ]);
         }
 
+        $this->audit()->logCustom('Participants enrolled into training event', 'training_workflow.enrollment.created', [
+            'auditable_type' => TrainingEvent::class,
+            'auditable_id' => $trainingEvent->id,
+            'auditable_label' => $trainingEvent->event_name,
+            'metadata' => [
+                'participant_ids' => $newParticipantIds,
+                'already_enrolled_ids' => $alreadyEnrolledIds,
+            ],
+        ]);
+
         $message = count($newParticipantIds).' participant(s) enrolled successfully.';
 
         if (! empty($alreadyEnrolledIds)) {
@@ -257,7 +268,23 @@ class TrainingWorkflowController extends Controller
     {
         abort_unless($enrollment->training_event_id === $trainingEvent->id, 404);
 
+        $beforeValues = [
+            'training_event_id' => $enrollment->training_event_id,
+            'participant_id' => $enrollment->participant_id,
+            'final_score' => $enrollment->final_score,
+        ];
+        $enrollmentId = $enrollment->id;
         $enrollment->delete();
+        $this->audit()->logCustom('Participant removed from training event', 'training_workflow.enrollment.deleted', [
+            'auditable_type' => TrainingEventParticipant::class,
+            'auditable_id' => $enrollmentId,
+            'auditable_label' => 'Enrollment #'.$enrollmentId,
+            'old_values' => $beforeValues,
+            'metadata' => [
+                'training_event_id' => $trainingEvent->id,
+                'training_event_name' => $trainingEvent->event_name,
+            ],
+        ]);
 
         return redirect()
             ->route('admin.training-workflow.index', ['event_id' => $trainingEvent->id, 'step' => 2])
@@ -266,6 +293,7 @@ class TrainingWorkflowController extends Controller
 
     public function storeWorkshopCount(Request $request, TrainingEvent $trainingEvent): RedirectResponse
     {
+        $beforeState = $this->audit()->snapshotModel($trainingEvent, ['workshop_count']);
         $data = $request->validate([
             'workshop_count' => 'required|integer|min:1|max:20',
         ]);
@@ -277,6 +305,8 @@ class TrainingWorkflowController extends Controller
         ]);
 
         $this->syncWorkshopStructure($trainingEvent, $workshopCount);
+        $trainingEvent->refresh();
+        $this->audit()->logModelUpdated($trainingEvent, $beforeState, 'Training event workshop count updated');
 
         return redirect()
             ->route('admin.training-workflow.index', [
@@ -345,6 +375,16 @@ class TrainingWorkflowController extends Controller
             }
         }
 
+        $this->audit()->logCustom('Workshop scores saved', 'training_workflow.workshop_scores.saved', [
+            'auditable_type' => TrainingEvent::class,
+            'auditable_id' => $trainingEvent->id,
+            'auditable_label' => $trainingEvent->event_name,
+            'metadata' => [
+                'workshop_number' => $workshopNumber,
+                'enrollment_ids' => $enrollmentIds->all(),
+            ],
+        ]);
+
         return redirect()
             ->route('admin.training-workflow.index', [
                 'event_id' => $trainingEvent->id,
@@ -376,6 +416,15 @@ class TrainingWorkflowController extends Controller
         $eventLabel = preg_replace('/[^A-Za-z0-9\-_]+/', '-', (string) ($trainingEvent->event_name ?: 'event-'.$trainingEvent->id));
         $eventLabel = trim((string) $eventLabel, '-') ?: 'event-'.$trainingEvent->id;
         $filename = 'workshop-'.$workshopNumber.'-scores-'.$eventLabel.'.csv';
+        $this->audit()->logCustom('Workshop scores exported', 'training_workflow.workshop_scores.exported', [
+            'auditable_type' => TrainingEvent::class,
+            'auditable_id' => $trainingEvent->id,
+            'auditable_label' => $trainingEvent->event_name,
+            'metadata' => [
+                'workshop_number' => $workshopNumber,
+                'file_name' => $filename,
+            ],
+        ]);
 
         return response()->streamDownload(function () use ($enrollments, $trainingEvent, $workshopNumber): void {
             $handle = fopen('php://output', 'w');
@@ -570,6 +619,18 @@ class TrainingWorkflowController extends Controller
         }
         $message .= '.';
 
+        $this->audit()->logCustom('Workshop scores imported', 'training_workflow.workshop_scores.imported', [
+            'auditable_type' => TrainingEvent::class,
+            'auditable_id' => $trainingEvent->id,
+            'auditable_label' => $trainingEvent->event_name,
+            'metadata' => [
+                'workshop_number' => $workshopNumber,
+                'updated' => $updated,
+                'deleted' => $deleted,
+                'skipped' => $skipped,
+            ],
+        ]);
+
         return redirect()
             ->route('admin.training-workflow.index', [
                 'event_id' => $trainingEvent->id,
@@ -604,6 +665,16 @@ class TrainingWorkflowController extends Controller
         $eventLabel = preg_replace('/[^A-Za-z0-9\-_]+/', '-', (string) ($event->event_name ?: 'event-'.$event->id));
         $eventLabel = trim((string) $eventLabel, '-') ?: 'event-'.$event->id;
         $filename = 'training-report-'.$eventLabel.'.csv';
+        $this->audit()->logCustom('Training event report exported', 'training_workflow.report.exported', [
+            'auditable_type' => TrainingEvent::class,
+            'auditable_id' => $event->id,
+            'auditable_label' => $event->event_name,
+            'metadata' => [
+                'file_name' => $filename,
+                'workshop_count' => $workshopCount,
+                'participants' => $enrollments->count(),
+            ],
+        ]);
 
         return response()->streamDownload(function () use ($event, $enrollments, $workshopCount): void {
             $handle = fopen('php://output', 'w');

@@ -29,6 +29,7 @@ class PageController extends Controller
     {
         $data = $this->validated($request);
         $page = ContentPage::create($data);
+        $this->audit()->logModelCreated($page, 'Page created');
 
         $this->ensureSingleHomepage($page);
 
@@ -42,15 +43,22 @@ class PageController extends Controller
 
     public function update(Request $request, ContentPage $page): RedirectResponse
     {
+        $beforeState = $this->audit()->snapshotModel($page);
         $page->update($this->validated($request, $page));
         $this->ensureSingleHomepage($page);
+        $page->refresh();
+        $this->audit()->logModelUpdated($page, $beforeState, 'Page updated');
 
         return redirect()->route('admin.pages.index')->with('success', 'Page updated successfully.');
     }
 
     public function destroy(ContentPage $page): RedirectResponse
     {
+        $beforeState = $this->audit()->snapshotModel($page);
+        $pageId = $page->id;
+        $pageLabel = $page->title;
         $page->delete();
+        $this->audit()->logModelDeleted(ContentPage::class, $pageId, $pageLabel, $beforeState, 'Page deleted');
 
         return redirect()->route('admin.pages.index')->with('success', 'Page deleted successfully.');
     }

@@ -84,6 +84,8 @@ class DashboardController extends Controller
             throw ValidationException::withMessages(['name' => $e->getMessage()]);
         }
 
+        $this->audit()->logModelCreated($tab, 'Dashboard tab created');
+
         return redirect()
             ->route('admin.dashboard', $this->dashboardQueryParams($request, $tab->id))
             ->with('success', 'Dashboard tab created.');
@@ -92,6 +94,7 @@ class DashboardController extends Controller
     public function updateTab(Request $request, DashboardTab $tab): RedirectResponse
     {
         $this->authorizeTab($request, $tab);
+        $beforeState = $this->audit()->snapshotModel($tab);
 
         $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -111,6 +114,9 @@ class DashboardController extends Controller
             throw ValidationException::withMessages(['name' => $e->getMessage()]);
         }
 
+        $tab->refresh();
+        $this->audit()->logModelUpdated($tab, $beforeState, 'Dashboard tab updated');
+
         return redirect()
             ->route('admin.dashboard', $this->dashboardQueryParams($request, $tab->id))
             ->with('success', 'Dashboard tab updated.');
@@ -119,7 +125,11 @@ class DashboardController extends Controller
     public function destroyTab(Request $request, DashboardTab $tab): RedirectResponse
     {
         $this->authorizeTab($request, $tab);
+        $beforeState = $this->audit()->snapshotModel($tab);
+        $tabId = $tab->id;
+        $tabName = $tab->name;
         $this->layoutService->deleteTab($tab);
+        $this->audit()->logModelDeleted(DashboardTab::class, $tabId, $tabName, $beforeState, 'Dashboard tab deleted');
 
         return redirect()
             ->route('admin.dashboard', $this->dashboardQueryParams($request))
@@ -132,10 +142,12 @@ class DashboardController extends Controller
         $this->validateWidgetRequest($request);
 
         try {
-            $this->layoutService->createWidget($tab, $request->all());
+            $widget = $this->layoutService->createWidget($tab, $request->all());
         } catch (Throwable $e) {
             throw ValidationException::withMessages(['sql_query' => $e->getMessage()]);
         }
+
+        $this->audit()->logModelCreated($widget, 'Dashboard widget created');
 
         return redirect()
             ->route('admin.dashboard', $this->dashboardQueryParams($request, $tab->id))
@@ -146,12 +158,16 @@ class DashboardController extends Controller
     {
         $this->authorizeWidget($request, $widget);
         $this->validateWidgetRequest($request);
+        $beforeState = $this->audit()->snapshotModel($widget);
 
         try {
             $this->layoutService->updateWidget($widget, $request->all());
         } catch (Throwable $e) {
             throw ValidationException::withMessages(['sql_query' => $e->getMessage()]);
         }
+
+        $widget->refresh();
+        $this->audit()->logModelUpdated($widget, $beforeState, 'Dashboard widget updated');
 
         return redirect()
             ->route('admin.dashboard', $this->dashboardQueryParams($request, $widget->dashboard_tab_id))
@@ -162,7 +178,11 @@ class DashboardController extends Controller
     {
         $this->authorizeWidget($request, $widget);
         $tabId = $widget->dashboard_tab_id;
+        $beforeState = $this->audit()->snapshotModel($widget);
+        $widgetId = $widget->id;
+        $widgetTitle = $widget->title;
         $widget->delete();
+        $this->audit()->logModelDeleted(DashboardWidget::class, $widgetId, $widgetTitle, $beforeState, 'Dashboard widget deleted');
 
         return redirect()
             ->route('admin.dashboard', $this->dashboardQueryParams($request, $tabId))
@@ -231,6 +251,10 @@ class DashboardController extends Controller
         } catch (Throwable $e) {
             throw ValidationException::withMessages(['layout_file' => $e->getMessage()]);
         }
+
+        $this->audit()->logCustom('Dashboard layout imported', 'dashboard.layout.imported', [
+            'metadata' => ['tab_count' => $count],
+        ]);
 
         return redirect()
             ->route('admin.dashboard', $this->dashboardQueryParams($request))

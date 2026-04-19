@@ -105,6 +105,17 @@ class AdminSidebarMenuDefaults
                 ],
             ],
             [
+                'title' => 'API Management',
+                'icon' => 'cloud-arrow-up',
+                'section_title' => 'Core',
+                'section_sort_order' => 10,
+                'required_permission' => 'api_management.view',
+                'children' => [
+                    ['title' => 'API Dashboard', 'route_name' => 'admin.api-management.index'],
+                    ['title' => 'DHIS2 Integration', 'route_name' => 'admin.api-management.index', 'required_permission' => 'api_management.update'],
+                ],
+            ],
+            [
                 'title' => 'Users',
                 'icon' => 'users',
                 'section_title' => 'Core',

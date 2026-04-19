@@ -25,6 +25,7 @@ class EnvSettingsController extends Controller
     {
         $groups = $this->groups();
         $rules = [];
+        $oldValues = $this->readEnvValues();
 
         foreach ($groups as $fields) {
             foreach ($fields as $field) {
@@ -50,6 +51,16 @@ class EnvSettingsController extends Controller
 
         // Reload config values that depend on .env for subsequent requests.
         Artisan::call('config:clear');
+
+        $changedKeys = collect(array_keys($newValues))
+            ->filter(fn (string $key) => ($oldValues[$key] ?? null) !== ($newValues[$key] ?? null))
+            ->values()
+            ->all();
+
+        $this->audit()->logCustom('.env settings updated', 'env.updated', [
+            'old_values' => collect($changedKeys)->mapWithKeys(fn (string $key) => [$key => $oldValues[$key] ?? null])->all(),
+            'new_values' => collect($changedKeys)->mapWithKeys(fn (string $key) => [$key => $newValues[$key] ?? null])->all(),
+        ]);
 
         return redirect()->route('admin.settings.env.edit')->with('success', '.env settings updated successfully.');
     }
@@ -183,4 +194,3 @@ class EnvSettingsController extends Controller
         return '"'.addcslashes($value, "\\\"").'"';
     }
 }
-
