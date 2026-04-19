@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /test/hil-v2/
+
+    RewriteCond %{REQUEST_URI} ^/test/hil-v2/public/ [NC]
+    RewriteRule ^ - [L]
+
+    RewriteCond %{DOCUMENT_ROOT}/test/hil-v2/public/$1 -f [OR]
+    RewriteCond %{DOCUMENT_ROOT}/test/hil-v2/public/$1 -d
+    RewriteRule ^(.*)$ public/$1 [L]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>

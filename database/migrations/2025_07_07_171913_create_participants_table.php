@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration; use Illuminate\Database\Schema\Blueprint; use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { if (Schema::hasTable('participants')) return; Schema::create('participants', function (Blueprint $table) { $table->id(); $table->foreignId('region_id')->constrained('regions'); $table->foreignId('woreda_id')->constrained('woredas'); $table->foreignId('organization_id')->constrained('organizations'); $table->string('name'); $table->enum('gender', ['male','female']); $table->string('mobile_phone'); $table->string('email')->unique(); $table->string('profession'); $table->timestamps(); }); } public function down(): void { Schema::dropIfExists('participants'); } };
