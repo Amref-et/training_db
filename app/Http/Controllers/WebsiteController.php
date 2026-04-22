@@ -10,6 +10,8 @@ use App\Models\WebsiteSetting;
 use App\Services\DashboardLayoutService;
 use App\Services\DashboardMetricsService;
 use App\Support\PageSectionRegistry;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Throwable;
@@ -40,6 +42,17 @@ class WebsiteController extends Controller
         return $this->pageView($page);
     }
 
+    public function organizationOptions(Request $request): JsonResponse
+    {
+        return response()->json([
+            'options' => $this->metrics->organizationFilterOptions(
+                $request->string('q')->toString(),
+                $request->input('selected_id'),
+                $request->input('region_id')
+            ),
+        ]);
+    }
+
     private function pageView(?ContentPage $page): View
     {
         $sections = PageSectionRegistry::forDisplay($page?->sections ?? [], $page?->blocks ?? []);
@@ -61,6 +74,9 @@ class WebsiteController extends Controller
                 $filters
             ) : null,
             'publicDashboard' => $publicDashboard,
+            'selectedDashboardOrganizationFilter' => $hasDashboardBlock
+                ? $this->metrics->selectedOrganizationFilterOption($filters['organization_id'] ?? null)
+                : null,
             'navigationPages' => $navigationPages,
             'navigationMenu' => $navigationMenu,
             'websiteSettings' => $websiteSettings,

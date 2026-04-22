@@ -64,12 +64,25 @@
                         @foreach($visibleDashboardFilters as $filterDefinition)
                             <div class="col-md-6 col-xl-3">
                                 <label class="form-label">{{ $filterDefinition['label'] }}</label>
-                                <select name="{{ $filterDefinition['key'] }}" class="form-select">
-                                    <option value="">{{ $filterDefinition['all_label'] }}</option>
-                                    @foreach($filterDefinition['options'] as $option)
-                                        <option value="{{ $option['value'] }}" @selected(($publicDashboardFilters[$filterDefinition['key']] ?? '') === $option['value'])>{{ $option['label'] }}</option>
-                                    @endforeach
-                                </select>
+                                @if(!empty($filterDefinition['async']) && ($filterDefinition['key'] ?? '') === 'organization_id')
+                                    <select
+                                        name="{{ $filterDefinition['key'] }}"
+                                        class="form-select js-public-dashboard-organization-filter"
+                                        data-remote-url="{{ route('dashboard.organization-options') }}"
+                                    >
+                                        <option value="">{{ $filterDefinition['all_label'] }}</option>
+                                        @if(($publicDashboardFilters[$filterDefinition['key']] ?? '') !== '' && !empty($selectedDashboardOrganizationFilter))
+                                            <option value="{{ $selectedDashboardOrganizationFilter['value'] }}" selected>{{ $selectedDashboardOrganizationFilter['label'] }}</option>
+                                        @endif
+                                    </select>
+                                @else
+                                    <select name="{{ $filterDefinition['key'] }}" class="form-select">
+                                        <option value="">{{ $filterDefinition['all_label'] }}</option>
+                                        @foreach($filterDefinition['options'] as $option)
+                                            <option value="{{ $option['value'] }}" @selected(($publicDashboardFilters[$filterDefinition['key']] ?? '') === $option['value'])>{{ $option['label'] }}</option>
+                                        @endforeach
+                                    </select>
+                                @endif
                             </div>
                         @endforeach
                         <div class="col-md-6 col-xl-3">

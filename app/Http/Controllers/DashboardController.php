@@ -62,6 +62,7 @@ class DashboardController extends Controller
             'widgetPayloads' => $widgetPayloads,
             'filters' => $filters,
             'filterDefinitions' => $filterDefinitions,
+            'selectedOrganizationFilter' => $this->metrics->selectedOrganizationFilterOption($filters['organization_id'] ?? null),
             'isEditing' => $isEditing,
             'chartTypes' => DashboardWidget::CHART_TYPES,
             'sizePresets' => DashboardWidget::SIZE_PRESETS,
@@ -235,6 +236,17 @@ class DashboardController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    public function organizationOptions(Request $request): JsonResponse
+    {
+        return response()->json([
+            'options' => $this->metrics->organizationFilterOptions(
+                $request->string('q')->toString(),
+                $request->input('selected_id'),
+                $request->input('region_id')
+            ),
+        ]);
     }
 
     public function exportLayout(Request $request)

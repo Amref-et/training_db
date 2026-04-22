@@ -13,11 +13,16 @@ use App\Models\TrainingEventParticipant;
 use App\Models\TrainingEventWorkshopScore;
 use App\Models\TrainingOrganizer;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class DashboardMetricsService
 {
+    private const FILTER_DEFINITIONS_CACHE_KEY = 'dashboard_metrics.filter_definitions.v2';
+
+    private const FILTER_DEFINITIONS_CACHE_TTL_SECONDS = 600;
+
     public function summary(array $filters = []): array
     {
         $filterDefinitions = $this->filterDefinitions();
@@ -137,100 +142,11 @@ class DashboardMetricsService
 
     public function filterDefinitions(): array
     {
-        return array_values(array_filter([
-            $this->selectDefinition(
-                'training_organizer_id',
-                'Project',
-                'All projects',
-                TrainingOrganizer::query()->orderBy('project_name')->orderBy('title')->get()
-                    ->map(fn (TrainingOrganizer $organizer) => [
-                        'value' => (string) $organizer->id,
-                        'label' => $organizer->project_name ?: $organizer->title,
-                    ])
-                    ->all()
-            ),
-            $this->selectDefinition(
-                'organized_by',
-                'Organized By',
-                'All organizers',
-                $this->organizedByOptions()
-            ),
-            $this->selectDefinition(
-                'gender',
-                'Gender',
-                'All genders',
-                Participant::query()->distinct()->orderBy('gender')->pluck('gender')
-                    ->filter()
-                    ->map(fn ($gender) => [
-                        'value' => (string) $gender,
-                        'label' => Str::headline((string) $gender),
-                    ])
-                    ->values()
-                    ->all()
-            ),
-            $this->selectDefinition(
-                'region_id',
-                'Region',
-                'All regions',
-                Region::query()->orderBy('name')->get()
-                    ->map(fn (Region $region) => [
-                        'value' => (string) $region->id,
-                        'label' => $region->name,
-                    ])
-                    ->all()
-            ),
-            $this->selectDefinition(
-                'organization_id',
-                'Organization',
-                'All organizations',
-                Organization::query()->orderBy('name')->get()
-                    ->map(fn (Organization $organization) => [
-                        'value' => (string) $organization->id,
-                        'label' => $organization->name,
-                    ])
-                    ->all()
-            ),
-            $this->selectDefinition(
-                'profession',
-                'Profession',
-                'All professions',
-                Profession::query()
-                    ->where('is_active', true)
-                    ->orderBy('sort_order')
-                    ->orderBy('name')
-                    ->pluck('name')
-                    ->map(fn ($professionName) => [
-                        'value' => (string) $professionName,
-                        'label' => (string) $professionName,
-                    ])
-                    ->values()
-                    ->all()
-            ),
-            $this->selectDefinition(
-                'training_id',
-                'Training',
-                'All trainings',
-                Training::query()->orderBy('title')->get()
-                    ->map(fn (Training $training) => [
-                        'value' => (string) $training->id,
-                        'label' => $training->title,
-                    ])
-                    ->all()
-            ),
-            $this->selectDefinition(
-                'status',
-                'Training Status',
-                'All statuses',
-                TrainingEvent::query()->distinct()->orderBy('status')->pluck('status')
-                    ->filter()
-                    ->map(fn ($status) => [
-                        'value' => (string) $status,
-                        'label' => Str::headline((string) $status),
-                    ])
-                    ->values()
-                    ->all()
-            ),
-        ]));
+        return Cache::remember(
+            self::FILTER_DEFINITIONS_CACHE_KEY,
+            self::FILTER_DEFINITIONS_CACHE_TTL_SECONDS,
+            fn () => $this->buildFilterDefinitions()
+        );
     }
 
     public function resolveFilters(array $filters, ?array $definitions = null): array
@@ -242,6 +158,47 @@ class DashboardMetricsService
                 $definition['key'] => trim((string) Arr::get($filters, $definition['key'], '')),
             ])
             ->all();
+    }
+
+    public function organizationFilterOptions(string $query = '', mixed $selectedId = null, mixed $regionId = null): array
+    {
+        $query = trim($query);
+        $selectedId = $this->nullableInt($selectedId);
+        $regionId = $this->nullableInt($regionId);
+
+        $options = $this->organizationFilterQuery($query, $regionId)
+            ->limit($query !== '' || $regionId !== null ? 50 : 20)
+            ->get();
+
+        if ($selectedId !== null && ! $options->contains('id', $selectedId)) {
+            $selected = Organization::query()
+                ->select(['id', 'name', 'region_id'])
+                ->find($selectedId);
+
+            if ($selected) {
+                $options->prepend($selected);
+            }
+        }
+
+        return $options
+            ->unique('id')
+            ->values()
+            ->map(fn (Organization $organization) => $this->formatOrganizationOption($organization))
+            ->all();
+    }
+
+    public function selectedOrganizationFilterOption(mixed $selectedId): ?array
+    {
+        $selectedId = $this->nullableInt($selectedId);
+        if ($selectedId === null) {
+            return null;
+        }
+
+        $organization = Organization::query()
+            ->select(['id', 'name', 'region_id'])
+            ->find($selectedId);
+
+        return $organization ? $this->formatOrganizationOption($organization) : null;
     }
 
     private function participantsQuery(array $filters): Builder
@@ -380,6 +337,98 @@ class DashboardMetricsService
             ->all();
     }
 
+    private function buildFilterDefinitions(): array
+    {
+        return array_values(array_filter([
+            $this->selectDefinition(
+                'training_organizer_id',
+                'Project',
+                'All projects',
+                TrainingOrganizer::query()->orderBy('project_name')->orderBy('title')->get()
+                    ->map(fn (TrainingOrganizer $organizer) => [
+                        'value' => (string) $organizer->id,
+                        'label' => $organizer->project_name ?: $organizer->title,
+                    ])
+                    ->all()
+            ),
+            $this->selectDefinition(
+                'organized_by',
+                'Organized By',
+                'All organizers',
+                $this->organizedByOptions()
+            ),
+            $this->selectDefinition(
+                'gender',
+                'Gender',
+                'All genders',
+                Participant::query()->distinct()->orderBy('gender')->pluck('gender')
+                    ->filter()
+                    ->map(fn ($gender) => [
+                        'value' => (string) $gender,
+                        'label' => Str::headline((string) $gender),
+                    ])
+                    ->values()
+                    ->all()
+            ),
+            $this->selectDefinition(
+                'region_id',
+                'Region',
+                'All regions',
+                Region::query()->orderBy('name')->get()
+                    ->map(fn (Region $region) => [
+                        'value' => (string) $region->id,
+                        'label' => $region->name,
+                    ])
+                    ->all()
+            ),
+            $this->asyncSelectDefinition(
+                'organization_id',
+                'Organization',
+                'All organizations'
+            ),
+            $this->selectDefinition(
+                'profession',
+                'Profession',
+                'All professions',
+                Profession::query()
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->pluck('name')
+                    ->map(fn ($professionName) => [
+                        'value' => (string) $professionName,
+                        'label' => (string) $professionName,
+                    ])
+                    ->values()
+                    ->all()
+            ),
+            $this->selectDefinition(
+                'training_id',
+                'Training',
+                'All trainings',
+                Training::query()->orderBy('title')->get()
+                    ->map(fn (Training $training) => [
+                        'value' => (string) $training->id,
+                        'label' => $training->title,
+                    ])
+                    ->all()
+            ),
+            $this->selectDefinition(
+                'status',
+                'Training Status',
+                'All statuses',
+                TrainingEvent::query()->distinct()->orderBy('status')->pluck('status')
+                    ->filter()
+                    ->map(fn ($status) => [
+                        'value' => (string) $status,
+                        'label' => Str::headline((string) $status),
+                    ])
+                    ->values()
+                    ->all()
+            ),
+        ]));
+    }
+
     private function applyOrganizedByFilter(Builder $query, string $value): void
     {
         $value = trim($value);
@@ -419,5 +468,50 @@ class DashboardMetricsService
                 'all_label' => $allLabel,
                 'options' => $options,
             ];
+    }
+
+    private function asyncSelectDefinition(string $key, string $label, string $allLabel): array
+    {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'type' => 'select',
+            'all_label' => $allLabel,
+            'options' => [],
+            'async' => true,
+        ];
+    }
+
+    private function organizationFilterQuery(string $query, ?int $regionId = null): Builder
+    {
+        return Organization::query()
+            ->select(['id', 'name', 'region_id'])
+            ->when($regionId !== null, fn (Builder $builder) => $builder->where('region_id', $regionId))
+            ->when($query !== '', fn (Builder $builder) => $builder->where('name', 'like', '%'.$query.'%'))
+            ->orderBy('name');
+    }
+
+    private function formatOrganizationOption(Organization $organization): array
+    {
+        return [
+            'value' => (string) $organization->id,
+            'label' => (string) $organization->name,
+            'region_id' => $organization->region_id !== null ? (string) $organization->region_id : '',
+        ];
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        if ($value === '' || ! ctype_digit($value)) {
+            return null;
+        }
+
+        return (int) $value;
     }
 }

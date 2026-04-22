@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [WebsiteController::class, 'home'])->name('home');
 Route::get('/pages/{slug}', [WebsiteController::class, 'show'])->name('pages.show');
 Route::get('/public/pages/{slug}', [WebsiteController::class, 'show']);
+Route::get('/dashboard/organization-options', [WebsiteController::class, 'organizationOptions'])->name('dashboard.organization-options');
+Route::get('/public/dashboard/organization-options', [WebsiteController::class, 'organizationOptions']);
 Route::get('/participant-registration', [PublicParticipantRegistrationController::class, 'create'])->name('participant-registration.create');
 Route::post('/participant-registration', [PublicParticipantRegistrationController::class, 'store'])->name('participant-registration.store');
 Route::get('/participant-registration/organization-options', [PublicParticipantRegistrationController::class, 'organizationOptions'])->name('participant-registration.organization-options');
@@ -54,6 +56,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
     Route::delete('dashboard/widgets/{widget}', [DashboardController::class, 'destroyWidget'])->middleware('permission:dashboard.view')->name('dashboard.widgets.destroy');
     Route::post('dashboard/tabs/{tab}/widgets/reorder', [DashboardController::class, 'reorderWidgets'])->middleware('permission:dashboard.view')->name('dashboard.widgets.reorder');
     Route::get('dashboard/widgets/{widget}/data', [DashboardController::class, 'widgetData'])->middleware('permission:dashboard.view')->name('dashboard.widgets.data');
+    Route::get('dashboard/organization-options', [DashboardController::class, 'organizationOptions'])->middleware('permission:dashboard.view')->name('dashboard.organization-options');
     Route::get('dashboard/layout/export', [DashboardController::class, 'exportLayout'])->middleware('permission:dashboard.view')->name('dashboard.layout.export');
     Route::post('dashboard/layout/import', [DashboardController::class, 'importLayout'])->middleware('permission:dashboard.view')->name('dashboard.layout.import');
 

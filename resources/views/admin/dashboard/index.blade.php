@@ -6,6 +6,7 @@
 @section('uses_charts', '1')
 
 @section('head')
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <style>
     .dashboard-toolbar { display: flex; gap: .5rem; flex-wrap: wrap; }
     .dashboard-tabs { border-bottom: 1px solid rgba(15, 23, 42, .08); padding-bottom: .75rem; margin-bottom: 1rem; }
@@ -26,6 +27,8 @@
     .widget-drag-handle { cursor: move; }
     .widget-meta { font-size: .78rem; color: #64748b; }
     .widget-empty { min-height: 140px; display: flex; align-items: center; justify-content: center; color: #64748b; border: 1px dashed rgba(15, 23, 42, .18); border-radius: var(--radius-sm); }
+    .dashboard-filter-form .ts-wrapper.single .ts-control { min-height: calc(2.25rem + 2px); border-radius: .375rem; }
+    .dashboard-filter-form .ts-dropdown .option { white-space: normal; }
 </style>
 @endsection
 
@@ -109,7 +112,7 @@
             </button>
         </div>
         <div class="collapse" id="dashboardFilterCollapse">
-            <form method="GET" action="{{ route('admin.dashboard') }}" class="row g-3 align-items-end mb-4">
+            <form method="GET" action="{{ route('admin.dashboard') }}" class="row g-3 align-items-end mb-4 dashboard-filter-form">
                 @if($activeTab)
                     <input type="hidden" name="tab_id" value="{{ $activeTab->id }}">
                 @endif
@@ -119,12 +122,25 @@
                 @foreach($filterDefinitions as $definition)
                     <div class="col-md-4 col-xl-3">
                         <label class="form-label">{{ $definition['label'] }}</label>
-                        <select name="{{ $definition['key'] }}" class="form-select">
-                            <option value="">{{ $definition['all_label'] }}</option>
-                            @foreach($definition['options'] as $option)
-                                <option value="{{ $option['value'] }}" @selected(($filters[$definition['key']] ?? '') === $option['value'])>{{ $option['label'] }}</option>
-                            @endforeach
-                        </select>
+                        @if(!empty($definition['async']) && ($definition['key'] ?? '') === 'organization_id')
+                            <select
+                                name="{{ $definition['key'] }}"
+                                class="form-select js-dashboard-async-select"
+                                data-remote-url="{{ route('admin.dashboard.organization-options') }}"
+                            >
+                                <option value="">{{ $definition['all_label'] }}</option>
+                                @if(($filters[$definition['key']] ?? '') !== '' && !empty($selectedOrganizationFilter))
+                                    <option value="{{ $selectedOrganizationFilter['value'] }}" selected>{{ $selectedOrganizationFilter['label'] }}</option>
+                                @endif
+                            </select>
+                        @else
+                            <select name="{{ $definition['key'] }}" class="form-select">
+                                <option value="">{{ $definition['all_label'] }}</option>
+                                @foreach($definition['options'] as $option)
+                                    <option value="{{ $option['value'] }}" @selected(($filters[$definition['key']] ?? '') === $option['value'])>{{ $option['label'] }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </div>
                 @endforeach
                 <div class="col-md-4 col-xl-3 d-grid gap-2">
@@ -531,7 +547,90 @@
 @endsection
 
 @section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 <script>
+function initializeDashboardAsyncFilters() {
+    document.querySelectorAll('.js-dashboard-async-select').forEach((select) => {
+        if (!(select instanceof HTMLSelectElement) || select.tomselect) {
+            return;
+        }
+
+        const form = select.form;
+        const regionSelect = form?.querySelector('select[name="region_id"]');
+        const buildUrl = (query = '') => {
+            const url = new URL(select.dataset.remoteUrl, window.location.origin);
+
+            if (query) {
+                url.searchParams.set('q', query);
+            }
+
+            if (select.value) {
+                url.searchParams.set('selected_id', select.value);
+            }
+
+            if (regionSelect?.value) {
+                url.searchParams.set('region_id', regionSelect.value);
+            }
+
+            return url.toString();
+        };
+
+        const instance = new TomSelect(select, {
+            create: false,
+            allowEmptyOption: false,
+            maxOptions: 50,
+            hidePlaceholder: true,
+            placeholder: select.options[0]?.textContent?.trim() || 'Search organizations',
+            valueField: 'value',
+            labelField: 'label',
+            searchField: ['label'],
+            options: Array.from(select.options)
+                .filter((option) => option.value !== '')
+                .map((option) => ({
+                    value: option.value,
+                    label: option.textContent,
+                })),
+            items: select.value ? [select.value] : [],
+            loadThrottle: 250,
+            shouldLoad(query) {
+                return query.length >= 2 || Boolean(this.getValue()) || Boolean(regionSelect?.value);
+            },
+            load(query, callback) {
+                fetch(buildUrl(query), {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
+                })
+                    .then((response) => response.ok ? response.json() : Promise.reject(new Error('Failed to load organizations')))
+                    .then((payload) => callback(Array.isArray(payload.options) ? payload.options : []))
+                    .catch(() => callback());
+            },
+            onDropdownOpen() {
+                if ((regionSelect?.value || this.getValue()) && Object.keys(this.options).length <= 1) {
+                    this.load('');
+                }
+            },
+        });
+
+        instance.removeOption('');
+
+        if (regionSelect && !regionSelect.dataset.dashboardOrganizationBound) {
+            regionSelect.dataset.dashboardOrganizationBound = '1';
+            regionSelect.addEventListener('change', () => {
+                document.querySelectorAll('.js-dashboard-async-select').forEach((organizationSelect) => {
+                    if (!(organizationSelect instanceof HTMLSelectElement) || !organizationSelect.tomselect) {
+                        return;
+                    }
+
+                    organizationSelect.tomselect.clear(true);
+                    organizationSelect.tomselect.clearOptions();
+                });
+            });
+        }
+    });
+}
+
 const dashboardEditingEnabled = @json((bool) $isEditing);
 const widgetPayloads = @json($widgetPayloads);
 const chartPalette = {
@@ -794,6 +893,7 @@ function initializeWidgetForms() {
     });
 }
 
+initializeDashboardAsyncFilters();
 initializeCharts();
 initializeRefreshIntervals();
 initializeDragDrop();

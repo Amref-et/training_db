@@ -5,137 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $page?->meta_title ?: $page?->title ?: ($websiteSettings->site_name ?? config('app.name', 'HIL Website')) }}</title>
     @php
-        $faviconUrl = null;
-        if (!empty($websiteSettings?->favicon_url)) {
-            $faviconUrl = str_starts_with($websiteSettings->favicon_url, 'http://') || str_starts_with($websiteSettings->favicon_url, 'https://') || str_starts_with($websiteSettings->favicon_url, '/')
-                ? $websiteSettings->favicon_url
-                : \Illuminate\Support\Facades\Storage::disk('public')->url($websiteSettings->favicon_url);
-        }
-    @endphp
-    @if($faviconUrl)
-        <link rel="icon" href="{{ $faviconUrl }}">
-        <link rel="shortcut icon" href="{{ $faviconUrl }}">
-        <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
-    @endif
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --header-bg: #ffffff;
-            --header-text: #0f172a;
-            --header-link: #334155;
-            --body-bg: #f8fafc;
-            --body-text: #0f172a;
-            --body-panel: #ffffff;
-            --body-accent: #0f766e;
-            --footer-bg: #0f172a;
-            --footer-text: #e2e8f0;
-            --footer-link: #cbd5e1;
-            --radius-sm: 10px;
-            --radius-md: 14px;
-            --radius-lg: 18px;
-            --radius-xl: 24px;
-            --radius-pill: 999px;
-            --header-logo-height: 56px;
-        }
-        body { background: radial-gradient(circle at top, color-mix(in srgb, var(--body-accent) 16%, #ffffff) 0%, var(--body-bg) 45%, #ffffff 100%); color: var(--body-text); }
-        .hero { border-radius: var(--radius-xl); background: color-mix(in srgb, var(--body-panel) 88%, #ffffff); backdrop-filter: blur(12px); border: 1px solid rgba(15,23,42,.08); }
-        .copy { line-height: 1.8; }
-        .page-section { border-radius: var(--radius-xl); padding: 1.5rem; border: 1px solid rgba(15,23,42,.08); box-shadow: 0 24px 40px rgba(15,23,42,.06); }
-        .section-default { background: rgba(255,255,255,.82); }
-        .section-muted { background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%); }
-        .section-accent { background: linear-gradient(135deg, #ecfeff 0%, #dbeafe 100%); }
-        .section-dark { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; }
-        .section-dark .text-secondary, .section-dark .section-kicker, .section-dark .image-caption { color: rgba(226,232,240,.75) !important; }
-        .section-grid { margin-top: 1rem; }
-        .page-block-shell { display: flex; }
-        .page-block-shell > * { width: 100%; }
-        .block-panel { border-radius: var(--radius-xl); background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 24px 40px rgba(15,23,42,.06); height: 100%; }
-        .section-dark .block-panel, .section-dark .hero { background: rgba(15,23,42,.32); border-color: rgba(226,232,240,.12); color: #f8fafc; }
-        .hero-grid-image { min-height: 280px; object-fit: cover; border-radius: var(--radius-lg); width: 100%; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; }
-        .stat-card { background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%); border-radius: var(--radius-lg); padding: 1.25rem; border: 1px solid rgba(59,130,246,.12); }
-        .section-dark .stat-card { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); }
-        .stat-card .value { font-size: 2rem; line-height: 1; font-weight: 700; }
-        .quote-block { background: linear-gradient(135deg, var(--body-accent) 0%, color-mix(in srgb, var(--body-accent) 65%, #000000) 100%); color: #ecfeff; }
-        .quote-block blockquote { font-size: clamp(1.3rem, 2.4vw, 2rem); line-height: 1.5; margin: 0; }
-        .cta-block { background: linear-gradient(135deg, var(--header-text) 0%, color-mix(in srgb, var(--header-text) 75%, #000000) 100%); color: #eff6ff; }
-        .image-caption { color: #64748b; }
-        .feature-list { display: grid; gap: .85rem; padding-left: 0; list-style: none; }
-        .feature-list li { border: 1px solid rgba(15,23,42,.08); border-radius: var(--radius-md); padding: .9rem 1rem; background: #f8fafc; }
-        .section-dark .feature-list li { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); }
-        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
-        .gallery-grid img { width: 100%; height: 220px; object-fit: cover; border-radius: var(--radius-md); }
-        .video-frame { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--radius-md); background: #0f172a; }
-        .block-image { border-radius: var(--radius-lg); }
-        .callout-info { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
-        .callout-success { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
-        .callout-warning { background: linear-gradient(135deg, #fffbeb 0%, #fde68a 100%); }
-        .callout-danger { background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); }
-        .section-kicker { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: #64748b; }
-        .dashboard-filters { background: rgba(15,23,42,.03); border: 1px solid rgba(15,23,42,.08); border-radius: var(--radius-md); padding: 1rem; }
-        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
-        .dashboard-card { background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-radius: var(--radius-lg); border: 1px solid rgba(15,23,42,.08); padding: 1.1rem; }
-        .dashboard-card .metric { font-size: 2rem; font-weight: 700; line-height: 1; margin-top: .35rem; }
-        .dashboard-chart { position: relative; min-height: 320px; }
-        .dashboard-chart canvas { width: 100% !important; height: 100% !important; }
-        .dashboard-empty { min-height: 320px; display: flex; align-items: center; justify-content: center; }
-        .public-dashboard-shell { display: grid; gap: 1rem; }
-        .public-dashboard-grid { --widget-gap: 1rem; display: flex; flex-wrap: wrap; gap: var(--widget-gap); align-items: stretch; }
-        .public-dashboard-widget-shell { flex: 0 0 auto; max-width: 100%; min-width: min(100%, 260px); background: var(--widget-bg, #ffffff); color: var(--widget-text, #1f2937); border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); border-radius: var(--radius-lg); box-shadow: 0 18px 34px rgba(15, 23, 42, .08); padding: 1rem; }
-        .public-dashboard-widget-shell .widget-chart-wrap { position: relative; width: 100%; }
-        .public-dashboard-widget-shell .widget-table-wrap { overflow: auto; border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); border-radius: var(--radius-sm); background: rgba(var(--widget-text-rgb, 31, 41, 55), .035); }
-        .public-dashboard-widget-shell .metric-card { overflow: hidden; background: rgba(var(--widget-text-rgb, 31, 41, 55), .035); border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); color: inherit; border-radius: var(--radius-md); }
-        .public-dashboard-widget-shell .metric-card .metric-value { font-size: clamp(1.6rem, 2.6vw, 2.4rem); line-height: 1.1; word-break: break-word; }
-        .public-dashboard-widget-shell .widget-subtle,
-        .public-dashboard-widget-shell .text-secondary { color: rgba(var(--widget-text-rgb, 31, 41, 55), .72) !important; }
-        .public-dashboard-widget-shell .table { color: inherit; --bs-table-color: inherit; --bs-table-bg: transparent; --bs-table-striped-color: inherit; --bs-table-striped-bg: rgba(var(--widget-text-rgb, 31, 41, 55), .04); --bs-table-border-color: rgba(var(--widget-text-rgb, 31, 41, 55), .12); }
-        .public-dashboard-filters { background: rgba(15,23,42,.03); border: 1px solid rgba(15,23,42,.08); border-radius: var(--radius-lg); padding: 1rem; }
-        .section-dark .dashboard-filters,
-        .section-dark .dashboard-card { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); }
-        .section-dark .public-dashboard-filters,
-        .section-dark .public-dashboard-widget-shell { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); box-shadow: none; }
-        .section-dark .public-dashboard-widget-shell .widget-subtle,
-        .section-dark .public-dashboard-widget-shell .text-secondary { color: rgba(226,232,240,.75) !important; }
-        .section-dark .dashboard-legend, .section-dark .dashboard-card .text-secondary { color: rgba(226,232,240,.75) !important; }
-        .site-header { position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--header-bg) 88%, #ffffff); border-bottom: 1px solid rgba(15, 23, 42, .08); width: 100%; }
-        .site-nav { width: 100%; border-top: 0; border-left: 0; border-right: 0; border-bottom: 1px solid rgba(15, 23, 42, .08); background: var(--header-bg); display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; box-shadow: 0 12px 28px rgba(15, 23, 42, .08); padding: .95rem 1rem; }
-        .site-brand { text-decoration: none; color: var(--header-text); display: inline-flex; align-items: center; gap: .7rem; }
-        .site-brand-copy { display: flex; flex-direction: column; min-width: 0; }
-        .site-brand-name { font-weight: 700; font-size: 1.1rem; line-height: 1.25; color: var(--header-text); }
-        .site-brand-tagline { margin-top: .12rem; font-size: .82rem; line-height: 1.35; color: color-mix(in srgb, var(--header-text) 58%, #ffffff 42%); font-weight: 500; }
-        .site-brand-logo-shell { display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, #ffffff 86%, var(--header-bg)); border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); padding: .25rem .45rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .12); }
-        .site-brand-logo { width: auto; height: var(--header-logo-height); max-width: min(55vw, 360px); object-fit: contain; display: block; }
-        .site-menu { margin: 0; padding: 0; list-style: none; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
-        .site-menu-item { position: relative; }
-        .site-menu-item.site-menu-item-utility { margin-left: 1.5rem; padding-left: 1rem; border-left: 1px solid rgba(15, 23, 42, .12); }
-        .site-menu-item > a { display: inline-flex; align-items: center; gap: .35rem; }
-        .site-menu-item.has-submenu > a::after { content: '▾'; font-size: .72rem; line-height: 1; opacity: .7; }
-        .site-menu a { text-decoration: none; color: var(--header-link); padding: .45rem .75rem; border-radius: var(--radius-sm); }
-        .site-menu a:hover { background: rgba(15, 23, 42, .08); color: var(--header-text); }
-        .site-submenu { margin: 0; padding: .4rem; list-style: none; display: none; position: absolute; left: 0; top: calc(100% + .3rem); min-width: 220px; background: var(--header-bg); border: 1px solid rgba(15, 23, 42, .12); border-radius: var(--radius-md); box-shadow: 0 18px 30px rgba(15, 23, 42, .12); z-index: 1005; }
-        .site-submenu a { display: block; width: 100%; white-space: nowrap; }
-        .site-menu-item.has-submenu:hover > .site-submenu,
-        .site-menu-item.has-submenu:focus-within > .site-submenu { display: block; }
-        .site-cta-btn { background: var(--header-link); color: #ffffff; text-decoration: none; padding: .55rem .95rem; border-radius: var(--radius-sm); font-weight: 600; }
-        .site-cta-btn:hover { background: color-mix(in srgb, var(--header-link) 78%, #000000); color: #ffffff; }
-        .site-footer { background: linear-gradient(135deg, color-mix(in srgb, var(--footer-bg) 92%, #000000) 0%, color-mix(in srgb, var(--body-accent) 44%, #020617) 100%); color: var(--footer-text); margin-top: 3rem; }
-        .site-footer a { color: var(--footer-link); text-decoration: none; }
-        .site-footer a:hover { color: #ffffff; }
-        .site-footer-title { color: var(--footer-text); }
-        .site-footer-logo { max-width: 64px; max-height: 64px; border-radius: var(--radius-sm); border: 1px solid rgba(226, 232, 240, .28); object-fit: cover; }
-        .site-footer-bottom { border-top: 1px solid rgba(226, 232, 240, .2); }
-        @media (max-width: 991.98px) {
-            .site-menu { width: 100%; flex-direction: column; align-items: stretch; gap: .2rem; }
-            .site-menu-item { width: 100%; }
-            .site-menu-item.site-menu-item-utility { margin-left: 0; padding-left: 0; border-left: 0; border-top: 1px solid rgba(15, 23, 42, .08); padding-top: .45rem; margin-top: .25rem; }
-            .site-menu-item > a { display: flex; width: 100%; justify-content: space-between; }
-            .site-submenu { position: static; display: block; margin-top: .15rem; margin-left: .85rem; border: 0; box-shadow: none; padding: .1rem 0 .2rem; min-width: 0; }
-            .site-submenu a { white-space: normal; }
-        }
-    </style>
-</head>
-<body>
-    @php
         $settings = $websiteSettings ?? \App\Models\WebsiteSetting::current();
         $siteName = $settings->site_name ?: config('app.name', 'HIL Website');
         $siteTagline = $settings->site_tagline;
@@ -209,7 +78,148 @@
 
             return new \Illuminate\Support\HtmlString($html);
         };
+        $faviconUrl = null;
+        if (!empty($settings?->favicon_url)) {
+            $faviconUrl = str_starts_with($settings->favicon_url, 'http://') || str_starts_with($settings->favicon_url, 'https://') || str_starts_with($settings->favicon_url, '/')
+                ? $settings->favicon_url
+                : \Illuminate\Support\Facades\Storage::disk('public')->url($settings->favicon_url);
+        }
     @endphp
+    @if($faviconUrl)
+        <link rel="icon" href="{{ $faviconUrl }}">
+        <link rel="shortcut icon" href="{{ $faviconUrl }}">
+        <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
+    @endif
+    @php
+        $dashboardAssetsNeeded = collect($sections ?? [])
+            ->flatMap(fn ($section) => $section['blocks'] ?? [])
+            ->contains(fn ($block) => ($block['type'] ?? null) === 'dashboard');
+    @endphp
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    @if($dashboardAssetsNeeded)
+        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+    @endif
+    <style>
+        :root {
+            --header-bg: #ffffff;
+            --header-text: #0f172a;
+            --header-link: #334155;
+            --body-bg: #f8fafc;
+            --body-text: #0f172a;
+            --body-panel: #ffffff;
+            --body-accent: #0f766e;
+            --footer-bg: #0f172a;
+            --footer-text: #e2e8f0;
+            --footer-link: #cbd5e1;
+            --radius-sm: 10px;
+            --radius-md: 14px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+            --radius-pill: 999px;
+            --header-logo-height: 56px;
+        }
+        body { background: radial-gradient(circle at top, color-mix(in srgb, var(--body-accent) 16%, #ffffff) 0%, var(--body-bg) 45%, #ffffff 100%); color: var(--body-text); }
+        .hero { border-radius: var(--radius-xl); background: color-mix(in srgb, var(--body-panel) 88%, #ffffff); backdrop-filter: blur(12px); border: 1px solid rgba(15,23,42,.08); }
+        .copy { line-height: 1.8; }
+        .page-section { border-radius: var(--radius-xl); padding: 1.5rem; border: 1px solid rgba(15,23,42,.08); box-shadow: 0 24px 40px rgba(15,23,42,.06); }
+        .section-default { background: rgba(255,255,255,.82); }
+        .section-muted { background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%); }
+        .section-accent { background: linear-gradient(135deg, #ecfeff 0%, #dbeafe 100%); }
+        .section-dark { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; }
+        .section-dark .text-secondary, .section-dark .section-kicker, .section-dark .image-caption { color: rgba(226,232,240,.75) !important; }
+        .section-grid { margin-top: 1rem; }
+        .page-block-shell { display: flex; }
+        .page-block-shell > * { width: 100%; }
+        .block-panel { border-radius: var(--radius-xl); background: rgba(255,255,255,.86); border: 1px solid rgba(15,23,42,.08); box-shadow: 0 24px 40px rgba(15,23,42,.06); height: 100%; }
+        .section-dark .block-panel, .section-dark .hero { background: rgba(15,23,42,.32); border-color: rgba(226,232,240,.12); color: #f8fafc; }
+        .hero-grid-image { min-height: 280px; object-fit: cover; border-radius: var(--radius-lg); width: 100%; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; }
+        .stat-card { background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%); border-radius: var(--radius-lg); padding: 1.25rem; border: 1px solid rgba(59,130,246,.12); }
+        .section-dark .stat-card { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); }
+        .stat-card .value { font-size: 2rem; line-height: 1; font-weight: 700; }
+        .quote-block { background: linear-gradient(135deg, var(--body-accent) 0%, color-mix(in srgb, var(--body-accent) 65%, #000000) 100%); color: #ecfeff; }
+        .quote-block blockquote { font-size: clamp(1.3rem, 2.4vw, 2rem); line-height: 1.5; margin: 0; }
+        .cta-block { background: linear-gradient(135deg, var(--header-text) 0%, color-mix(in srgb, var(--header-text) 75%, #000000) 100%); color: #eff6ff; }
+        .image-caption { color: #64748b; }
+        .feature-list { display: grid; gap: .85rem; padding-left: 0; list-style: none; }
+        .feature-list li { border: 1px solid rgba(15,23,42,.08); border-radius: var(--radius-md); padding: .9rem 1rem; background: #f8fafc; }
+        .section-dark .feature-list li { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+        .gallery-grid img { width: 100%; height: 220px; object-fit: cover; border-radius: var(--radius-md); }
+        .video-frame { width: 100%; aspect-ratio: 16 / 9; border: 0; border-radius: var(--radius-md); background: #0f172a; }
+        .block-image { border-radius: var(--radius-lg); }
+        .callout-info { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); }
+        .callout-success { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+        .callout-warning { background: linear-gradient(135deg, #fffbeb 0%, #fde68a 100%); }
+        .callout-danger { background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); }
+        .section-kicker { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: #64748b; }
+        .dashboard-filters { background: rgba(15,23,42,.03); border: 1px solid rgba(15,23,42,.08); border-radius: var(--radius-md); padding: 1rem; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+        .dashboard-card { background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-radius: var(--radius-lg); border: 1px solid rgba(15,23,42,.08); padding: 1.1rem; }
+        .dashboard-card .metric { font-size: 2rem; font-weight: 700; line-height: 1; margin-top: .35rem; }
+        .dashboard-chart { position: relative; min-height: 320px; }
+        .dashboard-chart canvas { width: 100% !important; height: 100% !important; }
+        .dashboard-empty { min-height: 320px; display: flex; align-items: center; justify-content: center; }
+        .public-dashboard-shell { display: grid; gap: 1rem; }
+        .public-dashboard-grid { --widget-gap: 1rem; display: flex; flex-wrap: wrap; gap: var(--widget-gap); align-items: stretch; }
+        .public-dashboard-widget-shell { flex: 0 0 auto; max-width: 100%; min-width: min(100%, 260px); background: var(--widget-bg, #ffffff); color: var(--widget-text, #1f2937); border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); border-radius: var(--radius-lg); box-shadow: 0 18px 34px rgba(15, 23, 42, .08); padding: 1rem; }
+        .public-dashboard-widget-shell .widget-chart-wrap { position: relative; width: 100%; }
+        .public-dashboard-widget-shell .widget-table-wrap { overflow: auto; border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); border-radius: var(--radius-sm); background: rgba(var(--widget-text-rgb, 31, 41, 55), .035); }
+        .public-dashboard-widget-shell .metric-card { overflow: hidden; background: rgba(var(--widget-text-rgb, 31, 41, 55), .035); border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); color: inherit; border-radius: var(--radius-md); }
+        .public-dashboard-widget-shell .metric-card .metric-value { font-size: clamp(1.6rem, 2.6vw, 2.4rem); line-height: 1.1; word-break: break-word; }
+        .public-dashboard-widget-shell .widget-subtle,
+        .public-dashboard-widget-shell .text-secondary { color: rgba(var(--widget-text-rgb, 31, 41, 55), .72) !important; }
+        .public-dashboard-widget-shell .table { color: inherit; --bs-table-color: inherit; --bs-table-bg: transparent; --bs-table-striped-color: inherit; --bs-table-striped-bg: rgba(var(--widget-text-rgb, 31, 41, 55), .04); --bs-table-border-color: rgba(var(--widget-text-rgb, 31, 41, 55), .12); }
+        .public-dashboard-filters { background: rgba(15,23,42,.03); border: 1px solid rgba(15,23,42,.08); border-radius: var(--radius-lg); padding: 1rem; }
+        .dashboard-filters .ts-wrapper.single .ts-control,
+        .public-dashboard-filters .ts-wrapper.single .ts-control { min-height: calc(2.25rem + 2px); border-radius: .375rem; }
+        .dashboard-filters .ts-dropdown .option,
+        .public-dashboard-filters .ts-dropdown .option { white-space: normal; }
+        .section-dark .dashboard-filters,
+        .section-dark .dashboard-card { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); }
+        .section-dark .public-dashboard-filters,
+        .section-dark .public-dashboard-widget-shell { background: rgba(255,255,255,.08); border-color: rgba(226,232,240,.12); box-shadow: none; }
+        .section-dark .public-dashboard-widget-shell .widget-subtle,
+        .section-dark .public-dashboard-widget-shell .text-secondary { color: rgba(226,232,240,.75) !important; }
+        .section-dark .dashboard-legend, .section-dark .dashboard-card .text-secondary { color: rgba(226,232,240,.75) !important; }
+        .site-header { position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--header-bg) 88%, #ffffff); border-bottom: 1px solid rgba(15, 23, 42, .08); width: 100%; }
+        .site-nav { width: 100%; border-top: 0; border-left: 0; border-right: 0; border-bottom: 1px solid rgba(15, 23, 42, .08); background: var(--header-bg); display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; box-shadow: 0 12px 28px rgba(15, 23, 42, .08); padding: .95rem 1rem; }
+        .site-brand { text-decoration: none; color: var(--header-text); display: inline-flex; align-items: center; gap: .7rem; }
+        .site-brand-copy { display: flex; flex-direction: column; min-width: 0; }
+        .site-brand-name { font-weight: 700; font-size: 1.1rem; line-height: 1.25; color: var(--header-text); }
+        .site-brand-tagline { margin-top: .12rem; font-size: .82rem; line-height: 1.35; color: color-mix(in srgb, var(--header-text) 58%, #ffffff 42%); font-weight: 500; }
+        .site-brand-logo-shell { display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, #ffffff 86%, var(--header-bg)); border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); padding: .25rem .45rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .12); }
+        .site-brand-logo { width: auto; height: var(--header-logo-height); max-width: min(55vw, 360px); object-fit: contain; display: block; }
+        .site-menu { margin: 0; padding: 0; list-style: none; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
+        .site-menu-item { position: relative; }
+        .site-menu-item.site-menu-item-utility { margin-left: 1.5rem; padding-left: 1rem; border-left: 1px solid rgba(15, 23, 42, .12); }
+        .site-menu-item > a { display: inline-flex; align-items: center; gap: .35rem; }
+        .site-menu-item.has-submenu > a::after { content: '▾'; font-size: .72rem; line-height: 1; opacity: .7; }
+        .site-menu a { text-decoration: none; color: var(--header-link); padding: .45rem .75rem; border-radius: var(--radius-sm); }
+        .site-menu a:hover { background: rgba(15, 23, 42, .08); color: var(--header-text); }
+        .site-submenu { margin: 0; padding: .4rem; list-style: none; display: none; position: absolute; left: 0; top: calc(100% + .3rem); min-width: 220px; background: var(--header-bg); border: 1px solid rgba(15, 23, 42, .12); border-radius: var(--radius-md); box-shadow: 0 18px 30px rgba(15, 23, 42, .12); z-index: 1005; }
+        .site-submenu a { display: block; width: 100%; white-space: nowrap; }
+        .site-menu-item.has-submenu:hover > .site-submenu,
+        .site-menu-item.has-submenu:focus-within > .site-submenu { display: block; }
+        .site-cta-btn { background: var(--header-link); color: #ffffff; text-decoration: none; padding: .55rem .95rem; border-radius: var(--radius-sm); font-weight: 600; }
+        .site-cta-btn:hover { background: color-mix(in srgb, var(--header-link) 78%, #000000); color: #ffffff; }
+        .site-footer { background: linear-gradient(135deg, color-mix(in srgb, var(--footer-bg) 92%, #000000) 0%, color-mix(in srgb, var(--body-accent) 44%, #020617) 100%); color: var(--footer-text); margin-top: 3rem; }
+        .site-footer a { color: var(--footer-link); text-decoration: none; }
+        .site-footer a:hover { color: #ffffff; }
+        .site-footer-title { color: var(--footer-text); }
+        .site-footer-logo { max-width: 64px; max-height: 64px; border-radius: var(--radius-sm); border: 1px solid rgba(226, 232, 240, .28); object-fit: cover; }
+        .site-footer-bottom { border-top: 1px solid rgba(226, 232, 240, .2); }
+        @media (max-width: 991.98px) {
+            .site-menu { width: 100%; flex-direction: column; align-items: stretch; gap: .2rem; }
+            .site-menu-item { width: 100%; }
+            .site-menu-item.site-menu-item-utility { margin-left: 0; padding-left: 0; border-left: 0; border-top: 1px solid rgba(15, 23, 42, .08); padding-top: .45rem; margin-top: .25rem; }
+            .site-menu-item > a { display: flex; width: 100%; justify-content: space-between; }
+            .site-submenu { position: static; display: block; margin-top: .15rem; margin-left: .85rem; border: 0; box-shadow: none; padding: .1rem 0 .2rem; min-width: 0; }
+            .site-submenu a { white-space: normal; }
+        }
+    </style>
+</head>
+<body>
     <style>
         :root {
             --header-bg: {{ $headerBackgroundColor }};
@@ -521,12 +531,25 @@
                                                                     @foreach($visibleDashboardFilters as $filterDefinition)
                                                                         <div class="col-md-6 col-xl-3">
                                                                             <label class="form-label">{{ $filterDefinition['label'] }}</label>
-                                                                            <select name="{{ $filterDefinition['key'] }}" class="form-select">
-                                                                                <option value="">{{ $filterDefinition['all_label'] }}</option>
-                                                                                @foreach($filterDefinition['options'] as $option)
-                                                                                    <option value="{{ $option['value'] }}" @selected(($dashboardSnapshot['filters'][$filterDefinition['key']] ?? '') === $option['value'])>{{ $option['label'] }}</option>
-                                                                                @endforeach
-                                                                            </select>
+                                                                            @if(!empty($filterDefinition['async']) && ($filterDefinition['key'] ?? '') === 'organization_id')
+                                                                                <select
+                                                                                    name="{{ $filterDefinition['key'] }}"
+                                                                                    class="form-select js-public-dashboard-organization-filter"
+                                                                                    data-remote-url="{{ route('dashboard.organization-options') }}"
+                                                                                >
+                                                                                    <option value="">{{ $filterDefinition['all_label'] }}</option>
+                                                                                    @if(($dashboardSnapshot['filters'][$filterDefinition['key']] ?? '') !== '' && !empty($selectedDashboardOrganizationFilter))
+                                                                                        <option value="{{ $selectedDashboardOrganizationFilter['value'] }}" selected>{{ $selectedDashboardOrganizationFilter['label'] }}</option>
+                                                                                    @endif
+                                                                                </select>
+                                                                            @else
+                                                                                <select name="{{ $filterDefinition['key'] }}" class="form-select">
+                                                                                    <option value="">{{ $filterDefinition['all_label'] }}</option>
+                                                                                    @foreach($filterDefinition['options'] as $option)
+                                                                                        <option value="{{ $option['value'] }}" @selected(($dashboardSnapshot['filters'][$filterDefinition['key']] ?? '') === $option['value'])>{{ $option['label'] }}</option>
+                                                                                    @endforeach
+                                                                                </select>
+                                                                            @endif
                                                                         </div>
                                                                     @endforeach
                                                                     <div class="col-md-6 col-xl-3 d-grid gap-2">
@@ -669,6 +692,95 @@
         </div>
     </footer>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    @if($hasDashboardBlock)
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script>
+        (() => {
+            if (typeof window.TomSelect === 'undefined') {
+                return;
+            }
+
+            document.querySelectorAll('.js-public-dashboard-organization-filter').forEach((select) => {
+                if (!(select instanceof HTMLSelectElement) || select.tomselect) {
+                    return;
+                }
+
+                const form = select.form;
+                const regionSelect = form?.querySelector('select[name="region_id"]');
+                const buildUrl = (query = '') => {
+                    const url = new URL(select.dataset.remoteUrl, window.location.origin);
+
+                    if (query) {
+                        url.searchParams.set('q', query);
+                    }
+
+                    if (select.value) {
+                        url.searchParams.set('selected_id', select.value);
+                    }
+
+                    if (regionSelect?.value) {
+                        url.searchParams.set('region_id', regionSelect.value);
+                    }
+
+                    return url.toString();
+                };
+
+                const instance = new TomSelect(select, {
+                    create: false,
+                    allowEmptyOption: false,
+                    maxOptions: 50,
+                    hidePlaceholder: true,
+                    placeholder: select.options[0]?.textContent?.trim() || 'Search organizations',
+                    valueField: 'value',
+                    labelField: 'label',
+                    searchField: ['label'],
+                    options: Array.from(select.options)
+                        .filter((option) => option.value !== '')
+                        .map((option) => ({
+                            value: option.value,
+                            label: option.textContent,
+                        })),
+                    items: select.value ? [select.value] : [],
+                    loadThrottle: 250,
+                    shouldLoad(query) {
+                        return query.length >= 2 || Boolean(this.getValue()) || Boolean(regionSelect?.value);
+                    },
+                    load(query, callback) {
+                        fetch(buildUrl(query), {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json',
+                            },
+                        })
+                            .then((response) => response.ok ? response.json() : Promise.reject(new Error('Failed to load organizations')))
+                            .then((payload) => callback(Array.isArray(payload.options) ? payload.options : []))
+                            .catch(() => callback());
+                    },
+                    onDropdownOpen() {
+                        if ((regionSelect?.value || this.getValue()) && Object.keys(this.options).length <= 1) {
+                            this.load('');
+                        }
+                    },
+                });
+
+                instance.removeOption('');
+
+                if (regionSelect && !regionSelect.dataset.publicDashboardOrganizationBound) {
+                    regionSelect.dataset.publicDashboardOrganizationBound = '1';
+                    regionSelect.addEventListener('change', () => {
+                        const relatedForm = regionSelect.form;
+                        relatedForm?.querySelectorAll('.js-public-dashboard-organization-filter').forEach((organizationSelect) => {
+                            if (organizationSelect instanceof HTMLSelectElement && organizationSelect.tomselect) {
+                                organizationSelect.tomselect.clear(true);
+                                organizationSelect.tomselect.clearOptions();
+                            }
+                        });
+                    });
+                }
+            });
+        })();
+    </script>
+    @endif
     @if($hasDashboardBlock)
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script>
