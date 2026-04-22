@@ -70,28 +70,28 @@ FROM (
         ]);
 
         $this->createWidget($trainingTab, [
-            'title' => 'Organizer Comparison',
+            'title' => 'Project Comparison',
             'chart_type' => 'bar',
             'sql_query' => "SELECT label, series, value
 FROM (
-    SELECT o.title AS label, 'Pre-test' AS series, ROUND(AVG(w.pre_test_score), 1) AS value
+    SELECT COALESCE(NULLIF(o.project_name, ''), NULLIF(o.title, ''), CONCAT('Project #', o.id)) AS label, 'Pre-test' AS series, ROUND(AVG(w.pre_test_score), 1) AS value
     FROM training_organizers o
     INNER JOIN training_events e ON e.training_organizer_id = o.id
     INNER JOIN training_event_participants ep ON ep.training_event_id = e.id
     INNER JOIN participants p ON p.id = ep.participant_id
     INNER JOIN training_event_workshop_scores w ON w.training_event_participant_id = ep.id
     WHERE 1 = 1{{participants_filter:p}}{{events_filter:e}}
-    GROUP BY o.title
+    GROUP BY COALESCE(NULLIF(o.project_name, ''), NULLIF(o.title, ''), CONCAT('Project #', o.id))
 
     UNION ALL
 
-    SELECT o.title AS label, 'Post-test' AS series, ROUND(AVG(ep.final_score), 1) AS value
+    SELECT COALESCE(NULLIF(o.project_name, ''), NULLIF(o.title, ''), CONCAT('Project #', o.id)) AS label, 'Post-test' AS series, ROUND(AVG(ep.final_score), 1) AS value
     FROM training_organizers o
     INNER JOIN training_events e ON e.training_organizer_id = o.id
     INNER JOIN training_event_participants ep ON ep.training_event_id = e.id
     INNER JOIN participants p ON p.id = ep.participant_id
     WHERE 1 = 1{{participants_filter:p}}{{events_filter:e}}
-    GROUP BY o.title
+    GROUP BY COALESCE(NULLIF(o.project_name, ''), NULLIF(o.title, ''), CONCAT('Project #', o.id))
 ) AS organizer_scores
 ORDER BY label, series",
             'size_preset' => 'small',
@@ -131,6 +131,47 @@ ORDER BY label, series",
             'width_columns' => 3,
             'height_px' => 280,
             'color_scheme' => 'sunset',
+        ]);
+
+        $this->createWidget($trainingTab, [
+            'title' => 'Workshop Score Comparison',
+            'chart_type' => 'bar',
+            'sql_query' => "SELECT label, series, value
+FROM (
+    SELECT CONCAT('Workshop ', w.workshop_number) AS label, 'Pre-test' AS series, ROUND(AVG(w.pre_test_score), 1) AS value
+    FROM training_event_workshop_scores w
+    INNER JOIN training_event_participants ep ON ep.id = w.training_event_participant_id
+    INNER JOIN participants p ON p.id = ep.participant_id
+    INNER JOIN training_events e ON e.id = ep.training_event_id
+    WHERE 1 = 1{{participants_filter:p}}{{events_filter:e}}
+    GROUP BY w.workshop_number
+
+    UNION ALL
+
+    SELECT CONCAT('Workshop ', w.workshop_number) AS label, 'Mid-test' AS series, ROUND(AVG(w.mid_test_score), 1) AS value
+    FROM training_event_workshop_scores w
+    INNER JOIN training_event_participants ep ON ep.id = w.training_event_participant_id
+    INNER JOIN participants p ON p.id = ep.participant_id
+    INNER JOIN training_events e ON e.id = ep.training_event_id
+    WHERE 1 = 1{{participants_filter:p}}{{events_filter:e}}
+    GROUP BY w.workshop_number
+
+    UNION ALL
+
+    SELECT CONCAT('Workshop ', w.workshop_number) AS label, 'Post-test' AS series, ROUND(AVG(w.post_test_score), 1) AS value
+    FROM training_event_workshop_scores w
+    INNER JOIN training_event_participants ep ON ep.id = w.training_event_participant_id
+    INNER JOIN participants p ON p.id = ep.participant_id
+    INNER JOIN training_events e ON e.id = ep.training_event_id
+    WHERE 1 = 1{{participants_filter:p}}{{events_filter:e}}
+    GROUP BY w.workshop_number
+) AS workshop_scores
+ORDER BY CAST(REPLACE(label, 'Workshop ', '') AS UNSIGNED), series",
+            'size_preset' => 'medium',
+            'width_mode' => 'columns',
+            'width_columns' => 6,
+            'height_px' => 320,
+            'color_scheme' => 'royal_coral',
         ]);
 
         $this->createWidget($reportsTab, [
@@ -410,6 +451,8 @@ LIMIT 10",
                             'width_px' => $widget->width_px,
                             'height_px' => $widget->height_px,
                             'color_scheme' => $widget->color_scheme,
+                            'background_color' => $widget->background_color,
+                            'text_color' => $widget->text_color,
                             'sort_order' => $widget->sort_order,
                             'is_active' => $widget->is_active,
                         ])
@@ -519,6 +562,8 @@ LIMIT 10",
         $widthPx = isset($payload['width_px']) ? (int) $payload['width_px'] : ($existing?->width_px ? (int) $existing->width_px : null);
         $heightPx = isset($payload['height_px']) ? (int) $payload['height_px'] : (int) ($existing?->height_px ?? 280);
         $colorScheme = (string) ($payload['color_scheme'] ?? $existing?->color_scheme ?? 'teal_amber');
+        $backgroundColor = $this->normalizeHexColor($payload['background_color'] ?? $existing?->background_color ?? '#ffffff', '#ffffff');
+        $textColor = $this->normalizeHexColor($payload['text_color'] ?? $existing?->text_color ?? '#1f2937', '#1f2937');
         $isActive = isset($payload['is_active']) ? (bool) $payload['is_active'] : (bool) ($existing?->is_active ?? true);
 
         if (! in_array($chartType, DashboardWidget::CHART_TYPES, true)) {
@@ -581,8 +626,21 @@ LIMIT 10",
             'width_px' => $widthPx,
             'height_px' => $heightPx,
             'color_scheme' => $colorScheme,
+            'background_color' => $backgroundColor,
+            'text_color' => $textColor,
             'is_active' => $isActive,
         ];
+    }
+
+    private function normalizeHexColor(mixed $value, string $fallback): string
+    {
+        $color = strtoupper(trim((string) $value));
+
+        if (! preg_match('/^#[0-9A-F]{6}$/', $color)) {
+            return strtoupper($fallback);
+        }
+
+        return $color;
     }
 
     private function assertReadOnlyQuery(string $sql): void
@@ -805,6 +863,27 @@ LIMIT 10",
             $parts[] = "{$alias}.training_organizer_id = ".(int) $filters['training_organizer_id'];
         }
 
+        if (! empty($filters['organized_by'])) {
+            $organizedBy = trim((string) $filters['organized_by']);
+
+            if (Str::startsWith($organizedBy, 'subawardee:')) {
+                $subawardeeId = (int) Str::after($organizedBy, 'subawardee:');
+
+                if ($subawardeeId > 0) {
+                    $parts[] = "{$alias}.organizer_type = ".$this->quoteSqlLiteral('Subawardee');
+                    $parts[] = "{$alias}.project_subawardee_id = {$subawardeeId}";
+                }
+            } elseif (Str::startsWith($organizedBy, 'project:')) {
+                $projectId = (int) Str::after($organizedBy, 'project:');
+
+                if ($projectId > 0) {
+                    $projectLiteral = $this->quoteSqlLiteral('The project');
+                    $parts[] = "{$alias}.training_organizer_id = {$projectId}";
+                    $parts[] = "(COALESCE({$alias}.organizer_type, {$projectLiteral}) = {$projectLiteral})";
+                }
+            }
+        }
+
         if (! empty($filters['training_id'])) {
             $parts[] = "{$alias}.training_id = ".(int) $filters['training_id'];
         }
@@ -821,6 +900,7 @@ LIMIT 10",
     private function hasEventsFilters(array $filters): bool
     {
         return ! empty($filters['training_organizer_id'])
+            || ! empty($filters['organized_by'])
             || ! empty($filters['training_id'])
             || ! empty($filters['status']);
     }

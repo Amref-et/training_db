@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DashboardTab;
 use App\Models\DashboardWidget;
+use App\Models\WebsiteSetting;
 use App\Services\DashboardLayoutService;
 use App\Services\DashboardMetricsService;
 use Illuminate\Http\JsonResponse;
@@ -66,6 +67,7 @@ class DashboardController extends Controller
             'sizePresets' => DashboardWidget::SIZE_PRESETS,
             'widthModes' => DashboardWidget::WIDTH_MODES,
             'colorSchemes' => DashboardWidget::COLOR_SCHEMES,
+            'publicHomeTabId' => (int) (WebsiteSetting::current()->public_home_dashboard_tab_id ?? 0),
             'widgetWidthStyles' => $activeWidgets->mapWithKeys(fn (DashboardWidget $widget) => [
                 $widget->id => $this->layoutService->widthStyle($widget),
             ])->all(),
@@ -99,6 +101,7 @@ class DashboardController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'is_default' => ['nullable', 'boolean'],
+            'is_public_homepage' => ['nullable', 'boolean'],
         ]);
 
         try {
@@ -115,6 +118,15 @@ class DashboardController extends Controller
         }
 
         $tab->refresh();
+        $settings = WebsiteSetting::current();
+        $isPublicHomepage = $request->boolean('is_public_homepage');
+
+        if ($isPublicHomepage) {
+            $settings->update(['public_home_dashboard_tab_id' => $tab->id]);
+        } elseif ((int) ($settings->public_home_dashboard_tab_id ?? 0) === (int) $tab->id) {
+            $settings->update(['public_home_dashboard_tab_id' => null]);
+        }
+
         $this->audit()->logModelUpdated($tab, $beforeState, 'Dashboard tab updated');
 
         return redirect()
@@ -128,7 +140,11 @@ class DashboardController extends Controller
         $beforeState = $this->audit()->snapshotModel($tab);
         $tabId = $tab->id;
         $tabName = $tab->name;
+        $settings = WebsiteSetting::current();
         $this->layoutService->deleteTab($tab);
+        if ((int) ($settings->fresh()->public_home_dashboard_tab_id ?? 0) === (int) $tabId) {
+            $settings->update(['public_home_dashboard_tab_id' => null]);
+        }
         $this->audit()->logModelDeleted(DashboardTab::class, $tabId, $tabName, $beforeState, 'Dashboard tab deleted');
 
         return redirect()
@@ -263,6 +279,8 @@ class DashboardController extends Controller
 
     private function validateWidgetRequest(Request $request): void
     {
+        $colorRule = ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'];
+
         $request->validate([
             'title' => ['required', 'string', 'max:160'],
             'chart_type' => ['required', 'string', 'in:'.implode(',', DashboardWidget::CHART_TYPES)],
@@ -274,6 +292,8 @@ class DashboardController extends Controller
             'width_px' => ['nullable', 'integer', 'min:220', 'max:2200'],
             'height_px' => ['nullable', 'integer', 'min:180', 'max:1000'],
             'color_scheme' => ['nullable', 'string', 'in:'.implode(',', DashboardWidget::COLOR_SCHEMES)],
+            'background_color' => $colorRule,
+            'text_color' => $colorRule,
             'is_active' => ['nullable', 'boolean'],
         ]);
     }

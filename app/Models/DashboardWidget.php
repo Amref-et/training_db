@@ -41,6 +41,8 @@ class DashboardWidget extends Model
         'width_px',
         'height_px',
         'color_scheme',
+        'background_color',
+        'text_color',
         'sort_order',
         'is_active',
     ];

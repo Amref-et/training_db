@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ManagedResourceController;
+use App\Services\LegacyHilSqlPreparationService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -63,3 +64,32 @@ Artisan::command('organizations:import-hierarchy {path : Absolute path to the CS
 
     return self::SUCCESS;
 })->purpose('Import region, zone, woreda, and organization hierarchy from a CSV file');
+
+Artisan::command('hil:prepare-legacy-import {path : Absolute path to the legacy HIL SQL dump} {--output= : Optional absolute output directory}', function (string $path) {
+    if (! File::exists($path)) {
+        $this->error('SQL file not found: '.$path);
+
+        return self::FAILURE;
+    }
+
+    try {
+        $result = app(LegacyHilSqlPreparationService::class)->prepare(
+            $path,
+            $this->option('output') ?: null
+        );
+    } catch (\Throwable $exception) {
+        $this->error($exception->getMessage());
+
+        return self::FAILURE;
+    }
+
+    $this->info('Legacy HIL data preparation completed.');
+    $this->line('Output directory: '.$result['output_directory']);
+    $this->line('Organization rows ready: '.$result['prepared_counts']['organization_rows_ready']);
+    $this->line('Participant rows ready: '.$result['prepared_counts']['participants_ready']);
+    $this->line('Participant rows needing review: '.$result['prepared_counts']['participants_review']);
+    $this->line('Training-event staging rows: '.$result['prepared_counts']['training_events_staging']);
+    $this->line('Capstone-project staging rows: '.$result['prepared_counts']['capstone_projects_staging']);
+
+    return self::SUCCESS;
+})->purpose('Analyze a legacy HIL SQL dump and generate upload-ready CSVs plus staging files');

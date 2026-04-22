@@ -3,15 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContentPage;
+use App\Models\DashboardTab;
+use App\Models\DashboardWidget;
 use App\Models\WebsiteMenuItem;
 use App\Models\WebsiteSetting;
+use App\Services\DashboardLayoutService;
 use App\Services\DashboardMetricsService;
 use App\Support\PageSectionRegistry;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Throwable;
 
 class WebsiteController extends Controller
 {
-    public function __construct(private DashboardMetricsService $metrics)
+    public function __construct(
+        private DashboardMetricsService $metrics,
+        private DashboardLayoutService $layoutService
+    )
     {
     }
 
@@ -38,6 +46,10 @@ class WebsiteController extends Controller
         $hasDashboardBlock = collect($sections)
             ->flatMap(fn (array $section) => $section['blocks'] ?? [])
             ->contains(fn (array $block) => ($block['type'] ?? null) === 'dashboard');
+        $websiteSettings = WebsiteSetting::current();
+        $filterDefinitions = $hasDashboardBlock ? $this->metrics->filterDefinitions() : [];
+        $filters = $hasDashboardBlock ? $this->metrics->resolveFilters(request()->all(), $filterDefinitions) : [];
+        $publicDashboard = $this->publicHomepageDashboard($page, $hasDashboardBlock, $websiteSettings, $filters, $filterDefinitions);
 
         $navigationPages = ContentPage::published()->orderBy('title')->get();
         $navigationMenu = WebsiteMenuItem::tree();
@@ -45,13 +57,77 @@ class WebsiteController extends Controller
         return view('website.page', [
             'page' => $page,
             'sections' => $sections,
-            'dashboardSnapshot' => $hasDashboardBlock ? $this->metrics->summary(
-                $this->metrics->resolveFilters(request()->all())
+            'dashboardSnapshot' => $hasDashboardBlock && ! $publicDashboard ? $this->metrics->summary(
+                $filters
             ) : null,
+            'publicDashboard' => $publicDashboard,
             'navigationPages' => $navigationPages,
             'navigationMenu' => $navigationMenu,
-            'websiteSettings' => WebsiteSetting::current(),
+            'websiteSettings' => $websiteSettings,
         ]);
+    }
+
+    private function publicHomepageDashboard(
+        ?ContentPage $page,
+        bool $hasDashboardBlock,
+        WebsiteSetting $websiteSettings,
+        array $filters,
+        array $filterDefinitions
+    ): ?array {
+        if (! $hasDashboardBlock || ! $this->isHomepage($page)) {
+            return null;
+        }
+
+        $tabId = (int) ($websiteSettings->public_home_dashboard_tab_id ?? 0);
+        if ($tabId < 1) {
+            return null;
+        }
+
+        $tab = DashboardTab::query()->with('widgets', 'user')->find($tabId);
+        if (! $tab) {
+            return null;
+        }
+
+        $widgets = $tab->widgets
+            ->where('is_active', true)
+            ->sortBy('sort_order')
+            ->values();
+
+        return [
+            'tab' => $tab,
+            'filters' => $filters,
+            'filterDefinitions' => $filterDefinitions,
+            'widgets' => $widgets,
+            'widgetPayloads' => $this->executePublicWidgets($widgets, $filters),
+            'widgetWidthStyles' => $widgets->mapWithKeys(fn (DashboardWidget $widget) => [
+                $widget->id => $this->layoutService->widthStyle($widget),
+            ])->all(),
+        ];
+    }
+
+    private function executePublicWidgets(Collection $widgets, array $filters): array
+    {
+        return $widgets->mapWithKeys(function (DashboardWidget $widget) use ($filters) {
+            try {
+                return [
+                    $widget->id => $this->layoutService->executeWidget($widget, $filters),
+                ];
+            } catch (Throwable $e) {
+                return [
+                    $widget->id => [
+                        'type' => 'error',
+                        'message' => $e->getMessage(),
+                    ],
+                ];
+            }
+        })->all();
+    }
+
+    private function isHomepage(?ContentPage $page): bool
+    {
+        return (bool) ($page?->is_homepage)
+            || ($page?->slug !== null && trim((string) $page->slug) === 'home')
+            || request()->routeIs('home');
     }
 }
 

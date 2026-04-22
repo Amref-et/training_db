@@ -11,12 +11,17 @@
     .dashboard-tabs { border-bottom: 1px solid rgba(15, 23, 42, .08); padding-bottom: .75rem; margin-bottom: 1rem; }
     .dashboard-tabs .nav-link { border-radius: var(--radius-pill); }
     .dashboard-grid { --widget-gap: 1rem; display: flex; flex-wrap: wrap; gap: var(--widget-gap); align-items: stretch; }
-    .dashboard-widget-shell { flex: 0 0 auto; max-width: 100%; min-width: min(100%, 260px); cursor: default; }
+    .dashboard-widget-shell { flex: 0 0 auto; max-width: 100%; min-width: min(100%, 260px); cursor: default; background: var(--widget-bg, #fff); color: var(--widget-text, #1f2937); border-color: var(--widget-border, rgba(15, 23, 42, .08)); }
     .dashboard-widget-shell.dragging { opacity: .45; }
     .dashboard-widget-shell .widget-chart-wrap { position: relative; width: 100%; }
-    .dashboard-widget-shell .widget-table-wrap { overflow: auto; border: 1px solid rgba(15, 23, 42, .08); border-radius: var(--radius-sm); }
-    .dashboard-widget-shell .metric-card { overflow: hidden; }
+    .dashboard-widget-shell .widget-table-wrap { overflow: auto; border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); border-radius: var(--radius-sm); background: rgba(var(--widget-text-rgb, 31, 41, 55), .035); }
+    .dashboard-widget-shell .metric-card { overflow: hidden; background: rgba(var(--widget-text-rgb, 31, 41, 55), .035); border: 1px solid var(--widget-border, rgba(15, 23, 42, .08)); color: inherit; }
     .dashboard-widget-shell .metric-card .metric-value { font-size: clamp(1.6rem, 2.6vw, 2.4rem); line-height: 1.1; word-break: break-word; }
+    .dashboard-widget-shell .section-title,
+    .dashboard-widget-shell .widget-meta,
+    .dashboard-widget-shell .widget-subtle,
+    .dashboard-widget-shell .text-secondary { color: rgba(var(--widget-text-rgb, 31, 41, 55), .72) !important; }
+    .dashboard-widget-shell .table { color: inherit; --bs-table-color: inherit; --bs-table-bg: transparent; --bs-table-striped-color: inherit; --bs-table-striped-bg: rgba(var(--widget-text-rgb, 31, 41, 55), .04); --bs-table-border-color: rgba(var(--widget-text-rgb, 31, 41, 55), .12); }
     .widget-settings-card { background: rgba(15, 23, 42, .02); border: 1px solid rgba(15, 23, 42, .08); border-radius: var(--radius-sm); }
     .widget-drag-handle { cursor: move; }
     .widget-meta { font-size: .78rem; color: #64748b; }
@@ -46,6 +51,18 @@
 @php($activeFilterValues = collect($filters ?? [])->filter(fn ($value) => $value !== null && $value !== '')->all())
 @php($widgetDataQueryString = http_build_query($activeFilterValues))
 @php($viewParams = $activeTab ? array_merge(['tab_id' => $activeTab->id], $activeFilterValues) : $activeFilterValues)
+@php($widgetHexToRgb = function ($color, $fallback = '31, 41, 55') {
+    $value = strtoupper(trim((string) $color));
+    if (!preg_match('/^#([0-9A-F]{6})$/', $value, $matches)) {
+        return $fallback;
+    }
+
+    return implode(', ', [
+        hexdec(substr($matches[1], 0, 2)),
+        hexdec(substr($matches[1], 2, 2)),
+        hexdec(substr($matches[1], 4, 2)),
+    ]);
+})
 <div class="panel p-4 mb-4">
     <div class="dashboard-tabs">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -57,6 +74,9 @@
                             @if($tab->is_default)
                                 <span class="badge text-bg-light ms-1">Default</span>
                             @endif
+                            @if((int) ($publicHomeTabId ?? 0) === (int) $tab->id)
+                                <span class="badge text-bg-warning ms-1">Public Home</span>
+                            @endif
                         </a>
                     </li>
                 @empty
@@ -65,6 +85,9 @@
             </ul>
             @if($activeTab && $isEditing)
                 <div class="d-flex gap-2">
+                    @if((int) ($publicHomeTabId ?? 0) === (int) $activeTab->id)
+                        <a class="btn btn-outline-dark btn-sm" href="{{ route('home') }}" target="_blank" rel="noopener noreferrer">Open Public Home</a>
+                    @endif
                     <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#editTabModal">Edit Tab</button>
                     <form method="POST" action="{{ route('admin.dashboard.tabs.destroy', $activeTab) }}" onsubmit="return confirm('Delete this dashboard tab and all its widgets?');">
                         @csrf
@@ -126,12 +149,16 @@
         >
             @forelse($activeWidgets as $widget)
                 @php($payload = $widgetPayloads[$widget->id] ?? ['type' => 'error', 'message' => 'Widget data unavailable.'])
+                @php($widgetBackgroundColor = strtoupper((string) ($widget->background_color ?: '#ffffff')))
+                @php($widgetTextColor = strtoupper((string) ($widget->text_color ?: '#1f2937')))
+                @php($widgetTextRgb = $widgetHexToRgb($widgetTextColor))
                 <article
                     class="panel p-3 dashboard-widget-shell"
-                    style="{{ $widgetWidthStyles[$widget->id] ?? 'width:100%;' }}"
+                    style="{{ ($widgetWidthStyles[$widget->id] ?? 'width:100%;').'--widget-bg: '.$widgetBackgroundColor.'; --widget-text: '.$widgetTextColor.'; --widget-text-rgb: '.$widgetTextRgb.'; --widget-border: rgba('.$widgetTextRgb.', .14);' }}"
                     data-widget-id="{{ $widget->id }}"
                     data-widget-chart-type="{{ $widget->chart_type }}"
                     data-widget-color="{{ $widget->color_scheme }}"
+                    data-widget-text-color="{{ $widgetTextColor }}"
                     data-widget-refresh="{{ (int) ($widget->refresh_interval_seconds ?? 0) }}"
                     data-widget-data-url="{{ route('admin.dashboard.widgets.data', $widget) }}{{ $widgetDataQueryString !== '' ? '?'.$widgetDataQueryString : '' }}"
                     draggable="{{ $isEditing ? 'true' : 'false' }}"
@@ -181,6 +208,14 @@
                                                 <option value="{{ $scheme }}" @selected($widget->color_scheme === $scheme)>{{ \Illuminate\Support\Str::headline(str_replace('_', ' ', $scheme)) }}</option>
                                             @endforeach
                                         </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Background</label>
+                                        <input class="form-control form-control-color" type="color" name="background_color" value="{{ $widgetBackgroundColor }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Text</label>
+                                        <input class="form-control form-control-color" type="color" name="text_color" value="{{ $widgetTextColor }}">
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label">SQL Query</label>
@@ -259,7 +294,7 @@
                                     {{ $payload['value'] ?? '-' }}
                                 @endif
                             </div>
-                            <div class="text-secondary">{{ $payload['label'] ?? 'Total' }}</div>
+                            <div class="widget-subtle">{{ $payload['label'] ?? 'Total' }}</div>
                         </div>
                     @elseif(($payload['type'] ?? '') === 'table')
                         <div class="widget-table-wrap" style="height: {{ (int) $widget->height_px }}px;">
@@ -347,6 +382,12 @@
                         <input class="form-check-input" type="checkbox" value="1" id="tab-default-checkbox" name="is_default" @checked($activeTab->is_default)>
                         <label class="form-check-label" for="tab-default-checkbox">Set as default tab</label>
                     </div>
+                    <input type="hidden" name="is_public_homepage" value="0">
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" value="1" id="tab-public-home-checkbox" name="is_public_homepage" @checked((int) ($publicHomeTabId ?? 0) === (int) $activeTab->id)>
+                        <label class="form-check-label" for="tab-public-home-checkbox">Use this tab on the public home page</label>
+                    </div>
+                    <div class="form-text">The widget layout on the website homepage will mirror this dashboard tab.</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -393,6 +434,14 @@
                                     <option value="{{ $scheme }}">{{ \Illuminate\Support\Str::headline(str_replace('_', ' ', $scheme)) }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Background</label>
+                            <input class="form-control form-control-color" type="color" name="background_color" value="#ffffff">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Text</label>
+                            <input class="form-control form-control-color" type="color" name="text_color" value="#1f2937">
                         </div>
                         <div class="col-12">
                             <label class="form-label">SQL Query</label>
@@ -500,6 +549,22 @@ const chartPalette = {
 
 const dashboardCharts = {};
 
+function hexToRgba(hex, alpha) {
+    const value = String(hex || '').trim();
+    const match = value.match(/^#([0-9a-fA-F]{6})$/);
+    if (!match) {
+        return `rgba(31, 41, 55, ${alpha})`;
+    }
+
+    const rgb = [
+        parseInt(match[1].slice(0, 2), 16),
+        parseInt(match[1].slice(2, 4), 16),
+        parseInt(match[1].slice(4, 6), 16),
+    ];
+
+    return `rgba(${rgb.join(', ')}, ${alpha})`;
+}
+
 function buildChartDatasets(widgetType, datasets, scheme) {
     const palette = chartPalette[scheme] || chartPalette.teal_amber;
 
@@ -544,6 +609,7 @@ function buildChartDatasets(widgetType, datasets, scheme) {
 function renderWidgetChart(widgetId, widgetElement, payload) {
     const chartType = widgetElement.dataset.widgetChartType;
     const scheme = widgetElement.dataset.widgetColor;
+    const textColor = widgetElement.dataset.widgetTextColor || '#1f2937';
     const canvas = document.getElementById(`dashboard-widget-canvas-${widgetId}`);
     if (!canvas || !payload || payload.type !== 'chart') {
         return;
@@ -563,10 +629,25 @@ function renderWidgetChart(widgetId, widgetElement, payload) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom' },
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: textColor,
+                    },
+                },
             },
             scales: (chartType === 'bar' || chartType === 'line' || chartType === 'radar')
-                ? { y: { beginAtZero: true } }
+                ? {
+                    x: {
+                        ticks: { color: textColor },
+                        grid: { color: hexToRgba(textColor, 0.08) },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: textColor },
+                        grid: { color: hexToRgba(textColor, 0.12) },
+                    },
+                }
                 : {},
         },
     });

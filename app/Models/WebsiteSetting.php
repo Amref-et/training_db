@@ -46,6 +46,7 @@ class WebsiteSetting extends Model
         'footer_copyright',
         'show_admin_link',
         'show_login_link',
+        'public_home_dashboard_tab_id',
         'login_eyebrow',
         'login_title',
         'login_subtitle',
@@ -76,6 +77,7 @@ class WebsiteSetting extends Model
         'radius_xl' => 'integer',
         'radius_pill' => 'integer',
         'header_logo_height' => 'integer',
+        'public_home_dashboard_tab_id' => 'integer',
     ];
 
     public static function defaults(): array
@@ -116,6 +118,7 @@ class WebsiteSetting extends Model
             'footer_copyright' => 'All rights reserved.',
             'show_admin_link' => true,
             'show_login_link' => true,
+            'public_home_dashboard_tab_id' => null,
             'login_eyebrow' => 'Admin Access',
             'login_title' => null,
             'login_subtitle' => 'Use your administrator account to manage training, participants, projects, and reporting.',

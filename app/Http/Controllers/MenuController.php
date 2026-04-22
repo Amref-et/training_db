@@ -11,6 +11,13 @@ use Illuminate\View\View;
 
 class MenuController extends Controller
 {
+    private const SYSTEM_LINKS = [
+        'participant-registration' => [
+            'label' => 'Participant Registration',
+            'route' => 'participant-registration.create',
+        ],
+    ];
+
     public function index(): View
     {
         return view('admin.menus.index', [
@@ -70,6 +77,7 @@ class MenuController extends Controller
             'title' => 'required|string|max:255',
             'url' => 'nullable|string|max:255',
             'page_id' => 'nullable|exists:content_pages,id',
+            'system_link' => 'nullable|in:'.implode(',', array_keys(self::SYSTEM_LINKS)),
             'parent_id' => ['nullable', $topLevelParentRule],
             'sort_order' => 'nullable|integer|min:0|max:100000',
             'target' => 'required|in:_self,_blank',
@@ -80,6 +88,11 @@ class MenuController extends Controller
         $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
         $data['is_active'] = $request->boolean('is_active');
 
+        if (! empty($data['system_link'])) {
+            $data['url'] = route(self::SYSTEM_LINKS[$data['system_link']]['route'], [], false);
+            $data['page_id'] = null;
+        }
+
         if (($data['url'] ?? '') === '' && empty($data['page_id'])) {
             $data['url'] = '#';
         }
@@ -87,6 +100,8 @@ class MenuController extends Controller
         if ($menu && (int) ($data['parent_id'] ?? 0) === (int) $menu->id) {
             $data['parent_id'] = null;
         }
+
+        unset($data['system_link']);
 
         return $data;
     }
@@ -104,6 +119,27 @@ class MenuController extends Controller
             'menu' => $menu,
             'parentItems' => $parentItems,
             'pages' => ContentPage::query()->orderBy('title')->get(),
+            'systemLinks' => collect(self::SYSTEM_LINKS)
+                ->map(fn (array $link, string $key) => [
+                    'value' => $key,
+                    'label' => $link['label'],
+                    'url' => route($link['route'], [], false),
+                ])
+                ->values(),
+            'selectedSystemLink' => $this->selectedSystemLink($menu),
         ];
+    }
+
+    private function selectedSystemLink(WebsiteMenuItem $menu): ?string
+    {
+        $url = trim((string) $menu->url);
+
+        foreach (self::SYSTEM_LINKS as $key => $link) {
+            if ($url === route($link['route'], [], false)) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 }

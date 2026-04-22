@@ -1,5 +1,8 @@
 <?php
 
+$appUrl = rtrim((string) env('APP_URL', ''), '/');
+$publicBaseUrl = preg_replace('#/index\.php$#', '', $appUrl) ?: $appUrl;
+
 return [
 
     /*
@@ -41,7 +44,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            'url' => $publicBaseUrl.'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

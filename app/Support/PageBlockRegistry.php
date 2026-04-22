@@ -103,6 +103,7 @@ class PageBlockRegistry
                         'type' => 'checkbox-group',
                         'default' => [
                             'training_organizer_id',
+                            'organized_by',
                             'gender',
                             'region_id',
                             'organization_id',
@@ -317,7 +318,8 @@ class PageBlockRegistry
     public static function dashboardFilterChoices(): array
     {
         return [
-            ['value' => 'training_organizer_id', 'label' => 'Organizer'],
+            ['value' => 'training_organizer_id', 'label' => 'Project'],
+            ['value' => 'organized_by', 'label' => 'Organized By'],
             ['value' => 'gender', 'label' => 'Gender'],
             ['value' => 'region_id', 'label' => 'Region'],
             ['value' => 'organization_id', 'label' => 'Organization'],

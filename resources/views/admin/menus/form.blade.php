@@ -4,6 +4,16 @@
 @section('title', $menu->exists ? 'Edit Menu Item' : 'Create Menu Item')
 @section('subtitle', 'Configure menu links and optional submenu parent.')
 
+@section('head')
+<style>
+    .required-mark {
+        color: #dc3545;
+        font-weight: 700;
+        margin-left: .2rem;
+    }
+</style>
+@endsection
+
 @section('content')
 <div class="panel p-4">
     <form method="POST" action="{{ $menu->exists ? route('admin.menus.update', $menu) : route('admin.menus.store') }}" class="row g-3">
@@ -11,8 +21,8 @@
         @if($menu->exists) @method('PUT') @endif
 
         <div class="col-md-6">
-            <label class="form-label">Title</label>
-            <input type="text" name="title" class="form-control" value="{{ old('title', $menu->title) }}" required>
+            <label class="form-label">Title<span class="required-mark" aria-hidden="true">*</span></label>
+            <input type="text" name="title" class="form-control" value="{{ old('title', $menu->title) }}" required aria-required="true">
         </div>
 
         <div class="col-md-6">
@@ -37,14 +47,25 @@
         </div>
 
         <div class="col-md-6">
+            <label class="form-label">System Link (optional)</label>
+            <select name="system_link" class="form-select">
+                <option value="">None</option>
+                @foreach($systemLinks as $systemLink)
+                    <option value="{{ $systemLink['value'] }}" @selected(old('system_link', $selectedSystemLink) === $systemLink['value'])>{{ $systemLink['label'] }}</option>
+                @endforeach
+            </select>
+            <div class="form-text">Use this for built-in public routes such as Participant Registration.</div>
+        </div>
+
+        <div class="col-md-6">
             <label class="form-label">Custom URL (optional)</label>
             <input type="text" name="url" class="form-control" value="{{ old('url', $menu->url) }}" placeholder="/pages/about or https://example.com">
-            <div class="form-text">Leave empty to use the linked page URL. If both are empty, this menu item becomes `#`.</div>
+            <div class="form-text">Leave empty to use the linked page or system link. If all are empty, this menu item becomes `#`.</div>
         </div>
 
         <div class="col-md-4">
-            <label class="form-label">Open Target</label>
-            <select name="target" class="form-select">
+            <label class="form-label">Open Target<span class="required-mark" aria-hidden="true">*</span></label>
+            <select name="target" class="form-select" required aria-required="true">
                 <option value="_self" @selected(old('target', $menu->target ?: '_self') === '_self')>Same Tab</option>
                 <option value="_blank" @selected(old('target', $menu->target) === '_blank')>New Tab</option>
             </select>

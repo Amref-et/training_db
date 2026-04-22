@@ -55,16 +55,16 @@ class DashboardMetricsService
             ->join('training_event_participants', 'training_event_workshop_scores.training_event_participant_id', '=', 'training_event_participants.id')
             ->join('training_events', 'training_event_participants.training_event_id', '=', 'training_events.id')
             ->join('training_organizers', 'training_events.training_organizer_id', '=', 'training_organizers.id')
-            ->selectRaw('training_organizers.id as id, training_organizers.title as label, AVG(training_event_workshop_scores.pre_test_score) as avg_pre')
-            ->groupBy('training_organizers.id', 'training_organizers.title')
+            ->selectRaw("training_organizers.id as id, COALESCE(NULLIF(training_organizers.project_name, ''), NULLIF(training_organizers.title, ''), CONCAT('Project #', training_organizers.id)) as label, AVG(training_event_workshop_scores.pre_test_score) as avg_pre")
+            ->groupByRaw("training_organizers.id, COALESCE(NULLIF(training_organizers.project_name, ''), NULLIF(training_organizers.title, ''), CONCAT('Project #', training_organizers.id))")
             ->get()
             ->keyBy('id');
 
         $organizerPost = (clone $enrollmentsQuery)
             ->join('training_events', 'training_event_participants.training_event_id', '=', 'training_events.id')
             ->join('training_organizers', 'training_events.training_organizer_id', '=', 'training_organizers.id')
-            ->selectRaw('training_organizers.id as id, training_organizers.title as label, AVG(training_event_participants.final_score) as avg_post')
-            ->groupBy('training_organizers.id', 'training_organizers.title')
+            ->selectRaw("training_organizers.id as id, COALESCE(NULLIF(training_organizers.project_name, ''), NULLIF(training_organizers.title, ''), CONCAT('Project #', training_organizers.id)) as label, AVG(training_event_participants.final_score) as avg_post")
+            ->groupByRaw("training_organizers.id, COALESCE(NULLIF(training_organizers.project_name, ''), NULLIF(training_organizers.title, ''), CONCAT('Project #', training_organizers.id))")
             ->get()
             ->keyBy('id');
 
@@ -123,7 +123,7 @@ class DashboardMetricsService
             'filters' => $filters,
             'filterDefinitions' => $filterDefinitions,
             'regions' => Region::query()->orderBy('name')->get(),
-            'organizers' => TrainingOrganizer::query()->orderBy('title')->get(),
+            'projects' => TrainingOrganizer::query()->orderBy('project_name')->orderBy('title')->get(),
             'totalParticipants' => $totalParticipants,
             'maleParticipants' => $maleParticipants,
             'femaleParticipants' => $femaleParticipants,
@@ -140,14 +140,20 @@ class DashboardMetricsService
         return array_values(array_filter([
             $this->selectDefinition(
                 'training_organizer_id',
-                'Organizer',
-                'All organizers',
-                TrainingOrganizer::query()->orderBy('title')->get()
+                'Project',
+                'All projects',
+                TrainingOrganizer::query()->orderBy('project_name')->orderBy('title')->get()
                     ->map(fn (TrainingOrganizer $organizer) => [
                         'value' => (string) $organizer->id,
-                        'label' => $organizer->title,
+                        'label' => $organizer->project_name ?: $organizer->title,
                     ])
                     ->all()
+            ),
+            $this->selectDefinition(
+                'organized_by',
+                'Organized By',
+                'All organizers',
+                $this->organizedByOptions()
             ),
             $this->selectDefinition(
                 'gender',
@@ -311,6 +317,10 @@ class DashboardMetricsService
             $query->where('training_organizer_id', (int) $filters['training_organizer_id']);
         }
 
+        if (! empty($filters['organized_by'])) {
+            $this->applyOrganizedByFilter($query, (string) $filters['organized_by']);
+        }
+
         if (! empty($filters['training_id'])) {
             $query->where('training_id', (int) $filters['training_id']);
         }
@@ -331,8 +341,71 @@ class DashboardMetricsService
     private function hasTrainingEventFilters(array $filters): bool
     {
         return ! empty($filters['training_organizer_id'])
+            || ! empty($filters['organized_by'])
             || ! empty($filters['training_id'])
             || ! empty($filters['status']);
+    }
+
+    private function organizedByOptions(): array
+    {
+        return TrainingEvent::query()
+            ->with([
+                'trainingOrganizer:id,title,project_name',
+                'projectSubawardee:id,subawardee_name',
+            ])
+            ->get()
+            ->map(function (TrainingEvent $event) {
+                if ($event->organizer_type === 'Subawardee' && $event->projectSubawardee?->subawardee_name) {
+                    return [
+                        'value' => 'subawardee:'.$event->project_subawardee_id,
+                        'label' => $event->projectSubawardee->subawardee_name,
+                    ];
+                }
+
+                $projectName = $event->trainingOrganizer?->project_name ?: $event->trainingOrganizer?->title;
+
+                if ($projectName && $event->training_organizer_id) {
+                    return [
+                        'value' => 'project:'.$event->training_organizer_id,
+                        'label' => $projectName,
+                    ];
+                }
+
+                return null;
+            })
+            ->filter(fn ($option) => is_array($option) && ($option['value'] ?? '') !== '' && ($option['label'] ?? '') !== '')
+            ->unique('value')
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
+    }
+
+    private function applyOrganizedByFilter(Builder $query, string $value): void
+    {
+        $value = trim($value);
+
+        if (Str::startsWith($value, 'subawardee:')) {
+            $subawardeeId = (int) Str::after($value, 'subawardee:');
+
+            if ($subawardeeId > 0) {
+                $query->where('organizer_type', 'Subawardee')
+                    ->where('project_subawardee_id', $subawardeeId);
+            }
+
+            return;
+        }
+
+        if (Str::startsWith($value, 'project:')) {
+            $projectId = (int) Str::after($value, 'project:');
+
+            if ($projectId > 0) {
+                $query->where('training_organizer_id', $projectId)
+                    ->where(function (Builder $projectQuery) {
+                        $projectQuery->where('organizer_type', 'The project')
+                            ->orWhereNull('organizer_type');
+                    });
+            }
+        }
     }
 
     private function selectDefinition(string $key, string $label, string $allLabel, array $options): ?array

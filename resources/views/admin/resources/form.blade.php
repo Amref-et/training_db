@@ -21,6 +21,13 @@
 @php($activeFieldTab = $errorTab ?: (string) $fieldGroups->keys()->first())
 
 @section('head')
+    <style>
+        .required-mark {
+            color: #dc3545;
+            font-weight: 700;
+            margin-left: .2rem;
+        }
+    </style>
     @if($hasSearchableSelect)
         <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
         <style>
@@ -90,6 +97,7 @@
                         @foreach($tabFields as $field)
                             @php($name = $field['name'])
                             @php($type = $field['type'] ?? 'text')
+                            @php($isRequired = (bool) ($field['required'] ?? false))
                             @php($defaultValue = $record ? data_get($record, $name) : null)
                             @if($type === 'repeater')
                                 @php($defaultValue = $record ? data_get($record, $name, collect())->pluck($field['column'] ?? 'name')->all() : [])
@@ -100,9 +108,12 @@
                                 @php($value = $type === 'date' ? $value->format('Y-m-d') : $value->toDateTimeString())
                             @endif
                             <div class="{{ in_array($type, ['textarea', 'tinymce'], true) ? 'col-12' : 'col-md-6' }}">
-                                <label class="form-label">{{ $field['label'] }}</label>
+                                <label class="form-label">
+                                    {{ $field['label'] }}
+                                    @if($isRequired)<span class="required-mark" aria-hidden="true">*</span>@endif
+                                </label>
                                 @if(in_array($type, ['textarea', 'tinymce'], true))
-                                    <textarea name="{{ $name }}" rows="8" class="form-control js-tinymce">{{ $value }}</textarea>
+                                    <textarea name="{{ $name }}" rows="8" class="form-control js-tinymce" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}">{{ $value }}</textarea>
                                 @elseif($type === 'multiselect')
                                     @php($selectedValues = collect(is_array($value) ? $value : [])->map(fn ($item) => (string) $item)->all())
                                     @php($selectId = 'multiselect-'.preg_replace('/[^a-z0-9\-]+/i', '-', $name))
@@ -114,7 +125,7 @@
                                         autocomplete="off"
                                     >
                                     <div id="{{ $selectId }}-selected" class="d-flex flex-wrap gap-2 mb-2 js-multiselect-selected" data-target="{{ $selectId }}"></div>
-                                    <select id="{{ $selectId }}" name="{{ $name }}[]" class="form-select js-filterable-multiselect" multiple size="8">
+                                    <select id="{{ $selectId }}" name="{{ $name }}[]" class="form-select js-filterable-multiselect" multiple size="8" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}">
                                         @foreach($fieldOptions[$name] ?? [] as $option)
                                             <option value="{{ $option['value'] }}" @selected(in_array((string) $option['value'], $selectedValues, true))>{{ $option['label'] }}</option>
                                         @endforeach
@@ -126,11 +137,11 @@
                                         @php($repeaterValues = collect(['']))
                                     @endif
                                     @php($repeaterId = 'repeater-'.preg_replace('/[^a-z0-9\-]+/i', '-', $name))
-                                    <div id="{{ $repeaterId }}" class="js-repeater" data-name="{{ $name }}" data-item-label="{{ $field['item_label'] ?? 'Item' }}">
+                                    <div id="{{ $repeaterId }}" class="js-repeater" data-name="{{ $name }}" data-item-label="{{ $field['item_label'] ?? 'Item' }}" data-required="{{ $isRequired ? '1' : '0' }}">
                                         <div class="d-flex flex-column gap-2 js-repeater-list">
                                             @foreach($repeaterValues as $repeaterValue)
                                                 <div class="input-group js-repeater-row">
-                                                    <input type="text" name="{{ $name }}[]" value="{{ $repeaterValue }}" class="form-control" placeholder="{{ $field['item_label'] ?? 'Item' }} name">
+                                                    <input type="text" name="{{ $name }}[]" value="{{ $repeaterValue }}" class="form-control" placeholder="{{ $field['item_label'] ?? 'Item' }} name" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}">
                                                     <button type="button" class="btn btn-outline-danger js-repeater-remove">Remove</button>
                                                 </div>
                                             @endforeach
@@ -146,6 +157,8 @@
                                         id="{{ $selectId }}"
                                         name="{{ $name }}"
                                         class="form-select {{ $isSearchableSelect ? 'js-searchable-select' : '' }} {{ $isRemoteSearchableSelect ? 'js-remote-searchable-select' : '' }}"
+                                        @required($isRequired)
+                                        aria-required="{{ $isRequired ? 'true' : 'false' }}"
                                         @if($isRemoteSearchableSelect) data-remote-url="{{ route('admin.participants.organization-options') }}" @endif
                                     >
                                         <option value="">Select {{ strtolower($field['label']) }}</option>
@@ -163,12 +176,12 @@
                                         @endforeach
                                     </select>
                                 @elseif($type === 'file')
-                                    <input type="file" name="{{ $name }}" class="form-control" @if(!empty($field['accept'])) accept="{{ $field['accept'] }}" @endif>
+                                    <input type="file" name="{{ $name }}" class="form-control" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}" @if(!empty($field['accept'])) accept="{{ $field['accept'] }}" @endif>
                                     @if($record && data_get($record, $name))
                                         <div class="form-text mt-2">Current file: <a href="{{ route('admin.'.$config['path'].'.file', ['record' => $record->getKey(), 'field' => $name]) }}">{{ basename((string) data_get($record, $name)) }}</a></div>
                                     @endif
                                 @else
-                                    <input type="{{ $type }}" name="{{ $name }}" value="{{ $value }}" class="form-control" @if($name === 'age') min="0" max="120" step="1" @endif>
+                                    <input type="{{ $type }}" name="{{ $name }}" value="{{ $value }}" class="form-control" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}" @if($name === 'age') min="0" max="120" step="1" @endif>
                                 @endif
                                 @if($name === 'date_of_birth')
                                     <div class="form-text">Age is calculated as of July 1st of the current year.</div>
@@ -489,9 +502,9 @@
                 return;
             }
 
-            const rowMarkup = (name, itemLabel, value = '') => `
+            const rowMarkup = (name, itemLabel, required = false, value = '') => `
                 <div class="input-group js-repeater-row">
-                    <input type="text" name="${name}[]" value="${value.replace(/"/g, '&quot;')}" class="form-control" placeholder="${itemLabel} name">
+                    <input type="text" name="${name}[]" value="${value.replace(/"/g, '&quot;')}" class="form-control" placeholder="${itemLabel} name" ${required ? 'required aria-required="true"' : 'aria-required="false"'}>
                     <button type="button" class="btn btn-outline-danger js-repeater-remove">Remove</button>
                 </div>
             `;
@@ -499,6 +512,7 @@
             repeaters.forEach((repeater) => {
                 const name = repeater.getAttribute('data-name') || 'items';
                 const itemLabel = repeater.getAttribute('data-item-label') || 'Item';
+                const isRequired = repeater.getAttribute('data-required') === '1';
                 const list = repeater.querySelector('.js-repeater-list');
                 const addButton = repeater.querySelector('.js-repeater-add');
 
@@ -507,7 +521,7 @@
                 }
 
                 addButton.addEventListener('click', () => {
-                    list.insertAdjacentHTML('beforeend', rowMarkup(name, itemLabel));
+                    list.insertAdjacentHTML('beforeend', rowMarkup(name, itemLabel, isRequired));
                 });
 
                 repeater.addEventListener('click', (event) => {
