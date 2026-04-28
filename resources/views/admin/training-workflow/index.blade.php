@@ -1,6 +1,8 @@
 @extends('layouts.admin')
 
-@php($activeStep = max(1, min(4, (int) request('step', 1))))
+@php
+    $activeStep = max(1, min(4, (int) request('step', 1)));
+@endphp
 
 @section('eyebrow', 'Workflow')
 @section('title', 'Training Workflow Management')
@@ -134,9 +136,13 @@
     @if(!$selectedEvent)
         <div class="alert alert-warning mb-0">Select or create an event first.</div>
     @else
-        @php($enrolledParticipantIds = $enrollments->pluck('participant_id')->all())
-        @php($availableParticipants = $participantsForEnrollment->reject(fn ($participant) => in_array($participant->id, $enrolledParticipantIds, true))->values())
-        @php($bulkParticipantSelectId = 'workflow-bulk-participant-select')
+        @php
+            $enrolledParticipantIds = $enrollments->pluck('participant_id')->all();
+            $availableParticipants = $participantsForEnrollment
+                ->reject(fn ($participant) => in_array($participant->id, $enrolledParticipantIds, true))
+                ->values();
+            $bulkParticipantSelectId = 'workflow-bulk-participant-select';
+        @endphp
 
         <form method="POST" action="{{ route('admin.training-workflow.enrollments.store', $selectedEvent) }}" class="row g-3 mb-4">
             @csrf
@@ -223,12 +229,20 @@
 
         <div class="d-flex flex-wrap gap-2 mb-3">
             @foreach(range(1, max(1, (int) $workshopCount)) as $workshopNumber)
-                @php($progress = $workshopProgress[$workshopNumber] ?? ['completed' => 0, 'total' => 0, 'is_complete' => false])
+                @php
+                    $progress = $workshopProgress[$workshopNumber] ?? ['completed' => 0, 'total' => 0, 'is_complete' => false];
+                    $workshopDetail = $selectedEvent->workshops->firstWhere('workshop_number', $workshopNumber);
+                @endphp
                 <a
                     href="{{ route('admin.training-workflow.index', ['event_id' => $selectedEvent->id, 'step' => 3, 'workshop' => $workshopNumber]) }}"
                     class="btn {{ $selectedWorkshop === $workshopNumber ? 'btn-dark' : 'btn-outline-secondary' }}"
                 >
-                    Workshop {{ $workshopNumber }} ({{ $progress['completed'] }}/{{ $progress['total'] }})
+                    <span class="d-block">Workshop {{ $workshopNumber }} ({{ $progress['completed'] }}/{{ $progress['total'] }})</span>
+                    @if($workshopDetail?->start_date || $workshopDetail?->end_date)
+                        <small class="d-block {{ $selectedWorkshop === $workshopNumber ? 'text-white-50' : 'text-secondary' }}">
+                            {{ $workshopDetail?->start_date?->format('Y-m-d') ?: 'No start date' }} to {{ $workshopDetail?->end_date?->format('Y-m-d') ?: 'No end date' }}
+                        </small>
+                    @endif
                 </a>
             @endforeach
         </div>
@@ -247,7 +261,7 @@
                     <div class="col-md-8">
                         <label class="form-label">Import Workshop {{ $selectedWorkshop }} Scores (CSV)</label>
                         <input type="file" name="score_file" class="form-control" accept=".csv,text/csv" required>
-                        <div class="form-text">Use the exported CSV format (participant_id or participant_code with pre/mid/post score columns).</div>
+                        <div class="form-text">Use the exported CSV format, including optional workshop_start_date and workshop_end_date columns.</div>
                     </div>
                     <div class="col-md-4 d-grid">
                         <label class="form-label text-transparent">.</label>
@@ -260,6 +274,31 @@
         <form method="POST" action="{{ route('admin.training-workflow.workshops.save', $selectedEvent) }}">
             @csrf
             <input type="hidden" name="workshop_number" value="{{ $selectedWorkshop }}">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label">Workshop {{ $selectedWorkshop }} Start Date</label>
+                    <input
+                        type="date"
+                        name="workshop_start_date"
+                        class="form-control"
+                        value="{{ old('workshop_start_date', $selectedWorkshopDetail?->start_date?->format('Y-m-d')) }}"
+                    >
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Workshop {{ $selectedWorkshop }} End Date</label>
+                    <input
+                        type="date"
+                        name="workshop_end_date"
+                        class="form-control"
+                        value="{{ old('workshop_end_date', $selectedWorkshopDetail?->end_date?->format('Y-m-d')) }}"
+                    >
+                </div>
+                <div class="col-md-4">
+                    <div class="form-text pt-md-4 mt-md-2">
+                        These dates are stored once for this workshop and reused in CSV export/import and reporting.
+                    </div>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table align-middle">
                 <thead>
@@ -273,7 +312,9 @@
                     </thead>
                     <tbody>
                         @foreach($enrollments as $enrollment)
-                            @php($score = $enrollment->workshopScores->firstWhere('workshop_number', $selectedWorkshop))
+                            @php
+                                $score = $enrollment->workshopScores->firstWhere('workshop_number', $selectedWorkshop);
+                            @endphp
                             <tr>
                                 <td>{{ $enrollment->participant?->name ?: 'Participant #'.$enrollment->participant_id }}</td>
                                 <td>{{ $enrollment->participant?->participant_code ?: 'N/A' }}</td>
@@ -366,6 +407,8 @@
                 <thead>
                     <tr>
                         <th>Workshop</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
                         <th>Average Pre-test Score</th>
                         <th>Average Post-test Score</th>
                     </tr>
@@ -374,12 +417,14 @@
                     @forelse($reportWorkshopAverages as $row)
                         <tr>
                             <td>Workshop {{ $row['workshop_number'] }}</td>
+                            <td>{{ $row['start_date'] ? \Illuminate\Support\Carbon::parse($row['start_date'])->format('Y-m-d') : 'N/A' }}</td>
+                            <td>{{ $row['end_date'] ? \Illuminate\Support\Carbon::parse($row['end_date'])->format('Y-m-d') : 'N/A' }}</td>
                             <td>{{ $row['avg_pre_score'] !== null ? number_format((float) $row['avg_pre_score'], 2) : 'N/A' }}</td>
                             <td>{{ $row['avg_post_score'] !== null ? number_format((float) $row['avg_post_score'], 2) : 'N/A' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="text-secondary">No score data available for reporting.</td>
+                            <td colspan="5" class="text-secondary">No score data available for reporting.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -1,7 +1,0 @@
-DirectorySlash Off
-
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /test/hil-v2/login/
-    RewriteRule ^$ index.php [L,QSA]
-</IfModule>

@@ -7,6 +7,7 @@ use App\Models\Region;
 use App\Models\Training;
 use App\Models\TrainingEvent;
 use App\Models\TrainingEventParticipant;
+use App\Models\TrainingEventWorkshop;
 use App\Models\TrainingEventWorkshopScore;
 use App\Models\TrainingOrganizer;
 use Illuminate\Http\RedirectResponse;
@@ -30,6 +31,7 @@ class TrainingWorkflowController extends Controller
         $selectedEvent = null;
         $enrollments = collect();
         $workshopProgress = [];
+        $workshopDetails = collect();
         $reportWorkshopAverages = collect();
         $reportParticipantScores = collect();
         $workshopCount = 0;
@@ -51,6 +53,7 @@ class TrainingWorkflowController extends Controller
                     'trainingRegion',
                     'enrollments.participant',
                     'enrollments.workshopScores',
+                    'workshops',
                 ])
                 ->find($selectedEventId);
         }
@@ -58,6 +61,7 @@ class TrainingWorkflowController extends Controller
         if ($selectedEvent) {
             $workshopCount = max(1, (int) ($selectedEvent->workshop_count ?? 4));
             $selectedWorkshop = min($requestedWorkshop, $workshopCount);
+            $workshopDetails = $selectedEvent->workshops->keyBy('workshop_number');
 
             $enrollments = $selectedEvent->enrollments
                 ->sortBy(fn (TrainingEventParticipant $enrollment) => mb_strtolower((string) $enrollment->participant?->name))
@@ -82,18 +86,28 @@ class TrainingWorkflowController extends Controller
                 })
                 ->all();
 
-            $reportWorkshopAverages = TrainingEventWorkshopScore::query()
+            $workshopAverageRows = TrainingEventWorkshopScore::query()
                 ->where('workshop_number', '<=', $workshopCount)
                 ->whereHas('trainingEventParticipant', fn ($query) => $query->where('training_event_id', $selectedEvent->id))
                 ->selectRaw('workshop_number, AVG(pre_test_score) as avg_pre_score, AVG(post_test_score) as avg_post_score')
                 ->groupBy('workshop_number')
                 ->orderBy('workshop_number')
                 ->get()
-                ->map(fn ($row) => [
-                    'workshop_number' => (int) $row->workshop_number,
-                    'avg_pre_score' => $row->avg_pre_score !== null ? round((float) $row->avg_pre_score, 2) : null,
-                    'avg_post_score' => $row->avg_post_score !== null ? round((float) $row->avg_post_score, 2) : null,
-                ]);
+                ->keyBy(fn ($row) => (int) $row->workshop_number);
+
+            $reportWorkshopAverages = collect(range(1, $workshopCount))
+                ->map(function (int $workshopNumber) use ($workshopAverageRows, $workshopDetails) {
+                    $averageRow = $workshopAverageRows->get($workshopNumber);
+                    $workshop = $workshopDetails->get($workshopNumber);
+
+                    return [
+                        'workshop_number' => $workshopNumber,
+                        'start_date' => $workshop?->start_date,
+                        'end_date' => $workshop?->end_date,
+                        'avg_pre_score' => $averageRow?->avg_pre_score !== null ? round((float) $averageRow->avg_pre_score, 2) : null,
+                        'avg_post_score' => $averageRow?->avg_post_score !== null ? round((float) $averageRow->avg_post_score, 2) : null,
+                    ];
+                });
 
             $reportParticipantScores = $enrollments
                 ->map(function (TrainingEventParticipant $enrollment) use ($workshopCount) {
@@ -164,6 +178,7 @@ class TrainingWorkflowController extends Controller
             'selectedEvent' => $selectedEvent,
             'selectedWorkshop' => $selectedWorkshop,
             'workshopCount' => $workshopCount,
+            'selectedWorkshopDetail' => $workshopDetails->get($selectedWorkshop),
             'stepStatus' => $stepStatus,
             'enrollments' => $enrollments,
             'workshopProgress' => $workshopProgress,
@@ -323,6 +338,8 @@ class TrainingWorkflowController extends Controller
 
         $data = $request->validate([
             'workshop_number' => 'required|integer|min:1|max:'.$maxWorkshop,
+            'workshop_start_date' => 'nullable|date',
+            'workshop_end_date' => 'nullable|date|after_or_equal:workshop_start_date',
             'pre_scores' => 'array',
             'pre_scores.*' => 'nullable|numeric|min:0|max:100',
             'mid_scores' => 'array',
@@ -332,6 +349,12 @@ class TrainingWorkflowController extends Controller
         ]);
 
         $workshopNumber = (int) $data['workshop_number'];
+        $workshop = $this->upsertWorkshopDates(
+            $trainingEvent,
+            $workshopNumber,
+            $data['workshop_start_date'] ?? null,
+            $data['workshop_end_date'] ?? null
+        );
         $preScores = collect($data['pre_scores'] ?? []);
         $midScores = collect($data['mid_scores'] ?? []);
         $postScores = collect($data['post_scores'] ?? []);
@@ -381,6 +404,8 @@ class TrainingWorkflowController extends Controller
             'auditable_label' => $trainingEvent->event_name,
             'metadata' => [
                 'workshop_number' => $workshopNumber,
+                'workshop_start_date' => $workshop?->start_date?->toDateString(),
+                'workshop_end_date' => $workshop?->end_date?->toDateString(),
                 'enrollment_ids' => $enrollmentIds->all(),
             ],
         ]);
@@ -403,6 +428,9 @@ class TrainingWorkflowController extends Controller
         ]);
 
         $workshopNumber = (int) $data['workshop'];
+        $workshop = $trainingEvent->workshops()
+            ->where('workshop_number', $workshopNumber)
+            ->first();
 
         $enrollments = TrainingEventParticipant::query()
             ->with([
@@ -426,7 +454,7 @@ class TrainingWorkflowController extends Controller
             ],
         ]);
 
-        return response()->streamDownload(function () use ($enrollments, $trainingEvent, $workshopNumber): void {
+        return response()->streamDownload(function () use ($enrollments, $trainingEvent, $workshopNumber, $workshop): void {
             $handle = fopen('php://output', 'w');
             if ($handle === false) {
                 return;
@@ -435,6 +463,8 @@ class TrainingWorkflowController extends Controller
             fputcsv($handle, [
                 'training_event_id',
                 'workshop_number',
+                'workshop_start_date',
+                'workshop_end_date',
                 'participant_id',
                 'participant_code',
                 'participant_name',
@@ -449,6 +479,8 @@ class TrainingWorkflowController extends Controller
                 fputcsv($handle, [
                     $trainingEvent->id,
                     $workshopNumber,
+                    $workshop?->start_date?->toDateString(),
+                    $workshop?->end_date?->toDateString(),
                     $enrollment->participant_id,
                     (string) ($enrollment->participant?->participant_code ?? ''),
                     (string) ($enrollment->participant?->name ?? 'Participant #'.$enrollment->participant_id),
@@ -474,6 +506,9 @@ class TrainingWorkflowController extends Controller
         ]);
 
         $workshopNumber = (int) $data['workshop_number'];
+        $workshop = $trainingEvent->workshops()
+            ->where('workshop_number', $workshopNumber)
+            ->first();
         $path = $data['score_file']->getRealPath();
         $handle = is_string($path) ? fopen($path, 'r') : false;
 
@@ -539,11 +574,12 @@ class TrainingWorkflowController extends Controller
         $updated = 0;
         $deleted = 0;
         $skipped = 0;
-        $line = 1;
+        $hasWorkshopStartDateColumn = array_key_exists('workshop_start_date', $headerMap);
+        $hasWorkshopEndDateColumn = array_key_exists('workshop_end_date', $headerMap);
+        $workshopStartDate = $workshop?->start_date?->toDateString();
+        $workshopEndDate = $workshop?->end_date?->toDateString();
 
         while (($row = fgetcsv($handle)) !== false) {
-            $line++;
-
             if (! is_array($row) || $this->rowIsEmpty($row)) {
                 continue;
             }
@@ -567,8 +603,10 @@ class TrainingWorkflowController extends Controller
             $preResult = $this->parseCsvScore($this->csvCell($row, $headerMap, 'pre_test_score'));
             $midResult = $this->parseCsvScore($this->csvCell($row, $headerMap, 'mid_test_score'));
             $postResult = $this->parseCsvScore($this->csvCell($row, $headerMap, 'post_test_score'));
+            $startDateResult = $this->parseCsvDate($this->csvCell($row, $headerMap, 'workshop_start_date'));
+            $endDateResult = $this->parseCsvDate($this->csvCell($row, $headerMap, 'workshop_end_date'));
 
-            if (! $preResult['valid'] || ! $midResult['valid'] || ! $postResult['valid']) {
+            if (! $preResult['valid'] || ! $midResult['valid'] || ! $postResult['valid'] || ! $startDateResult['valid'] || ! $endDateResult['valid']) {
                 $skipped++;
                 continue;
             }
@@ -576,6 +614,19 @@ class TrainingWorkflowController extends Controller
             $pre = $preResult['value'];
             $mid = $midResult['value'];
             $post = $postResult['value'];
+            $rowWorkshopStartDate = $startDateResult['value'];
+            $rowWorkshopEndDate = $endDateResult['value'];
+
+            if ($hasWorkshopStartDateColumn) {
+                $workshopStartDate = $rowWorkshopStartDate;
+            }
+            if ($hasWorkshopEndDateColumn) {
+                $workshopEndDate = $rowWorkshopEndDate;
+            }
+            if ($workshopStartDate !== null && $workshopEndDate !== null && $workshopEndDate < $workshopStartDate) {
+                $skipped++;
+                continue;
+            }
 
             $existing = $existingScores->get($enrollment->id);
 
@@ -609,6 +660,12 @@ class TrainingWorkflowController extends Controller
         }
 
         fclose($handle);
+        $workshop = $this->upsertWorkshopDates(
+            $trainingEvent,
+            $workshopNumber,
+            $workshopStartDate,
+            $workshopEndDate
+        );
 
         $message = 'Workshop '.$workshopNumber.' import completed: '.$updated.' row(s) saved';
         if ($deleted > 0) {
@@ -625,6 +682,8 @@ class TrainingWorkflowController extends Controller
             'auditable_label' => $trainingEvent->event_name,
             'metadata' => [
                 'workshop_number' => $workshopNumber,
+                'workshop_start_date' => $workshop?->start_date?->toDateString(),
+                'workshop_end_date' => $workshop?->end_date?->toDateString(),
                 'updated' => $updated,
                 'deleted' => $deleted,
                 'skipped' => $skipped,
@@ -801,6 +860,19 @@ class TrainingWorkflowController extends Controller
     {
         $workshopCount = max(1, $workshopCount);
 
+        foreach (range(1, $workshopCount) as $workshopNumber) {
+            TrainingEventWorkshop::query()->firstOrCreate(
+                [
+                    'training_event_id' => $trainingEvent->id,
+                    'workshop_number' => $workshopNumber,
+                ],
+                [
+                    'start_date' => $trainingEvent->start_date,
+                    'end_date' => $trainingEvent->end_date,
+                ]
+            );
+        }
+
         $enrollments = TrainingEventParticipant::query()
             ->where('training_event_id', $trainingEvent->id)
             ->get();
@@ -828,7 +900,37 @@ class TrainingWorkflowController extends Controller
             ->each
             ->delete();
 
+        TrainingEventWorkshop::query()
+            ->where('training_event_id', $trainingEvent->id)
+            ->where('workshop_number', '>', $workshopCount)
+            ->delete();
+
         $enrollments->each->refreshFinalScore();
+    }
+
+    private function upsertWorkshopDates(
+        TrainingEvent $trainingEvent,
+        int $workshopNumber,
+        ?string $startDate,
+        ?string $endDate
+    ): TrainingEventWorkshop {
+        $workshop = TrainingEventWorkshop::query()->firstOrCreate(
+            [
+                'training_event_id' => $trainingEvent->id,
+                'workshop_number' => $workshopNumber,
+            ],
+            [
+                'start_date' => $trainingEvent->start_date,
+                'end_date' => $trainingEvent->end_date,
+            ]
+        );
+
+        $workshop->update([
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+
+        return $workshop->fresh();
     }
 
     private function toNullableFloat(mixed $value): ?float
@@ -838,6 +940,21 @@ class TrainingWorkflowController extends Controller
         }
 
         return (float) $value;
+    }
+
+    private function parseCsvDate(mixed $value): array
+    {
+        $value = trim((string) ($value ?? ''));
+
+        if ($value === '') {
+            return ['valid' => true, 'value' => null];
+        }
+
+        try {
+            return ['valid' => true, 'value' => \Illuminate\Support\Carbon::parse($value)->toDateString()];
+        } catch (\Throwable) {
+            return ['valid' => false, 'value' => null];
+        }
     }
 
     private function rowIsEmpty(array $row): bool

@@ -10,5 +10,5 @@
 
     RewriteCond %{REQUEST_URI} !^/test/hil-v2/index\.php [NC]
     RewriteRule ^$ index.php [L,QSA]
-    RewriteRule ^(.*)$ index.php/$1 [L,QSA]
+    RewriteRule ^(.+)$ index.php?__path=$1 [L,QSA]
 </IfModule>

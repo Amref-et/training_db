@@ -75,6 +75,11 @@ class TrainingEvent extends Model
         );
     }
 
+    public function workshops()
+    {
+        return $this->hasMany(TrainingEventWorkshop::class)->orderBy('workshop_number');
+    }
+
     public function rounds()
     {
         return $this->hasMany(TrainingRound::class)->orderBy('round_number');
