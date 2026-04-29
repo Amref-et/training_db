@@ -1,0 +1,50 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: hil-v2-app:latest
+    env_file:
+      - .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    volumes:
+      - storage-data:/var/www/html/storage
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    image: hil-v2-app:latest
+    env_file:
+      - .env.docker
+    depends_on:
+      db:
+        condition: service_healthy
+    command: php artisan queue:work --verbose --tries=3 --timeout=120
+    restart: unless-stopped
+    volumes:
+      - storage-data:/var/www/html/storage
+
+  db:
+    image: mysql:8.0
+    env_file:
+      - .env.docker
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+    volumes:
+      - db-data:/var/lib/mysql
+
+volumes:
+  db-data:
+  storage-data:
