@@ -13,7 +13,6 @@ class WebsiteMenuSeeder extends Seeder
         $home = ContentPage::query()->where('slug', 'home')->first();
         $about = ContentPage::query()->where('slug', 'about')->first();
         $calendar = ContentPage::query()->where('slug', 'training-calendar')->first();
-        $contact = ContentPage::query()->where('slug', 'contact')->first();
 
         $items = [
             [
@@ -38,13 +37,7 @@ class WebsiteMenuSeeder extends Seeder
                 'title' => 'Participant Registration',
                 'sort_order' => 4,
                 'page_id' => null,
-                'url' => '/participant-registration',
-            ],
-            [
-                'title' => 'Contact',
-                'sort_order' => 5,
-                'page_id' => $contact?->id,
-                'url' => null,
+                'url' => './participant-registration',
             ],
         ];
 
