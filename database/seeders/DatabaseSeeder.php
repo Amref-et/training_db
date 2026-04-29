@@ -10,12 +10,18 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RegionsTableSeeder::class,
+            ZonesTableSeeder::class,
             WoredasTableSeeder::class,
             OrganizationsTableSeeder::class,
+            ProfessionsTableSeeder::class,
             TrainingOrganizersTableSeeder::class,
             RolesAndPermissionsSeeder::class,
             AdminUserSeeder::class,
             ContentPageSeeder::class,
+            DashboardSeeder::class,
+            ThemeSettingsSeeder::class,
+            WebsiteMenuSeeder::class,
+            SidebarMenuSeeder::class,
         ]);
     }
 }

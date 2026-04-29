@@ -11,8 +11,43 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = User::firstOrCreate(['email' => 'admin@example.com'], ['name' => 'Admin User', 'password' => Hash::make('password')]);
-        $adminRole = Role::firstOrCreate(['name' => 'Admin']);
-        $admin->syncRoles([$adminRole->id]);
+        $roleIds = Role::query()
+            ->whereIn('name', ['Admin', 'Editor', 'Viewer'])
+            ->pluck('id', 'name');
+
+        $users = [
+            [
+                'email' => 'admin@example.com',
+                'name' => 'System Administrator',
+                'password' => 'password',
+                'role' => 'Admin',
+            ],
+            [
+                'email' => 'editor@example.com',
+                'name' => 'Content Editor',
+                'password' => 'password',
+                'role' => 'Editor',
+            ],
+            [
+                'email' => 'viewer@example.com',
+                'name' => 'Reporting Viewer',
+                'password' => 'password',
+                'role' => 'Viewer',
+            ],
+        ];
+
+        foreach ($users as $definition) {
+            $user = User::updateOrCreate(
+                ['email' => $definition['email']],
+                [
+                    'name' => $definition['name'],
+                    'password' => Hash::make($definition['password']),
+                ]
+            );
+
+            if (isset($roleIds[$definition['role']])) {
+                $user->syncRoles([(int) $roleIds[$definition['role']]]);
+            }
+        }
     }
 }

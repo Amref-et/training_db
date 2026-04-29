@@ -7,16 +7,30 @@ use Illuminate\Database\Seeder;
 
 class RegionsTableSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $regions = [
-            'Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz',
-            'Central Ethiopia', 'Dire Dawa', 'Gambela', 'Harari',
-            'Oromia', 'Sidama', 'Somali', 'South Ethiopia Regional State'
+            'Addis Ababa',
+            'Afar',
+            'Amhara',
+            'Benishangul Gumuz',
+            'Central Ethiopia',
+            'Dire Dawa',
+            'Gambella',
+            'Harari',
+            'Oromiya',
+            'Sidama',
+            'Somali',
+            'South Ethiopia',
+            'Southwest Ethiopia',
+            'Tigray',
         ];
 
-        foreach ($regions as $region) {
-            Region::create(['region_name' => $region]);
+        foreach ($regions as $name) {
+            Region::query()->updateOrCreate(
+                ['name' => $name],
+                ['name' => $name]
+            );
         }
     }
 }
