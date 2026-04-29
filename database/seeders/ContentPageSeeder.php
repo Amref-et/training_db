@@ -13,14 +13,14 @@ class ContentPageSeeder extends Seeder
         $home = ContentPage::updateOrCreate(
             ['slug' => 'home'],
             [
-                'title' => 'Amref HIL Training Portal',
-                'summary' => 'Public website for high-impact leadership training updates, registrations, and results.',
+                'title' => 'Amref Training Portal',
+                'summary' => 'Public website for training updates, registrations, and results.',
                 'body' => '<p>The public homepage is driven by CMS blocks and dashboard widgets. Use the admin panel to edit the messaging, filter configuration, and linked pages.</p>',
                 'blocks' => [
                     [
                         'type' => 'hero',
                         'eyebrow' => 'Amref Ethiopia',
-                        'heading' => 'High Impact Leadership Training Database',
+                        'heading' => 'Amref Training Database',
                         'content' => 'Track training delivery, participant reach, workshop results, and project performance from one shared platform.',
                         'button_label' => 'Register Participants',
                         'button_url' => '/participant-registration',
@@ -42,15 +42,15 @@ class ContentPageSeeder extends Seeder
                     ],
                     [
                         'type' => 'cta',
-                        'heading' => 'Need to submit new participant records?',
+                        'heading' => 'Need to register a new participant records?',
                         'content' => 'Use the public participant registration form to collect records with the same validation and ID-generation logic as the admin interface.',
-                        'button_label' => 'Open Registration',
+                        'button_label' => 'Registration',
                         'button_url' => '/participant-registration',
                     ],
                 ],
                 'status' => 'published',
                 'is_homepage' => true,
-                'meta_title' => 'Amref HIL Training Portal',
+                'meta_title' => 'Amref Training Portal',
             ]
         );
 
@@ -58,13 +58,13 @@ class ContentPageSeeder extends Seeder
             ['slug' => 'about'],
             [
                 'title' => 'About the Program',
-                'summary' => 'Overview of the Amref high-impact leadership training program.',
+                'summary' => 'Overview of the Amref training portal.',
                 'body' => '<p>This platform supports the planning, delivery, monitoring, and reporting of training interventions across projects, organizations, and geographic levels.</p>',
                 'blocks' => [
                     [
                         'type' => 'rich_text',
                         'title' => 'Program Overview',
-                        'content' => '<p>The High Impact Leadership training database centralizes participant enrollment, project tracking, event delivery, workshop scoring, and public reporting.</p><p>Administrators can manage structured data while public users can access curated CMS pages, dashboards, and participant registration.</p>',
+                        'content' => '<p>The Amref Training Database centralizes participant enrollment, project tracking, event delivery, workshop scoring, and public reporting.</p><p>Administrators can manage structured data while public users can access curated CMS pages, dashboards, and participant registration.</p>',
                     ],
                     [
                         'type' => 'feature_list',
@@ -80,7 +80,7 @@ class ContentPageSeeder extends Seeder
                 ],
                 'status' => 'published',
                 'is_homepage' => false,
-                'meta_title' => 'About the HIL Training Program',
+                'meta_title' => 'About the Amref Training Database',
             ]
         );
 
@@ -119,11 +119,11 @@ class ContentPageSeeder extends Seeder
         WebsiteSetting::query()->updateOrCreate(
             ['id' => 1],
             array_merge(WebsiteSetting::defaults(), [
-                'site_name' => 'Amref HIL Training Portal',
+                'site_name' => 'Amref Training Portal',
                 'site_tagline' => 'Training management, participant tracking, and public reporting.',
                 'header_cta_label' => 'Participant Registration',
                 'header_cta_url' => '/participant-registration',
-                'footer_title' => 'Amref HIL Training Portal',
+                'footer_title' => 'Amref Training Portal',
             ])
         );
 
