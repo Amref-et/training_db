@@ -50,7 +50,7 @@ class ContentPageSeeder extends Seeder
         ContentPage::updateOrCreate(
             ['slug' => 'about'],
             [
-                'title' => 'About the Program',
+                'title' => 'Homepage',
                 'summary' => 'Overview of the Amref training portal.',
                 'body' => '<p>This platform supports the planning, delivery, monitoring, and reporting of training interventions across projects, organizations, and geographic levels.</p>',
                 'blocks' => [
@@ -82,7 +82,7 @@ class ContentPageSeeder extends Seeder
             [
                 'title' => 'Training Calendar',
                 'summary' => 'Embedded calendar view of scheduled training events.',
-                'body' => '<iframe src="/embed/training-events-calendar" title="Training Events Calendar" width="100%" height="900" style="border:0;max-width:100%;" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>',
+                'body' => '<iframe src="./embed/training-events-calendar?view=month&month=2026-04" title="Training Events Calendar" width="100%" height="900" style="border:0; max-width:100%;" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>',
                 'status' => 'published',
                 'is_homepage' => false,
                 'meta_title' => 'Training Events Calendar',
