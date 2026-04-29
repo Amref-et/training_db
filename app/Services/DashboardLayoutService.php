@@ -662,7 +662,7 @@ LIMIT 10",
             throw new InvalidArgumentException('Semicolons are not allowed in dashboard SQL queries.');
         }
 
-        if (preg_match('/\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|replace)\b/i', $lowerSql)) {
+        if (preg_match('/\b(insert|update|delete|drop|alter|truncate|create|grant|revoke)\b/i', $lowerSql)) {
             throw new InvalidArgumentException('Only read-only SELECT queries are allowed.');
         }
     }
