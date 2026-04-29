@@ -457,17 +457,15 @@ class DashboardMetricsService
         }
     }
 
-    private function selectDefinition(string $key, string $label, string $allLabel, array $options): ?array
+    private function selectDefinition(string $key, string $label, string $allLabel, array $options): array
     {
-        return $options === []
-            ? null
-            : [
-                'key' => $key,
-                'label' => $label,
-                'type' => 'select',
-                'all_label' => $allLabel,
-                'options' => $options,
-            ];
+        return [
+            'key' => $key,
+            'label' => $label,
+            'type' => 'select',
+            'all_label' => $allLabel,
+            'options' => $options,
+        ];
     }
 
     private function asyncSelectDefinition(string $key, string $label, string $allLabel): array
