@@ -13,8 +13,12 @@
                 return null;
             }
 
-            if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://') || str_starts_with($value, '/')) {
+            if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
                 return $value;
+            }
+
+            if (str_starts_with($value, '/')) {
+                return url(ltrim($value, '/'));
             }
 
             return \Illuminate\Support\Facades\Storage::disk('public')->url($value);
@@ -80,9 +84,7 @@
         };
         $faviconUrl = null;
         if (!empty($settings?->favicon_url)) {
-            $faviconUrl = str_starts_with($settings->favicon_url, 'http://') || str_starts_with($settings->favicon_url, 'https://') || str_starts_with($settings->favicon_url, '/')
-                ? $settings->favicon_url
-                : \Illuminate\Support\Facades\Storage::disk('public')->url($settings->favicon_url);
+            $faviconUrl = $resolveMediaUrl($settings->favicon_url);
         }
     @endphp
     @if($faviconUrl)

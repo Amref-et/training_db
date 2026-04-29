@@ -29,8 +29,12 @@
             return null;
         }
 
-        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://') || str_starts_with($value, '/')) {
+        if (str_starts_with($value, 'http://') || str_starts_with($value, 'https://')) {
             return $value;
+        }
+
+        if (str_starts_with($value, '/')) {
+            return url(ltrim($value, '/'));
         }
 
         return \Illuminate\Support\Facades\Storage::disk('public')->url($value);

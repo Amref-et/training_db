@@ -11,7 +11,7 @@
     @php($radiusLg = max(0, (int) ($appearance->radius_lg ?? 18)))
     @php($radiusXl = max(0, (int) ($appearance->radius_xl ?? 24)))
     @php($radiusPill = max(0, (int) ($appearance->radius_pill ?? 999)))
-    @php($faviconUrl = !empty($appearance->favicon_url) ? ((str_starts_with($appearance->favicon_url, 'http://') || str_starts_with($appearance->favicon_url, 'https://') || str_starts_with($appearance->favicon_url, '/')) ? $appearance->favicon_url : \Illuminate\Support\Facades\Storage::disk('public')->url($appearance->favicon_url)) : null)
+    @php($faviconUrl = !empty($appearance->favicon_url) ? ((str_starts_with($appearance->favicon_url, 'http://') || str_starts_with($appearance->favicon_url, 'https://')) ? $appearance->favicon_url : (str_starts_with($appearance->favicon_url, '/') ? url(ltrim($appearance->favicon_url, '/')) : \Illuminate\Support\Facades\Storage::disk('public')->url($appearance->favicon_url))) : null)
     @if($faviconUrl)
         <link rel="icon" href="{{ $faviconUrl }}">
         <link rel="shortcut icon" href="{{ $faviconUrl }}">
