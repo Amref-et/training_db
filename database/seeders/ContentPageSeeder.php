@@ -15,16 +15,9 @@ class ContentPageSeeder extends Seeder
             [
                 'title' => 'Amref Training Portal',
                 'summary' => 'Public website for training updates, registrations, and results.',
-                'body' => '<p>The public homepage is driven by CMS blocks and dashboard widgets. Use the admin panel to edit the messaging, filter configuration, and linked pages.</p>',
+                'body' => '',
                 'blocks' => [
-                    [
-                        'type' => 'hero',
-                        'eyebrow' => 'Amref Ethiopia',
-                        'heading' => 'Amref Training Database',
-                        'content' => 'Track training delivery, participant reach, workshop results, and project performance from one shared platform.',
-                        'button_label' => 'Register Participants',
-                        'button_url' => '/participant-registration',
-                    ],
+                    
                     [
                         'type' => 'dashboard',
                         'title' => 'Training Performance Dashboard',
@@ -45,7 +38,7 @@ class ContentPageSeeder extends Seeder
                         'heading' => 'Need to register a new participant records?',
                         'content' => 'Use the public participant registration form to collect records with the same validation and ID-generation logic as the admin interface.',
                         'button_label' => 'Registration',
-                        'button_url' => '/participant-registration',
+                        'button_url' => './participant-registration',
                     ],
                 ],
                 'status' => 'published',
@@ -96,33 +89,13 @@ class ContentPageSeeder extends Seeder
             ]
         );
 
-        ContentPage::updateOrCreate(
-            ['slug' => 'contact'],
-            [
-                'title' => 'Contact',
-                'summary' => 'Contact details for the training management team.',
-                'body' => '<p>Use the administrative appearance settings to update footer contact information and site branding. This page can be expanded with operational contacts, support procedures, and escalation routes.</p>',
-                'blocks' => [
-                    [
-                        'type' => 'callout',
-                        'title' => 'Support',
-                        'content' => 'For technical support, contact the system administrator listed in the admin user seeder or update this page with your deployment-specific support team details.',
-                        'tone' => 'info',
-                    ],
-                ],
-                'status' => 'published',
-                'is_homepage' => false,
-                'meta_title' => 'Contact the Training Team',
-            ]
-        );
-
         WebsiteSetting::query()->updateOrCreate(
             ['id' => 1],
             array_merge(WebsiteSetting::defaults(), [
                 'site_name' => 'Amref Training Portal',
                 'site_tagline' => 'Training management, participant tracking, and public reporting.',
                 'header_cta_label' => 'Participant Registration',
-                'header_cta_url' => '/participant-registration',
+                'header_cta_url' => './participant-registration',
                 'footer_title' => 'Amref Training Portal',
             ])
         );
