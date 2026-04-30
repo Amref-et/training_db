@@ -183,12 +183,12 @@
         .section-dark .dashboard-legend, .section-dark .dashboard-card .text-secondary { color: rgba(226,232,240,.75) !important; }
         .site-header { position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(10px); background: color-mix(in srgb, var(--header-bg) 88%, #ffffff); border-bottom: 1px solid rgba(15, 23, 42, .08); width: 100%; }
         .site-nav { width: 100%; border-top: 0; border-left: 0; border-right: 0; border-bottom: 1px solid rgba(15, 23, 42, .08); background: var(--header-bg); display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; box-shadow: 0 12px 28px rgba(15, 23, 42, .08); padding: .95rem 1rem; }
-        .site-brand { text-decoration: none; color: var(--header-text); display: inline-flex; align-items: center; gap: .7rem; }
+        .site-brand { text-decoration: none; color: var(--header-text); display: inline-flex; align-items: center; gap: .7rem; max-width: min(100%, 440px); min-width: 0; }
         .site-brand-copy { display: flex; flex-direction: column; min-width: 0; }
         .site-brand-name { font-weight: 700; font-size: 1.1rem; line-height: 1.25; color: var(--header-text); }
         .site-brand-tagline { margin-top: .12rem; font-size: .82rem; line-height: 1.35; color: color-mix(in srgb, var(--header-text) 58%, #ffffff 42%); font-weight: 500; }
-        .site-brand-logo-shell { display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, #ffffff 86%, var(--header-bg)); border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); padding: .25rem .45rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .12); }
-        .site-brand-logo { width: auto; height: var(--header-logo-height); max-width: min(55vw, 360px); object-fit: contain; display: block; }
+        .site-brand-logo-shell { display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, #ffffff 86%, var(--header-bg)); border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); padding: .25rem .45rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .12); flex: 0 0 auto; max-width: min(42vw, 240px); overflow: hidden; }
+        .site-brand-logo { width: auto; height: var(--header-logo-height); max-width: min(38vw, 220px); object-fit: contain; display: block; }
         .site-menu { margin: 0; padding: 0; list-style: none; display: flex; gap: .35rem; align-items: center; flex-wrap: wrap; }
         .site-menu-item { position: relative; }
         .site-menu-item.site-menu-item-utility { margin-left: 1.5rem; padding-left: 1rem; border-left: 1px solid rgba(15, 23, 42, .12); }
@@ -209,6 +209,9 @@
         .site-footer-logo { max-width: 64px; max-height: 64px; border-radius: var(--radius-sm); border: 1px solid rgba(226, 232, 240, .28); object-fit: cover; }
         .site-footer-bottom { border-top: 1px solid rgba(226, 232, 240, .2); }
         @media (max-width: 991.98px) {
+            .site-brand { max-width: 100%; }
+            .site-brand-logo-shell { max-width: min(46vw, 200px); }
+            .site-brand-logo { max-width: min(42vw, 180px); }
             .site-menu { width: 100%; flex-direction: column; align-items: stretch; gap: .2rem; }
             .site-menu-item { width: 100%; }
             .site-menu-item.site-menu-item-utility { margin-left: 0; padding-left: 0; border-left: 0; border-top: 1px solid rgba(15, 23, 42, .08); padding-top: .45rem; margin-top: .25rem; }

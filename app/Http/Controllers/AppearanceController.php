@@ -85,7 +85,7 @@ class AppearanceController extends Controller
             'custom_js' => 'nullable|string',
         ]);
 
-        $settings->fill(array_merge(WebsiteSetting::defaults(), $validated));
+        $settings->fill($validated);
 
         if ($request->hasFile('header_logo_file')) {
             $settings->header_logo_url = $request->file('header_logo_file')->store('appearance/logos', 'public');

@@ -96,6 +96,8 @@
             display: inline-flex;
             align-items: center;
             gap: .7rem;
+            max-width: min(100%, 440px);
+            min-width: 0;
         }
 
         .site-brand-copy {
@@ -128,12 +130,15 @@
             border-radius: var(--radius-sm);
             padding: .25rem .45rem;
             box-shadow: 0 8px 14px rgba(15, 23, 42, .12);
+            flex: 0 0 auto;
+            max-width: min(42vw, 240px);
+            overflow: hidden;
         }
 
         .site-brand-logo {
             width: auto;
             height: var(--header-logo-height);
-            max-width: min(55vw, 360px);
+            max-width: min(38vw, 220px);
             object-fit: contain;
             display: block;
         }
@@ -350,6 +355,18 @@
         }
 
         @media (max-width: 991.98px) {
+            .site-brand {
+                max-width: 100%;
+            }
+
+            .site-brand-logo-shell {
+                max-width: min(46vw, 200px);
+            }
+
+            .site-brand-logo {
+                max-width: min(42vw, 180px);
+            }
+
             .site-menu {
                 width: 100%;
                 flex-direction: column;
