@@ -74,6 +74,7 @@ class PageController extends Controller
             'sections_payload' => 'nullable|string',
             'status' => 'required|in:draft,published',
             'is_homepage' => 'nullable|boolean',
+            'show_page_heading' => 'nullable|boolean',
             'meta_title' => 'nullable|string|max:255',
         ]);
 
@@ -83,6 +84,7 @@ class PageController extends Controller
         $data['summary'] = $this->normalizeRichHtml($data['summary'] ?? null);
         $data['body'] = $this->normalizeRichHtml($data['body'] ?? null);
         $data['is_homepage'] = $request->boolean('is_homepage');
+        $data['show_page_heading'] = $request->boolean('show_page_heading', true);
         $data['sections'] = $this->normalizeRichHtml($sections);
         $data['blocks'] = $this->flattenBlocks($data['sections']);
         unset($data['sections_payload']);

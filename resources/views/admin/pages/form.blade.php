@@ -28,7 +28,19 @@
             <div id="sections-empty-state" class="border rounded-4 p-4 text-secondary bg-light mt-3">No sections yet. Add a section, then add blocks inside that section.</div>
         </div>
         <div class="col-12"><label class="form-label">Legacy Body</label><textarea class="form-control js-cms-tinymce" name="body" rows="8">{{ old('body', $page->body) }}</textarea><div class="form-text">Optional fallback HTML for older pages. The public website renders sections and blocks first.</div></div>
-        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="is_homepage" value="1" id="is_homepage" @checked(old('is_homepage', $page->is_homepage))><label class="form-check-label" for="is_homepage">Set as homepage</label></div></div>
+        <div class="col-md-6">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="show_page_heading" value="1" id="show_page_heading" @checked(old('show_page_heading', $page->show_page_heading ?? true))>
+                <label class="form-check-label" for="show_page_heading">Show page heading section</label>
+                <div class="form-text">Controls the top hero/title block with the page title and summary.</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_homepage" value="1" id="is_homepage" @checked(old('is_homepage', $page->is_homepage))>
+                <label class="form-check-label" for="is_homepage">Set as homepage</label>
+            </div>
+        </div>
         <div class="col-12 d-flex gap-2"><button class="btn btn-dark" type="submit">Save Page</button><a href="{{ route('admin.pages.index') }}" class="btn btn-outline-secondary">Cancel</a></div>
     </form>
 </div>

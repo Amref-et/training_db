@@ -303,7 +303,7 @@
     </header>
     <main class="container py-4 py-lg-5">
         @if($page)
-            @if(! $hasHeroBlock)
+            @if(($page->show_page_heading ?? true) && ! $hasHeroBlock)
                 <section class="hero p-4 p-lg-5 mb-4">
                     <div class="section-kicker mb-2">Content Management System</div>
                     <h1 class="display-5 fw-bold mb-3">{{ $page->title }}</h1>

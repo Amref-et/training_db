@@ -18,6 +18,7 @@ class ContentPage extends Model
         'sections',
         'status',
         'is_homepage',
+        'show_page_heading',
         'meta_title',
     ];
 
@@ -25,6 +26,7 @@ class ContentPage extends Model
         'blocks' => 'array',
         'sections' => 'array',
         'is_homepage' => 'boolean',
+        'show_page_heading' => 'boolean',
     ];
 
     public function scopePublished($query)
