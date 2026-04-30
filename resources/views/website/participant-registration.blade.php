@@ -42,8 +42,7 @@
         <link rel="icon" href="{{ $faviconUrl }}">
         <link rel="shortcut icon" href="{{ $faviconUrl }}">
     @endif
-    <link href="{{ route('vendor-assets.show', 'bootstrap-5.3.3.min.css') }}" rel="stylesheet">
-    <link href="{{ route('vendor-assets.show', 'tom-select-2.3.1.bootstrap5.min.css') }}" rel="stylesheet">
+    {!! \App\Support\PublicBuildManifest::tags(['resources/css/public-vendor.css', 'resources/js/public-vendor.js']) !!}
     <style>
         :root {
             --header-bg: {{ $settings->header_background_color ?: '#ffffff' }};
@@ -648,9 +647,8 @@
         </div>
     </footer>
 
-    <script src="{{ route('vendor-assets.show', 'tom-select-2.3.1.complete.min.js') }}"></script>
     <script>
-        (() => {
+        document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('public-participant-registration-form');
             if (!form) {
                 return;
@@ -962,7 +960,7 @@
             } else {
                 updateParticipantPreview();
             }
-        })();
+        });
     </script>
 </body>
 </html>

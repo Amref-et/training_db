@@ -3,6 +3,7 @@
     RewriteBase /test/hil-v2/
 
     RewriteRule ^public/ - [L]
+    RewriteRule ^(build/.*|storage/.*|favicon\.ico|robots\.txt)$ public/$1 [L]
 
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d

@@ -13,7 +13,7 @@ class ContentPageSeeder extends Seeder
         $home = ContentPage::updateOrCreate(
             ['slug' => 'home'],
             [
-                'title' => 'Amref Training Portal',
+                'title' => 'Homepage',
                 'summary' => 'Public website for training updates, registrations, and results.',
                 'body' => '',
                 'blocks' => [
@@ -50,7 +50,7 @@ class ContentPageSeeder extends Seeder
         ContentPage::updateOrCreate(
             ['slug' => 'about'],
             [
-                'title' => 'Homepage',
+                'title' => 'About',
                 'summary' => 'Overview of the Amref training portal.',
                 'body' => '<p>This platform supports the planning, delivery, monitoring, and reporting of training interventions across projects, organizations, and geographic levels.</p>',
                 'blocks' => [

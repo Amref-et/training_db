@@ -97,10 +97,7 @@
             ->flatMap(fn ($section) => $section['blocks'] ?? [])
             ->contains(fn ($block) => ($block['type'] ?? null) === 'dashboard');
     @endphp
-    <link href="{{ route('vendor-assets.show', 'bootstrap-5.3.3.min.css') }}" rel="stylesheet">
-    @if($dashboardAssetsNeeded)
-        <link href="{{ route('vendor-assets.show', 'tom-select-2.3.1.bootstrap5.min.css') }}" rel="stylesheet">
-    @endif
+    {!! \App\Support\PublicBuildManifest::tags(['resources/css/public-vendor.css', 'resources/js/public-vendor.js']) !!}
     <style>
         :root {
             --header-bg: #ffffff;
@@ -693,11 +690,9 @@
             </div>
         </div>
     </footer>
-    <script src="{{ route('vendor-assets.show', 'bootstrap-5.3.3.bundle.min.js') }}"></script>
     @if($hasDashboardBlock)
-    <script src="{{ route('vendor-assets.show', 'tom-select-2.3.1.complete.min.js') }}"></script>
     <script>
-        (() => {
+        document.addEventListener('DOMContentLoaded', () => {
             if (typeof window.TomSelect === 'undefined') {
                 return;
             }
@@ -780,13 +775,12 @@
                     });
                 }
             });
-        })();
+        });
     </script>
     @endif
     @if($hasDashboardBlock)
-    <script src="{{ route('vendor-assets.show', 'chart.js-4.4.3.umd.min.js') }}"></script>
     <script>
-        (() => {
+        document.addEventListener('DOMContentLoaded', () => {
             if (!window.Chart) {
                 return;
             }
@@ -860,11 +854,11 @@
                     });
                 });
             });
-        })();
+        });
     </script>
     @if($hasPublicDashboard)
     <script>
-        (() => {
+        document.addEventListener('DOMContentLoaded', () => {
             if (!window.Chart) {
                 return;
             }
@@ -1003,7 +997,7 @@
                     });
                 });
             });
-        })();
+        });
     </script>
     @endif
     @endif
