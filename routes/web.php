@@ -12,6 +12,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PublicParticipantRegistrationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicVendorAssetController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TrainingEventsCalendarController;
 use App\Http\Controllers\TrainingEventGroupedViewController;
@@ -35,6 +36,7 @@ Route::get('/participant-registration/organization-options', [PublicParticipantR
 Route::get('/public/participant-registration', [PublicParticipantRegistrationController::class, 'create']);
 Route::get('/public/participant-registration/organization-options', [PublicParticipantRegistrationController::class, 'organizationOptions']);
 Route::get('/embed/training-events-calendar', [TrainingEventsCalendarController::class, 'embed'])->name('training-events-calendar.embed');
+Route::get('/assets/vendor/{asset}', [PublicVendorAssetController::class, 'show'])->where('asset', '.*')->name('vendor-assets.show');
 Route::get('/api/openapi.json', [OpenApiController::class, 'json'])->name('api.openapi');
 
 require __DIR__.'/auth.php';

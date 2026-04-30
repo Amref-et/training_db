@@ -97,9 +97,9 @@
             ->flatMap(fn ($section) => $section['blocks'] ?? [])
             ->contains(fn ($block) => ($block['type'] ?? null) === 'dashboard');
     @endphp
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ route('vendor-assets.show', 'bootstrap-5.3.3.min.css') }}" rel="stylesheet">
     @if($dashboardAssetsNeeded)
-        <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+        <link href="{{ route('vendor-assets.show', 'tom-select-2.3.1.bootstrap5.min.css') }}" rel="stylesheet">
     @endif
     <style>
         :root {
@@ -693,9 +693,9 @@
             </div>
         </div>
     </footer>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ route('vendor-assets.show', 'bootstrap-5.3.3.bundle.min.js') }}"></script>
     @if($hasDashboardBlock)
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+    <script src="{{ route('vendor-assets.show', 'tom-select-2.3.1.complete.min.js') }}"></script>
     <script>
         (() => {
             if (typeof window.TomSelect === 'undefined') {
@@ -784,7 +784,7 @@
     </script>
     @endif
     @if($hasDashboardBlock)
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="{{ route('vendor-assets.show', 'chart.js-4.4.3.umd.min.js') }}"></script>
     <script>
         (() => {
             if (!window.Chart) {

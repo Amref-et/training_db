@@ -47,7 +47,7 @@
         <link rel="shortcut icon" href="{{ $faviconUrl }}">
         <link rel="apple-touch-icon" href="{{ $faviconUrl }}">
     @endif
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ route('vendor-assets.show', 'bootstrap-5.3.3.min.css') }}" rel="stylesheet">
     <style>
         :root {
             --login-start: {{ $loginStart }};
