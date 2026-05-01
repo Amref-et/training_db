@@ -143,6 +143,83 @@
             display: block;
         }
 
+        .site-nav-panel {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: .75rem;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .site-menu-toggle {
+            display: none;
+            align-items: center;
+            gap: .5rem;
+            border: 1px solid rgba(15, 23, 42, .14);
+            border-radius: var(--radius-sm);
+            background: color-mix(in srgb, #ffffff 88%, var(--header-bg));
+            color: var(--header-text);
+            font: inherit;
+            font-weight: 600;
+            line-height: 1;
+            padding: .55rem .75rem;
+            box-shadow: 0 8px 14px rgba(15, 23, 42, .08);
+        }
+
+        .site-menu-toggle:hover,
+        .site-menu-toggle:focus-visible {
+            background: rgba(15, 23, 42, .08);
+            color: var(--header-text);
+        }
+
+        .site-menu-toggle:focus-visible {
+            outline: 3px solid color-mix(in srgb, var(--header-link) 34%, transparent);
+            outline-offset: 2px;
+        }
+
+        .site-menu-toggle-bars,
+        .site-menu-toggle-bars::before,
+        .site-menu-toggle-bars::after {
+            display: block;
+            width: 1rem;
+            height: 2px;
+            border-radius: 999px;
+            background: currentColor;
+            transition: transform .18s ease, opacity .18s ease, background-color .18s ease;
+        }
+
+        .site-menu-toggle-bars {
+            position: relative;
+        }
+
+        .site-menu-toggle-bars::before,
+        .site-menu-toggle-bars::after {
+            content: '';
+            position: absolute;
+            left: 0;
+        }
+
+        .site-menu-toggle-bars::before {
+            top: -5px;
+        }
+
+        .site-menu-toggle-bars::after {
+            top: 5px;
+        }
+
+        .site-nav.is-menu-open .site-menu-toggle-bars {
+            background: transparent;
+        }
+
+        .site-nav.is-menu-open .site-menu-toggle-bars::before {
+            transform: translateY(5px) rotate(45deg);
+        }
+
+        .site-nav.is-menu-open .site-menu-toggle-bars::after {
+            transform: translateY(-5px) rotate(-45deg);
+        }
+
         .site-menu {
             margin: 0;
             padding: 0;
@@ -213,6 +290,9 @@
         }
 
         .site-cta-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             background: var(--header-link);
             color: #ffffff;
             text-decoration: none;
@@ -356,7 +436,7 @@
 
         @media (max-width: 991.98px) {
             .site-brand {
-                max-width: 100%;
+                max-width: calc(100% - 5.25rem);
             }
 
             .site-brand-logo-shell {
@@ -365,6 +445,25 @@
 
             .site-brand-logo {
                 max-width: min(42vw, 180px);
+            }
+
+            .site-menu-toggle {
+                display: inline-flex;
+            }
+
+            .site-nav-panel {
+                display: none;
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: .75rem;
+                margin-left: 0;
+                padding-top: .75rem;
+                border-top: 1px solid rgba(15, 23, 42, .08);
+            }
+
+            .site-nav.is-menu-open .site-nav-panel {
+                display: flex;
             }
 
             .site-menu {
@@ -402,12 +501,16 @@
                 padding: .1rem 0 .2rem;
                 min-width: 0;
             }
+
+            .site-cta-btn {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <header class="site-header">
-        <nav class="site-nav">
+        <nav class="site-nav" data-site-nav>
             <a class="site-brand" href="{{ route('home') }}">
                 @if($headerLogoUrl)
                     <span class="site-brand-logo-shell">
@@ -421,33 +524,39 @@
                     @endif
                 </span>
             </a>
-            <ul class="site-menu">
-                @if($useManagedNavigation)
-                    @foreach($managedNavigation as $menuItem)
-                        @php($children = $menuItem->children ?? collect())
-                        <li class="site-menu-item {{ $children->isNotEmpty() ? 'has-submenu' : '' }}">
-                            <a href="{{ $menuItem->resolvedUrl() }}" target="{{ $menuItem->target }}" @if($menuItem->target === '_blank') rel="noopener noreferrer" @endif>{{ $menuItem->title }}</a>
-                            @if($children->isNotEmpty())
-                                <ul class="site-submenu">
-                                    @foreach($children as $child)
-                                        <li><a href="{{ $child->resolvedUrl() }}" target="{{ $child->target }}" @if($child->target === '_blank') rel="noopener noreferrer" @endif>{{ $child->title }}</a></li>
-                                    @endforeach
-                                </ul>
-                            @endif
-                        </li>
-                    @endforeach
-                @else
-                    @foreach($navigationPages as $navPage)
-                        <li class="site-menu-item"><a href="{{ $navPage->is_homepage ? route('home') : route('pages.show', $navPage->slug) }}">{{ $navPage->title }}</a></li>
-                    @endforeach
-                @endif
-                @guest
-                    @if($settings->show_login_link)
-                        <li class="site-menu-item site-menu-item-utility"><a href="{{ route('login') }}">Login</a></li>
+            <button class="site-menu-toggle" type="button" aria-expanded="false" aria-controls="site-registration-navigation-menu">
+                <span class="site-menu-toggle-bars" aria-hidden="true"></span>
+                <span>Menu</span>
+            </button>
+            <div class="site-nav-panel" id="site-registration-navigation-menu">
+                <ul class="site-menu">
+                    @if($useManagedNavigation)
+                        @foreach($managedNavigation as $menuItem)
+                            @php($children = $menuItem->children ?? collect())
+                            <li class="site-menu-item {{ $children->isNotEmpty() ? 'has-submenu' : '' }}">
+                                <a href="{{ $menuItem->resolvedUrl() }}" target="{{ $menuItem->target }}" @if($menuItem->target === '_blank') rel="noopener noreferrer" @endif>{{ $menuItem->title }}</a>
+                                @if($children->isNotEmpty())
+                                    <ul class="site-submenu">
+                                        @foreach($children as $child)
+                                            <li><a href="{{ $child->resolvedUrl() }}" target="{{ $child->target }}" @if($child->target === '_blank') rel="noopener noreferrer" @endif>{{ $child->title }}</a></li>
+                                        @endforeach
+                                    </ul>
+                                @endif
+                            </li>
+                        @endforeach
+                    @else
+                        @foreach($navigationPages as $navPage)
+                            <li class="site-menu-item"><a href="{{ $navPage->is_homepage ? route('home') : route('pages.show', $navPage->slug) }}">{{ $navPage->title }}</a></li>
+                        @endforeach
                     @endif
-                @endguest
-            </ul>
-            <a class="site-cta-btn" href="{{ route('home') }}">Back to Website</a>
+                    @guest
+                        @if($settings->show_login_link)
+                            <li class="site-menu-item site-menu-item-utility"><a href="{{ route('login') }}">Login</a></li>
+                        @endif
+                    @endguest
+                </ul>
+                <a class="site-cta-btn" href="{{ route('home') }}">Back to Website</a>
+            </div>
         </nav>
     </header>
 
@@ -663,6 +772,68 @@
             </div>
         </div>
     </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mobileNavigationQuery = window.matchMedia('(max-width: 991.98px)');
+
+            document.querySelectorAll('[data-site-nav]').forEach((nav) => {
+                const toggle = nav.querySelector('.site-menu-toggle');
+                const panelId = toggle?.getAttribute('aria-controls');
+                const panel = panelId ? document.getElementById(panelId) : null;
+
+                if (!(toggle instanceof HTMLButtonElement) || !panel) {
+                    return;
+                }
+
+                const setOpen = (isOpen) => {
+                    nav.classList.toggle('is-menu-open', isOpen);
+                    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                };
+
+                toggle.addEventListener('click', () => {
+                    setOpen(!nav.classList.contains('is-menu-open'));
+                });
+
+                panel.querySelectorAll('a').forEach((link) => {
+                    link.addEventListener('click', () => {
+                        if (mobileNavigationQuery.matches) {
+                            setOpen(false);
+                        }
+                    });
+                });
+
+                document.addEventListener('click', (event) => {
+                    if (!mobileNavigationQuery.matches || !nav.classList.contains('is-menu-open')) {
+                        return;
+                    }
+
+                    if (event.target instanceof Node && !nav.contains(event.target)) {
+                        setOpen(false);
+                    }
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape' && nav.classList.contains('is-menu-open')) {
+                        setOpen(false);
+                        toggle.focus();
+                    }
+                });
+
+                const handleViewportChange = () => {
+                    if (!mobileNavigationQuery.matches) {
+                        setOpen(false);
+                    }
+                };
+
+                if (typeof mobileNavigationQuery.addEventListener === 'function') {
+                    mobileNavigationQuery.addEventListener('change', handleViewportChange);
+                } else {
+                    mobileNavigationQuery.addListener(handleViewportChange);
+                }
+            });
+        });
+    </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
