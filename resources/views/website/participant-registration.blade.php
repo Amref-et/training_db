@@ -293,17 +293,31 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: var(--header-link);
-            color: #ffffff;
+            min-height: 2.4rem;
+            background: color-mix(in srgb, var(--body-accent) 10%, #ffffff);
+            border: 1px solid color-mix(in srgb, var(--body-accent) 38%, rgba(15, 23, 42, .18));
+            color: color-mix(in srgb, var(--body-accent) 78%, #0f172a);
             text-decoration: none;
             padding: .55rem .95rem;
             border-radius: var(--radius-sm);
             font-weight: 600;
+            transition: background .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease;
         }
 
         .site-cta-btn:hover {
-            background: color-mix(in srgb, var(--header-link) 78%, #000000);
+            background: var(--body-accent);
+            border-color: var(--body-accent);
             color: #ffffff;
+            box-shadow: 0 8px 18px color-mix(in srgb, var(--body-accent) 20%, transparent);
+        }
+
+        .site-cta-btn:focus-visible {
+            outline: 3px solid color-mix(in srgb, var(--body-accent) 28%, transparent);
+            outline-offset: 2px;
+        }
+
+        .site-cta-btn:active {
+            box-shadow: none;
         }
 
         .registration-hero,
@@ -349,8 +363,15 @@
             padding: 1.1rem 1.2rem;
         }
 
-        .registration-id-preview small {
-            color: rgba(226, 232, 240, .75);
+        .registration-id-preview-sticky {
+            position: sticky;
+            top: calc(var(--header-logo-height) + 2.35rem);
+            z-index: 990;
+            margin-bottom: 1rem;
+        }
+
+        .registration-id-preview-sticky .registration-id-preview {
+            box-shadow: 0 18px 34px rgba(15, 23, 42, .18);
         }
 
         .registration-side-card {
@@ -505,6 +526,10 @@
             .site-cta-btn {
                 width: 100%;
             }
+
+            .registration-id-preview-sticky {
+                top: calc(var(--header-logo-height) + 2rem);
+            }
         }
     </style>
 </head>
@@ -563,22 +588,20 @@
     <main class="container py-4 py-lg-5">
         <section class="registration-hero p-4 p-lg-5 mb-4">
             <div class="row g-4 align-items-center">
-                <div class="col-lg-7">
+                <div class="col-12">
                     <h1 class="display-5 fw-bold mb-3">Participant Registration</h1>
-                </div>
-                <div class="col-lg-5">
-                    <div class="registration-id-preview">
-                        <div class="d-flex justify-content-between align-items-start gap-3">
-                            <div>
-                                <div class="fw-semibold mb-1">Participant ID Preview</div>
-                                <small>Generated from initials, birth year/month, and phone suffix. Final save may append a numeric suffix if needed for uniqueness.</small>
-                            </div>
-                            <div class="fs-5 fw-bold text-nowrap" id="participant-id-preview">XXX00000000</div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </section>
+
+        <div class="registration-id-preview-sticky">
+            <div class="registration-id-preview">
+                <div class="d-flex justify-content-between align-items-center gap-3">
+                    <div class="fw-semibold">Participant ID:</div>
+                    <div class="fs-5 fw-bold text-nowrap" id="participant-id-preview">XXX00000000</div>
+                </div>
+            </div>
+        </div>
 
         @if(session('success') && is_array($selectedRegistration))
             <div class="alert alert-success border-0 shadow-sm mb-4">
