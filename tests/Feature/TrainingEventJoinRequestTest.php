@@ -74,8 +74,65 @@ class TrainingEventJoinRequestTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('data-registration-url="'.route('participant-registration.create').'"', false)
-            ->assertSee('Register as participant');
+            ->assertSee('data-registration-request-url="'.route('training-event-join-requests.register').'"', false)
+            ->assertSee('Register and request event');
+    }
+
+    public function test_unregistered_participant_registration_submits_pending_training_request(): void
+    {
+        [$existingParticipant, $event] = $this->participantAndEvent();
+
+        $response = $this
+            ->from('/training-event-join-request')
+            ->post('/training-event-join-request/register', [
+                'training_event_id' => $event->id,
+                'participant_name' => 'Selam Tesfaye Lema',
+                'mobile_phone' => '0922334455',
+                'requested_message' => 'Please enroll me after registration.',
+            ]);
+
+        $response
+            ->assertRedirect(route('participant-registration.create'))
+            ->assertSessionHas('pending_training_event_join_request.training_event_id', $event->id);
+
+        $this->get('/participant-registration')
+            ->assertOk()
+            ->assertSee('Complete participant registration to submit your request for May Training.')
+            ->assertSee('value="Selam"', false)
+            ->assertSee('value="Tesfaye"', false)
+            ->assertSee('value="Lema"', false)
+            ->assertSee('value="0922334455"', false);
+
+        $registrationResponse = $this->post('/participant-registration', [
+            'first_name' => 'Selam',
+            'father_name' => 'Tesfaye',
+            'grandfather_name' => 'Lema',
+            'age' => 31,
+            'region_id' => $existingParticipant->region_id,
+            'zone_id' => $existingParticipant->zone_id,
+            'woreda_id' => $existingParticipant->woreda_id,
+            'organization_id' => $existingParticipant->organization_id,
+            'gender' => 'female',
+            'mobile_phone' => '0922334455',
+            'profession' => $existingParticipant->profession,
+        ]);
+
+        $registrationResponse
+            ->assertRedirect(route('participant-registration.create'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Registration submitted successfully. Your request to join May Training has also been submitted and is pending approval.')
+            ->assertSessionMissing('pending_training_event_join_request');
+
+        $participant = Participant::query()
+            ->where('mobile_phone', '0922334455')
+            ->firstOrFail();
+
+        $this->assertDatabaseHas('training_event_join_requests', [
+            'training_event_id' => $event->id,
+            'participant_id' => $participant->id,
+            'status' => TrainingEventJoinRequest::STATUS_PENDING,
+            'requested_message' => 'Please enroll me after registration.',
+        ]);
     }
 
     public function test_join_request_rejects_name_phone_mismatch(): void

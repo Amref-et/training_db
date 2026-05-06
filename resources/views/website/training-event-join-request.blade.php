@@ -214,7 +214,7 @@
                                     class="form-control @error('participant_name') is-invalid @enderror"
                                     value="{{ old('participant_name') }}"
                                     data-search-url="{{ route('training-event-join-requests.participant-options') }}"
-                                    data-registration-url="{{ route('participant-registration.create') }}"
+                                    data-registration-request-url="{{ route('training-event-join-requests.register') }}"
                                     required
                                 >
                                 <div id="participant-search-results" class="participant-search-results" role="listbox"></div>
@@ -248,8 +248,12 @@
             const nameInput = document.getElementById('participant_name');
             const participantIdInput = document.getElementById('participant_id');
             const results = document.getElementById('participant-search-results');
+            const trainingEventSelect = document.getElementById('training_event_id');
+            const mobilePhoneInput = document.getElementById('mobile_phone');
+            const requestedMessageInput = document.getElementById('requested_message');
+            const csrfTokenInput = document.querySelector('input[name="_token"]');
 
-            if (!nameInput || !participantIdInput || !results || !nameInput.dataset.searchUrl || !nameInput.dataset.registrationUrl) {
+            if (!nameInput || !participantIdInput || !results || !trainingEventSelect || !csrfTokenInput || !nameInput.dataset.searchUrl || !nameInput.dataset.registrationRequestUrl) {
                 return;
             }
 
@@ -262,8 +266,35 @@
             };
 
             const askToRegister = () => {
-                if (window.confirm('No registration was found for this participant. Do you want to register now?')) {
-                    window.location.href = nameInput.dataset.registrationUrl;
+                if (!trainingEventSelect.value) {
+                    window.alert('Select a training event first.');
+                    trainingEventSelect.focus();
+                    return;
+                }
+
+                if (window.confirm('No registration was found for this participant. Do you want to register now and submit this training event request?')) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = nameInput.dataset.registrationRequestUrl;
+
+                    const fields = {
+                        _token: csrfTokenInput.value,
+                        training_event_id: trainingEventSelect.value,
+                        participant_name: nameInput.value,
+                        mobile_phone: mobilePhoneInput ? mobilePhoneInput.value : '',
+                        requested_message: requestedMessageInput ? requestedMessageInput.value : '',
+                    };
+
+                    Object.entries(fields).forEach(([name, value]) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = name;
+                        input.value = value;
+                        form.append(input);
+                    });
+
+                    document.body.append(form);
+                    form.submit();
                 }
             };
 
@@ -279,7 +310,7 @@
                     const registerButton = document.createElement('button');
                     registerButton.type = 'button';
                     registerButton.className = 'participant-register-action';
-                    registerButton.textContent = 'Register as participant';
+                    registerButton.textContent = 'Register and request event';
                     registerButton.addEventListener('click', askToRegister);
                     item.append(registerButton);
                 }

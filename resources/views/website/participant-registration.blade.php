@@ -37,6 +37,13 @@
             return new \Illuminate\Support\HtmlString($html);
         };
         $selectedRegistration = session('participant_registration');
+        $pendingJoinRequest = is_array($pendingTrainingEventJoinRequest ?? null) ? $pendingTrainingEventJoinRequest : null;
+        $pendingName = trim((string) ($pendingJoinRequest['participant_name'] ?? ''));
+        $pendingNameParts = $pendingName === '' ? [] : (preg_split('/\s+/', $pendingName) ?: []);
+        $pendingFirstName = $pendingNameParts[0] ?? '';
+        $pendingFatherName = $pendingNameParts[1] ?? '';
+        $pendingGrandfatherName = count($pendingNameParts) > 2 ? implode(' ', array_slice($pendingNameParts, 2)) : '';
+        $pendingMobilePhone = (string) ($pendingJoinRequest['mobile_phone'] ?? '');
     @endphp
     @if($faviconUrl)
         <link rel="icon" href="{{ $faviconUrl }}">
@@ -645,6 +652,12 @@
             <div class="alert alert-success border-0 shadow-sm mb-4">{{ session('success') }}</div>
         @endif
 
+        @if($pendingJoinRequest)
+            <div class="alert alert-info border-0 shadow-sm mb-4">
+                Complete participant registration to submit your request for {{ $pendingJoinRequest['event_name'] ?? 'the selected training event' }}.
+            </div>
+        @endif
+
         @if($errors->any())
             <div class="alert alert-danger border-0 shadow-sm mb-4">
                 <div class="fw-semibold mb-2">Please correct the highlighted fields.</div>
@@ -671,17 +684,17 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label" for="first_name">First Name<span class="required-mark" aria-hidden="true">*</span></label>
-                        <input type="text" class="form-control @error('first_name') is-invalid @enderror" id="first_name" name="first_name" value="{{ old('first_name') }}" required>
+                        <input type="text" class="form-control @error('first_name') is-invalid @enderror" id="first_name" name="first_name" value="{{ old('first_name', $pendingFirstName) }}" required>
                         @error('first_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-4">
                         <label class="form-label" for="father_name">Father's Name<span class="required-mark" aria-hidden="true">*</span></label>
-                        <input type="text" class="form-control @error('father_name') is-invalid @enderror" id="father_name" name="father_name" value="{{ old('father_name') }}" required>
+                        <input type="text" class="form-control @error('father_name') is-invalid @enderror" id="father_name" name="father_name" value="{{ old('father_name', $pendingFatherName) }}" required>
                         @error('father_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-4">
                         <label class="form-label" for="grandfather_name">Grandfather's Name<span class="required-mark" aria-hidden="true">*</span></label>
-                        <input type="text" class="form-control @error('grandfather_name') is-invalid @enderror" id="grandfather_name" name="grandfather_name" value="{{ old('grandfather_name') }}" required>
+                        <input type="text" class="form-control @error('grandfather_name') is-invalid @enderror" id="grandfather_name" name="grandfather_name" value="{{ old('grandfather_name', $pendingGrandfatherName) }}" required>
                         @error('grandfather_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
@@ -726,7 +739,7 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="mobile_phone">Mobile Phone<span class="required-mark" aria-hidden="true">*</span></label>
-                        <input type="tel" inputmode="tel" maxlength="30" pattern="(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d" class="form-control @error('mobile_phone') is-invalid @enderror" id="mobile_phone" name="mobile_phone" value="{{ old('mobile_phone') }}" required title="Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.">
+                        <input type="tel" inputmode="tel" maxlength="30" pattern="(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d" class="form-control @error('mobile_phone') is-invalid @enderror" id="mobile_phone" name="mobile_phone" value="{{ old('mobile_phone', $pendingMobilePhone) }}" required title="Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.">
                         <div class="registration-field-note mt-1">Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.</div>
                         @error('mobile_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>

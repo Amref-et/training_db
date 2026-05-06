@@ -36,10 +36,12 @@ Route::post('/participant-registration', [PublicParticipantRegistrationControlle
 Route::get('/participant-registration/organization-options', [PublicParticipantRegistrationController::class, 'organizationOptions'])->name('participant-registration.organization-options');
 Route::get('/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'create'])->name('training-event-join-requests.create');
 Route::post('/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'store'])->name('training-event-join-requests.store');
+Route::post('/training-event-join-request/register', [PublicTrainingEventJoinRequestController::class, 'startRegistration'])->name('training-event-join-requests.register');
 Route::get('/training-event-join-request/participant-options', [PublicTrainingEventJoinRequestController::class, 'participantOptions'])->name('training-event-join-requests.participant-options');
 Route::get('/public/participant-registration', [PublicParticipantRegistrationController::class, 'create']);
 Route::get('/public/participant-registration/organization-options', [PublicParticipantRegistrationController::class, 'organizationOptions']);
 Route::get('/public/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'create']);
+Route::post('/public/training-event-join-request/register', [PublicTrainingEventJoinRequestController::class, 'startRegistration']);
 Route::get('/public/training-event-join-request/participant-options', [PublicTrainingEventJoinRequestController::class, 'participantOptions']);
 Route::get('/embed/training-events-calendar', [TrainingEventsCalendarController::class, 'embed'])->name('training-events-calendar.embed');
 Route::get('/assets/vendor/{asset}', [PublicVendorAssetController::class, 'show'])->where('asset', '.*')->name('vendor-assets.show');

@@ -18,6 +18,8 @@ use Illuminate\View\View;
 
 class PublicTrainingEventJoinRequestController extends Controller
 {
+    private const PENDING_JOIN_REQUEST_SESSION_KEY = 'pending_training_event_join_request';
+
     public function create(Request $request): View
     {
         return view('website.training-event-join-request', $this->viewData($request));
@@ -98,6 +100,35 @@ class PublicTrainingEventJoinRequestController extends Controller
         return redirect()
             ->route('training-event-join-requests.create')
             ->with('success', 'Your request has been submitted and is pending approval.');
+    }
+
+    public function startRegistration(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'training_event_id' => 'required|integer|exists:training_events,id',
+            'participant_name' => 'nullable|string|max:255',
+            'mobile_phone' => 'nullable|string|max:30',
+            'requested_message' => 'nullable|string|max:1000',
+        ]);
+
+        $event = $this->requestableEventsQuery()->find((int) $data['training_event_id']);
+
+        if (! $event) {
+            throw ValidationException::withMessages([
+                'training_event_id' => 'Selected training event is not accepting join requests.',
+            ]);
+        }
+
+        $request->session()->put(self::PENDING_JOIN_REQUEST_SESSION_KEY, [
+            'training_event_id' => $event->id,
+            'event_name' => $event->event_name ?: 'Event #'.$event->id,
+            'participant_name' => $data['participant_name'] ?? null,
+            'mobile_phone' => $data['mobile_phone'] ?? null,
+            'requested_message' => $data['requested_message'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('participant-registration.create');
     }
 
     public function participantOptions(Request $request): JsonResponse
