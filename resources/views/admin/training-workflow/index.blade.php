@@ -142,7 +142,82 @@
                 ->reject(fn ($participant) => in_array($participant->id, $enrolledParticipantIds, true))
                 ->values();
             $bulkParticipantSelectId = 'workflow-bulk-participant-select';
+            $canApproveJoinRequests = auth()->user()?->hasPermission('training_event_participants.create');
+            $canRejectJoinRequests = auth()->user()?->hasPermission('training_event_participants.update');
         @endphp
+
+        <div class="panel p-3 mb-4 border">
+            <div class="d-flex flex-column flex-lg-row gap-2 justify-content-between align-items-lg-center mb-3">
+                <div>
+                    <h3 class="h6 mb-1">Participant Join Requests</h3>
+                    <div class="text-secondary small">Approved requests are enrolled into this Step 2 participant list.</div>
+                </div>
+                <a href="{{ route('training-event-join-requests.create', ['training_event_id' => $selectedEvent->id]) }}" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer">Open Public Request Form</a>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Participant</th>
+                            <th>Participant ID</th>
+                            <th>Status</th>
+                            <th>Requested</th>
+                            <th>Message</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($joinRequests as $joinRequest)
+                            @php
+                                $statusClass = match ($joinRequest->status) {
+                                    \App\Models\TrainingEventJoinRequest::STATUS_APPROVED => 'text-bg-success',
+                                    \App\Models\TrainingEventJoinRequest::STATUS_REJECTED => 'text-bg-danger',
+                                    default => 'text-bg-warning',
+                                };
+                            @endphp
+                            <tr>
+                                <td>{{ $joinRequest->participant?->name ?: 'Participant #'.$joinRequest->participant_id }}</td>
+                                <td>{{ $joinRequest->participant?->participant_code ?: 'N/A' }}</td>
+                                <td>
+                                    <span class="badge {{ $statusClass }}">{{ $joinRequest->status_label }}</span>
+                                    @if($joinRequest->reviewer)
+                                        <div class="small text-secondary mt-1">By {{ $joinRequest->reviewer->name }}</div>
+                                    @endif
+                                </td>
+                                <td>{{ $joinRequest->requested_at?->format('Y-m-d H:i') ?: $joinRequest->created_at?->format('Y-m-d H:i') }}</td>
+                                <td class="small">{{ $joinRequest->requested_message ?: 'N/A' }}</td>
+                                <td class="text-end">
+                                    @if($joinRequest->status === \App\Models\TrainingEventJoinRequest::STATUS_PENDING)
+                                        @if($canApproveJoinRequests)
+                                            <form method="POST" action="{{ route('admin.training-workflow.join-requests.approve', $joinRequest) }}" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success">Approve & Enroll</button>
+                                            </form>
+                                        @endif
+                                        @if($canRejectJoinRequests)
+                                            <form method="POST" action="{{ route('admin.training-workflow.join-requests.reject', $joinRequest) }}" class="d-inline-flex gap-1 mt-1 mt-lg-0">
+                                                @csrf
+                                                <input type="text" name="reviewer_notes" class="form-control form-control-sm" placeholder="Reason" style="max-width: 180px;">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Reject</button>
+                                            </form>
+                                        @endif
+                                    @elseif($joinRequest->status === \App\Models\TrainingEventJoinRequest::STATUS_APPROVED)
+                                        <span class="text-secondary small">Enrolled</span>
+                                    @else
+                                        <span class="text-secondary small">{{ $joinRequest->reviewer_notes ?: 'No action available' }}</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-secondary">No join requests for this training event.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <form method="POST" action="{{ route('admin.training-workflow.enrollments.store', $selectedEvent) }}" class="row g-3 mb-4">
             @csrf

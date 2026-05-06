@@ -807,6 +807,7 @@
                     <ul class="list-unstyled small mb-0 d-grid gap-2">
                         <li><a href="{{ route('home') }}">Home</a></li>
                         <li><a href="{{ route('participant-registration.create') }}">Participant Registration</a></li>
+                        <li><a href="{{ route('training-event-join-requests.create') }}">Request Training Event</a></li>
                         @foreach($navigationPages as $navPage)
                             @continue($navPage->is_homepage)
                             <li><a href="{{ route('pages.show', $navPage->slug) }}">{{ $navPage->title }}</a></li>

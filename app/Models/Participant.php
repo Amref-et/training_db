@@ -187,6 +187,11 @@ class Participant extends Model
         return $this->hasMany(TrainingEventParticipant::class);
     }
 
+    public function trainingEventJoinRequests()
+    {
+        return $this->hasMany(TrainingEventJoinRequest::class);
+    }
+
     public function enrolledTrainingEvents()
     {
         return $this->belongsToMany(TrainingEvent::class, 'training_event_participants')

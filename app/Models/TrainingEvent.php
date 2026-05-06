@@ -65,6 +65,11 @@ class TrainingEvent extends Model
         return $this->hasMany(TrainingEventParticipant::class)->orderBy('id');
     }
 
+    public function joinRequests()
+    {
+        return $this->hasMany(TrainingEventJoinRequest::class)->orderByDesc('requested_at')->orderByDesc('id');
+    }
+
     public function workshopScores()
     {
         return $this->hasManyThrough(

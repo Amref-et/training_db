@@ -6,6 +6,7 @@ use App\Models\Participant;
 use App\Models\Region;
 use App\Models\Training;
 use App\Models\TrainingEvent;
+use App\Models\TrainingEventJoinRequest;
 use App\Models\TrainingEventParticipant;
 use App\Models\TrainingEventWorkshop;
 use App\Models\TrainingEventWorkshopScore;
@@ -30,6 +31,7 @@ class TrainingWorkflowController extends Controller
 
         $selectedEvent = null;
         $enrollments = collect();
+        $joinRequests = collect();
         $workshopProgress = [];
         $workshopDetails = collect();
         $reportWorkshopAverages = collect();
@@ -66,6 +68,14 @@ class TrainingWorkflowController extends Controller
             $enrollments = $selectedEvent->enrollments
                 ->sortBy(fn (TrainingEventParticipant $enrollment) => mb_strtolower((string) $enrollment->participant?->name))
                 ->values();
+
+            $joinRequests = TrainingEventJoinRequest::query()
+                ->with(['participant', 'reviewer', 'enrollment'])
+                ->where('training_event_id', $selectedEvent->id)
+                ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
+                ->orderByDesc('requested_at')
+                ->orderByDesc('id')
+                ->get();
 
             $workshopProgress = collect(range(1, $workshopCount))
                 ->mapWithKeys(function (int $workshopNumber) use ($enrollments) {
@@ -181,6 +191,7 @@ class TrainingWorkflowController extends Controller
             'selectedWorkshopDetail' => $workshopDetails->get($selectedWorkshop),
             'stepStatus' => $stepStatus,
             'enrollments' => $enrollments,
+            'joinRequests' => $joinRequests,
             'workshopProgress' => $workshopProgress,
             'reportWorkshopAverages' => $reportWorkshopAverages,
             'reportParticipantScores' => $reportParticipantScores,
@@ -304,6 +315,85 @@ class TrainingWorkflowController extends Controller
         return redirect()
             ->route('admin.training-workflow.index', ['event_id' => $trainingEvent->id, 'step' => 2])
             ->with('success', 'Participant removed from the event.');
+    }
+
+    public function approveJoinRequest(Request $request, TrainingEventJoinRequest $joinRequest): RedirectResponse
+    {
+        $data = $request->validate([
+            'reviewer_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $trainingEvent = $joinRequest->trainingEvent;
+        $participant = $joinRequest->participant;
+
+        abort_unless($trainingEvent && $participant, 404);
+
+        $enrollment = TrainingEventParticipant::query()->firstOrCreate([
+            'training_event_id' => $trainingEvent->id,
+            'participant_id' => $participant->id,
+        ]);
+
+        $joinRequest->update([
+            'status' => TrainingEventJoinRequest::STATUS_APPROVED,
+            'reviewer_notes' => $data['reviewer_notes'] ?? null,
+            'reviewed_at' => now(),
+            'reviewed_by' => $request->user()?->id,
+            'enrollment_id' => $enrollment->id,
+        ]);
+
+        $this->audit()->logCustom('Training event join request approved', 'training_event_join_requests.approved', [
+            'auditable_type' => TrainingEventJoinRequest::class,
+            'auditable_id' => $joinRequest->id,
+            'auditable_label' => $participant->name.' -> '.$trainingEvent->event_name,
+            'metadata' => [
+                'training_event_id' => $trainingEvent->id,
+                'participant_id' => $participant->id,
+                'enrollment_id' => $enrollment->id,
+            ],
+        ]);
+
+        return redirect()
+            ->route('admin.training-workflow.index', ['event_id' => $trainingEvent->id, 'step' => 2])
+            ->with('success', 'Join request approved and participant enrolled in Step 2.');
+    }
+
+    public function rejectJoinRequest(Request $request, TrainingEventJoinRequest $joinRequest): RedirectResponse
+    {
+        $data = $request->validate([
+            'reviewer_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $trainingEvent = $joinRequest->trainingEvent;
+        $participant = $joinRequest->participant;
+
+        abort_unless($trainingEvent && $participant, 404);
+
+        if ($joinRequest->status === TrainingEventJoinRequest::STATUS_APPROVED) {
+            return redirect()
+                ->route('admin.training-workflow.index', ['event_id' => $trainingEvent->id, 'step' => 2])
+                ->with('error', 'Approved requests cannot be rejected. Remove the participant enrollment if needed.');
+        }
+
+        $joinRequest->update([
+            'status' => TrainingEventJoinRequest::STATUS_REJECTED,
+            'reviewer_notes' => $data['reviewer_notes'] ?? null,
+            'reviewed_at' => now(),
+            'reviewed_by' => $request->user()?->id,
+        ]);
+
+        $this->audit()->logCustom('Training event join request rejected', 'training_event_join_requests.rejected', [
+            'auditable_type' => TrainingEventJoinRequest::class,
+            'auditable_id' => $joinRequest->id,
+            'auditable_label' => $participant->name.' -> '.$trainingEvent->event_name,
+            'metadata' => [
+                'training_event_id' => $trainingEvent->id,
+                'participant_id' => $participant->id,
+            ],
+        ]);
+
+        return redirect()
+            ->route('admin.training-workflow.index', ['event_id' => $trainingEvent->id, 'step' => 2])
+            ->with('success', 'Join request rejected.');
     }
 
     public function storeWorkshopCount(Request $request, TrainingEvent $trainingEvent): RedirectResponse

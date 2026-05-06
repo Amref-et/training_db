@@ -11,6 +11,7 @@ use App\Http\Controllers\ManagedResourceController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PublicParticipantRegistrationController;
+use App\Http\Controllers\PublicTrainingEventJoinRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicVendorAssetController;
 use App\Http\Controllers\RoleController;
@@ -33,8 +34,13 @@ Route::get('/public/dashboard/organization-options', [WebsiteController::class, 
 Route::get('/participant-registration', [PublicParticipantRegistrationController::class, 'create'])->name('participant-registration.create');
 Route::post('/participant-registration', [PublicParticipantRegistrationController::class, 'store'])->name('participant-registration.store');
 Route::get('/participant-registration/organization-options', [PublicParticipantRegistrationController::class, 'organizationOptions'])->name('participant-registration.organization-options');
+Route::get('/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'create'])->name('training-event-join-requests.create');
+Route::post('/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'store'])->name('training-event-join-requests.store');
+Route::get('/training-event-join-request/participant-options', [PublicTrainingEventJoinRequestController::class, 'participantOptions'])->name('training-event-join-requests.participant-options');
 Route::get('/public/participant-registration', [PublicParticipantRegistrationController::class, 'create']);
 Route::get('/public/participant-registration/organization-options', [PublicParticipantRegistrationController::class, 'organizationOptions']);
+Route::get('/public/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'create']);
+Route::get('/public/training-event-join-request/participant-options', [PublicTrainingEventJoinRequestController::class, 'participantOptions']);
 Route::get('/embed/training-events-calendar', [TrainingEventsCalendarController::class, 'embed'])->name('training-events-calendar.embed');
 Route::get('/assets/vendor/{asset}', [PublicVendorAssetController::class, 'show'])->where('asset', '.*')->name('vendor-assets.show');
 Route::get('/api/openapi.json', [OpenApiController::class, 'json'])->name('api.openapi');
@@ -145,6 +151,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
     Route::delete('training-workflow/events/{trainingEvent}/enrollments/{enrollment}', [TrainingWorkflowController::class, 'destroyEnrollment'])
         ->middleware('permission:training_event_participants.delete')
         ->name('training-workflow.enrollments.destroy');
+
+    Route::post('training-workflow/join-requests/{joinRequest}/approve', [TrainingWorkflowController::class, 'approveJoinRequest'])
+        ->middleware('permission:training_event_participants.create')
+        ->name('training-workflow.join-requests.approve');
+
+    Route::post('training-workflow/join-requests/{joinRequest}/reject', [TrainingWorkflowController::class, 'rejectJoinRequest'])
+        ->middleware('permission:training_event_participants.update')
+        ->name('training-workflow.join-requests.reject');
 
     Route::post('training-workflow/events/{trainingEvent}/workshops', [TrainingWorkflowController::class, 'saveWorkshopScores'])
         ->middleware('permission:training_event_workshop_scores.update')
