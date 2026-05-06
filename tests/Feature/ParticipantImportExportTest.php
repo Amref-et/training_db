@@ -64,12 +64,54 @@ class ParticipantImportExportTest extends TestCase
 
         $csv = $response->streamedContent();
 
-        $this->assertStringContainsString(
-            'participant_code,first_name,father_name,grandfather_name,date_of_birth,age,gender,home_phone,mobile_phone,email,profession,region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,organization_id,organization_name',
-            $csv
-        );
-        $this->assertStringContainsString($participant->participant_code.',Alice,Bekele,Chala,2000-06-15,26,female,0111002000,0911223344,alice@example.com,'.$profession->name, $csv);
-        $this->assertStringContainsString(','.$region->id.','.$region->name.','.$zone->id.','.$zone->name.','.$woreda->id.','.$woreda->name.','.$organization->id.','.$organization->name, $csv);
+        $rows = collect(preg_split('/\r\n|\r|\n/', trim($csv)))
+            ->filter()
+            ->map(fn (string $line): array => str_getcsv($line))
+            ->values();
+
+        $this->assertSame([
+            'participant_code',
+            'first_name',
+            'father_name',
+            'grandfather_name',
+            'date_of_birth',
+            'age',
+            'gender',
+            'home_phone',
+            'mobile_phone',
+            'email',
+            'profession',
+            'region_id',
+            'region_name',
+            'zone_id',
+            'zone_name',
+            'woreda_id',
+            'woreda_name',
+            'organization_id',
+            'organization_name',
+        ], $rows[0]);
+
+        $this->assertSame([
+            $participant->participant_code,
+            'Alice',
+            'Bekele',
+            'Chala',
+            '2000-06-15',
+            '26',
+            'female',
+            '0111002000',
+            '0911223344',
+            'alice@example.com',
+            $profession->name,
+            (string) $region->id,
+            $region->name,
+            (string) $zone->id,
+            $zone->name,
+            (string) $woreda->id,
+            $woreda->name,
+            (string) $organization->id,
+            $organization->name,
+        ], $rows[1]);
     }
 
     public function test_participant_import_preserves_model_generated_code_and_birth_age_logic(): void

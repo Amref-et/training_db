@@ -20,12 +20,23 @@ return new class extends Migration
         });
 
         if (Schema::hasColumn('training_events', 'event_name')) {
-            DB::statement('
-                UPDATE training_events te
-                LEFT JOIN trainings t ON t.id = te.training_id
-                SET te.event_name = COALESCE(NULLIF(te.event_name, \'\'), t.title, CONCAT(\'Training Event #\', te.id))
-                WHERE te.event_name IS NULL OR te.event_name = \'\'
-            ');
+            DB::table('training_events')
+                ->leftJoin('trainings', 'trainings.id', '=', 'training_events.training_id')
+                ->where(fn ($query) => $query
+                    ->whereNull('training_events.event_name')
+                    ->orWhere('training_events.event_name', '')
+                )
+                ->select(['training_events.id', 'trainings.title'])
+                ->orderBy('training_events.id')
+                ->chunkById(200, function ($events): void {
+                    foreach ($events as $event) {
+                        DB::table('training_events')
+                            ->where('id', $event->id)
+                            ->update([
+                                'event_name' => $event->title ?: 'Training Event #'.$event->id,
+                            ]);
+                    }
+                }, 'training_events.id', 'id');
         }
     }
 
@@ -42,4 +53,3 @@ return new class extends Migration
         });
     }
 };
-

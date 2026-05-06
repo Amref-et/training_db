@@ -847,7 +847,7 @@ class ManagedResourceController extends Controller
                             (string) $participant->first_name,
                             (string) $participant->father_name,
                             (string) $participant->grandfather_name,
-                            (string) $participant->date_of_birth,
+                            $participant->date_of_birth?->toDateString() ?? '',
                             $participant->age,
                             (string) $participant->gender,
                             (string) $participant->home_phone,
@@ -950,11 +950,15 @@ class ManagedResourceController extends Controller
 
             if ($mobilePhone === '') {
                 $rowErrors[] = 'Mobile phone is required.';
+            } elseif (! $this->validParticipantPhone($mobilePhone)) {
+                $rowErrors[] = 'Mobile phone is invalid.';
             }
 
-            if ($email === '') {
-                $rowErrors[] = 'Email is required.';
-            } elseif (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            if ($homePhone !== '' && ! $this->validParticipantPhone($homePhone)) {
+                $rowErrors[] = 'Home phone is invalid.';
+            }
+
+            if ($email !== '' && ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $rowErrors[] = 'Email is invalid.';
             }
 
@@ -1040,9 +1044,12 @@ class ManagedResourceController extends Controller
                     ->first();
             }
 
-            $existingByEmail = Participant::query()
-                ->whereRaw('LOWER(email) = ?', [$email])
-                ->first();
+            $existingByEmail = null;
+            if ($email !== '') {
+                $existingByEmail = Participant::query()
+                    ->whereRaw('LOWER(email) = ?', [$email])
+                    ->first();
+            }
 
             if ($existingByCode && $existingByEmail && ! $existingByCode->is($existingByEmail)) {
                 $rowErrors[] = 'Participant code and email match different existing records.';
@@ -1067,7 +1074,7 @@ class ManagedResourceController extends Controller
                 'gender' => $gender,
                 'home_phone' => $homePhone !== '' ? $homePhone : null,
                 'mobile_phone' => $mobilePhone,
-                'email' => $email,
+                'email' => $email !== '' ? $email : null,
                 'profession' => $profession?->name,
             ];
 
@@ -1807,6 +1814,11 @@ class ManagedResourceController extends Controller
         };
     }
 
+    private function validParticipantPhone(string $value): bool
+    {
+        return preg_match('/^(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d$/', trim($value)) === 1;
+    }
+
     private function normalizeParticipantBirthData(string $dateOfBirthRaw, string $ageRaw): array
     {
         $normalizedDob = null;
@@ -1817,6 +1829,15 @@ class ManagedResourceController extends Controller
         if ($dobProvided) {
             try {
                 $normalizedDob = Carbon::parse($dateOfBirthRaw)->toDateString();
+
+                if (Carbon::parse($normalizedDob)->isFuture()) {
+                    return [
+                        'valid' => false,
+                        'message' => 'Date of birth cannot be in the future.',
+                        'date_of_birth' => null,
+                        'age' => null,
+                    ];
+                }
             } catch (\Throwable) {
                 if (! $ageProvided) {
                     return [

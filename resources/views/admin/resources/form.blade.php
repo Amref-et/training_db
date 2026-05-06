@@ -181,12 +181,24 @@
                                         <div class="form-text mt-2">Current file: <a href="{{ route('admin.'.$config['path'].'.file', ['record' => $record->getKey(), 'field' => $name]) }}">{{ basename((string) data_get($record, $name)) }}</a></div>
                                     @endif
                                 @else
-                                    <input type="{{ $type }}" name="{{ $name }}" value="{{ $value }}" class="form-control" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}" @if($name === 'age') min="0" max="120" step="1" @endif>
+                                    <input
+                                        type="{{ $type }}"
+                                        name="{{ $name }}"
+                                        value="{{ $value }}"
+                                        class="form-control"
+                                        @required($isRequired)
+                                        aria-required="{{ $isRequired ? 'true' : 'false' }}"
+                                        @if($name === 'age') min="0" max="120" step="1" inputmode="numeric" pattern="[0-9]*" title="Enter a whole number between 0 and 120." @endif
+                                        @if($name === 'date_of_birth') max="{{ now()->toDateString() }}" @endif
+                                        @if(in_array($name, ['home_phone', 'mobile_phone'], true)) inputmode="tel" maxlength="30" pattern="(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d" title="Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed." @endif
+                                    >
                                 @endif
                                 @if($name === 'date_of_birth')
                                     <div class="form-text">Age is calculated as of July 1st of the current year.</div>
                                 @elseif($name === 'age')
                                     <div class="form-text">When age is entered, DOB is approximated to July 1st of (current year - age).</div>
+                                @elseif(in_array($name, ['home_phone', 'mobile_phone'], true))
+                                    <div class="form-text">Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.</div>
                                 @endif
                                 @error($name)
                                     <div class="text-danger small mt-1">{{ $message }}</div>

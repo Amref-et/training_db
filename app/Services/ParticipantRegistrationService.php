@@ -106,9 +106,10 @@ class ParticipantRegistrationService
 
     public function validateAndPrepare(array $input, ?Participant $participant = null): array
     {
-        $data = Validator::make($input, $this->validationRules($participant))->validate();
+        $data = Validator::make($input, $this->validationRules($participant), $this->validationMessages())->validate();
 
-        $data['email'] = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
+        $data['email'] = $email === '' ? null : $email;
         $data['gender'] = mb_strtolower(trim((string) ($data['gender'] ?? '')));
         $data['home_phone'] = $this->blankToNull($data['home_phone'] ?? null);
         $data['mobile_phone'] = trim((string) ($data['mobile_phone'] ?? ''));
@@ -137,6 +138,18 @@ class ParticipantRegistrationService
         return collect($config['rules'])
             ->map(fn (string $rule) => str_replace('{{id}}', (string) $id, $rule))
             ->all();
+    }
+
+    private function validationMessages(): array
+    {
+        return [
+            'date_of_birth.before_or_equal' => 'Date of birth cannot be in the future.',
+            'age.integer' => 'Age must be a whole number.',
+            'age.min' => 'Age must be between 0 and 120.',
+            'age.max' => 'Age must be between 0 and 120.',
+            'home_phone.regex' => 'Home phone must be a valid phone number with 7 to 15 digits.',
+            'mobile_phone.regex' => 'Mobile phone must be a valid phone number with 7 to 15 digits.',
+        ];
     }
 
     private function applyHierarchyConstraints(array &$data): void

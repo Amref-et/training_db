@@ -159,7 +159,7 @@
             border: 1px solid rgba(15, 23, 42, .14);
             border-radius: var(--radius-sm);
             background: color-mix(in srgb, #ffffff 88%, var(--header-bg));
-            color: var(--header-text);
+            color: #000000;
             font: inherit;
             font-weight: 600;
             line-height: 1;
@@ -170,7 +170,7 @@
         .site-menu-toggle:hover,
         .site-menu-toggle:focus-visible {
             background: rgba(15, 23, 42, .08);
-            color: var(--header-text);
+            color: #000000;
         }
 
         .site-menu-toggle:focus-visible {
@@ -363,6 +363,19 @@
             padding: 1.1rem 1.2rem;
         }
 
+        .registration-id-preview-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            min-width: 0;
+        }
+
+        .registration-id-preview-label,
+        .registration-id-preview-value {
+            min-width: 0;
+        }
+
         .registration-id-preview-sticky {
             position: sticky;
             top: calc(var(--header-logo-height) + 2.35rem);
@@ -528,7 +541,27 @@
             }
 
             .registration-id-preview-sticky {
-                top: calc(var(--header-logo-height) + 2rem);
+                top: calc(var(--header-logo-height) + 2.6rem);
+            }
+
+            .registration-id-preview {
+                padding: .85rem 1rem;
+                border-radius: var(--radius-md);
+            }
+
+            .registration-id-preview-content {
+                flex-wrap: wrap;
+                gap: .35rem .75rem;
+            }
+
+            .registration-id-preview-label {
+                font-size: .95rem;
+            }
+
+            .registration-id-preview-value {
+                font-size: 1.05rem !important;
+                overflow-wrap: anywhere;
+                white-space: normal !important;
             }
         }
     </style>
@@ -596,9 +629,9 @@
 
         <div class="registration-id-preview-sticky">
             <div class="registration-id-preview">
-                <div class="d-flex justify-content-between align-items-center gap-3">
-                    <div class="fw-semibold">Participant ID:</div>
-                    <div class="fs-5 fw-bold text-nowrap" id="participant-id-preview">XXX00000000</div>
+                <div class="registration-id-preview-content">
+                    <div class="registration-id-preview-label fw-semibold">Participant ID:</div>
+                    <div class="registration-id-preview-value fs-5 fw-bold text-nowrap" id="participant-id-preview">XXX00000000</div>
                 </div>
             </div>
         </div>
@@ -654,13 +687,13 @@
 
                     <div class="col-md-6">
                         <label class="form-label" for="date_of_birth">Date of Birth</label>
-                        <input type="date" class="form-control @error('date_of_birth') is-invalid @enderror" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}">
+                        <input type="date" class="form-control @error('date_of_birth') is-invalid @enderror" id="date_of_birth" name="date_of_birth" value="{{ old('date_of_birth') }}" max="{{ now()->toDateString() }}">
                         <div class="registration-field-note mt-1">Age is calculated as of July 1 of the current year.</div>
                         @error('date_of_birth')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="age">Age</label>
-                        <input type="number" min="0" max="120" step="1" class="form-control @error('age') is-invalid @enderror" id="age" name="age" value="{{ old('age') }}">
+                        <input type="number" min="0" max="120" step="1" inputmode="numeric" pattern="[0-9]*" class="form-control @error('age') is-invalid @enderror" id="age" name="age" value="{{ old('age') }}" title="Enter a whole number between 0 and 120.">
                         <div class="registration-field-note mt-1">If age is entered first, date of birth is approximated to July 1.</div>
                         @error('age')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
@@ -687,18 +720,20 @@
 
                     <div class="col-md-6">
                         <label class="form-label" for="home_phone">Home Phone</label>
-                        <input type="text" class="form-control @error('home_phone') is-invalid @enderror" id="home_phone" name="home_phone" value="{{ old('home_phone') }}">
+                        <input type="tel" inputmode="tel" maxlength="30" pattern="(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d" class="form-control @error('home_phone') is-invalid @enderror" id="home_phone" name="home_phone" value="{{ old('home_phone') }}" title="Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.">
+                        <div class="registration-field-note mt-1">Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.</div>
                         @error('home_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="mobile_phone">Mobile Phone<span class="required-mark" aria-hidden="true">*</span></label>
-                        <input type="text" class="form-control @error('mobile_phone') is-invalid @enderror" id="mobile_phone" name="mobile_phone" value="{{ old('mobile_phone') }}" required>
+                        <input type="tel" inputmode="tel" maxlength="30" pattern="(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d" class="form-control @error('mobile_phone') is-invalid @enderror" id="mobile_phone" name="mobile_phone" value="{{ old('mobile_phone') }}" required title="Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.">
+                        <div class="registration-field-note mt-1">Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed.</div>
                         @error('mobile_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
                     <div class="col-12">
-                        <label class="form-label" for="email">Email<span class="required-mark" aria-hidden="true">*</span></label>
-                        <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}" required>
+                        <label class="form-label" for="email">Email</label>
+                        <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email" value="{{ old('email') }}">
                         @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
@@ -1090,14 +1125,25 @@
                 return Math.max(0, age);
             };
 
+            const isWholeAge = (value) => /^\d+$/.test(String(value || '').trim());
             const dobFromAge = (value) => {
+                if (!isWholeAge(value)) {
+                    return '';
+                }
+
                 const age = Number.parseInt(value, 10);
-                if (!Number.isFinite(age) || age < 0) {
+                if (!Number.isFinite(age) || age < 0 || age > 120) {
                     return '';
                 }
 
                 const year = referenceYear - age;
                 return `${year}-${pad(7)}-${pad(1)}`;
+            };
+
+            const validateBirthRequirement = () => {
+                const hasDob = dobInput.value.trim() !== '';
+                const hasAge = ageInput.value.trim() !== '';
+                ageInput.setCustomValidity(hasDob || hasAge ? '' : 'Enter either date of birth or age.');
             };
 
             const syncAgeFromDob = () => {
@@ -1109,6 +1155,7 @@
                 const age = ageFromDob(dobInput.value);
                 ageInput.value = age === null ? '' : String(age);
                 syncingBirthData = false;
+                validateBirthRequirement();
                 updateParticipantPreview();
             };
 
@@ -1120,6 +1167,7 @@
                 syncingBirthData = true;
                 dobInput.value = dobFromAge(ageInput.value);
                 syncingBirthData = false;
+                validateBirthRequirement();
                 updateParticipantPreview();
             };
 
@@ -1127,6 +1175,16 @@
             dobInput.addEventListener('change', syncAgeFromDob);
             ageInput.addEventListener('input', syncDobFromAge);
             ageInput.addEventListener('change', syncDobFromAge);
+
+            form.addEventListener('submit', (event) => {
+                validateBirthRequirement();
+
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    form.reportValidity();
+                }
+            });
 
             const initialForCode = (value) => {
                 const text = (value || '').trim();

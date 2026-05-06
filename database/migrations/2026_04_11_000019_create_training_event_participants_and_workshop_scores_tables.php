@@ -69,7 +69,9 @@ return new class extends Migration
                     }
                 }, 'id');
 
-            DB::statement('ALTER TABLE training_events MODIFY participant_id BIGINT UNSIGNED NULL');
+            Schema::table('training_events', function (Blueprint $table) {
+                $table->unsignedBigInteger('participant_id')->nullable()->change();
+            });
         }
     }
 
@@ -86,7 +88,9 @@ return new class extends Migration
                     ->whereNull('participant_id')
                     ->update(['participant_id' => $fallbackParticipantId]);
 
-                DB::statement('ALTER TABLE training_events MODIFY participant_id BIGINT UNSIGNED NOT NULL');
+                Schema::table('training_events', function (Blueprint $table) {
+                    $table->unsignedBigInteger('participant_id')->nullable(false)->change();
+                });
             }
         }
     }

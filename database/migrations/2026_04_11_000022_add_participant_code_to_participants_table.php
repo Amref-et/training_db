@@ -55,13 +55,11 @@ return new class extends Migration
                 }
             }, 'id');
 
-        DB::statement('ALTER TABLE participants MODIFY participant_code VARCHAR(32) NOT NULL');
+        Schema::table('participants', function (Blueprint $table) {
+            $table->string('participant_code', 32)->nullable(false)->change();
+        });
 
-        $indexExists = DB::table('information_schema.statistics')
-            ->where('table_schema', DB::getDatabaseName())
-            ->where('table_name', 'participants')
-            ->where('index_name', 'participants_participant_code_unique')
-            ->exists();
+        $indexExists = $this->indexExists('participants', 'participants_participant_code_unique');
 
         if (! $indexExists) {
             Schema::table('participants', function (Blueprint $table) {
@@ -76,11 +74,7 @@ return new class extends Migration
             return;
         }
 
-        $indexExists = DB::table('information_schema.statistics')
-            ->where('table_schema', DB::getDatabaseName())
-            ->where('table_name', 'participants')
-            ->where('index_name', 'participants_participant_code_unique')
-            ->exists();
+        $indexExists = $this->indexExists('participants', 'participants_participant_code_unique');
 
         Schema::table('participants', function (Blueprint $table) use ($indexExists) {
             if ($indexExists) {
@@ -124,5 +118,22 @@ return new class extends Migration
 
         return str_pad((string) $tail, 4, '0', STR_PAD_LEFT);
     }
-};
 
+    private function indexExists(string $table, string $indexName): bool
+    {
+        if (method_exists(Schema::getFacadeRoot(), 'getIndexes')) {
+            return collect(Schema::getIndexes($table))
+                ->contains(fn (array $index): bool => ($index['name'] ?? null) === $indexName);
+        }
+
+        if (DB::getDriverName() === 'mysql') {
+            return DB::table('information_schema.statistics')
+                ->where('table_schema', DB::getDatabaseName())
+                ->where('table_name', $table)
+                ->where('index_name', $indexName)
+                ->exists();
+        }
+
+        return false;
+    }
+};
