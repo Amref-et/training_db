@@ -74,6 +74,8 @@ class TrainingEventJoinRequestTest extends TestCase
 
         $response
             ->assertOk()
+            ->assertSee('class="site-header"', false)
+            ->assertSee('class="site-footer py-5"', false)
             ->assertSee('data-registration-request-url="'.route('training-event-join-requests.register').'"', false)
             ->assertSee('Register and request event');
     }
