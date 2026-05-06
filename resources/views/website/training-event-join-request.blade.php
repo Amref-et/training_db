@@ -115,6 +115,21 @@
             border-bottom: 0;
         }
 
+        .participant-register-action {
+            margin-top: .55rem;
+            border: 1px solid var(--body-accent);
+            border-radius: var(--radius-sm);
+            background: #ffffff;
+            color: var(--body-accent);
+            padding: .45rem .7rem;
+            font-weight: 600;
+        }
+
+        .participant-register-action:hover,
+        .participant-register-action:focus {
+            background: color-mix(in srgb, var(--body-accent) 10%, #ffffff);
+        }
+
         .participant-search-label,
         .participant-search-hint {
             display: block;
@@ -199,6 +214,7 @@
                                     class="form-control @error('participant_name') is-invalid @enderror"
                                     value="{{ old('participant_name') }}"
                                     data-search-url="{{ route('training-event-join-requests.participant-options') }}"
+                                    data-registration-url="{{ route('participant-registration.create') }}"
                                     required
                                 >
                                 <div id="participant-search-results" class="participant-search-results" role="listbox"></div>
@@ -233,7 +249,7 @@
             const participantIdInput = document.getElementById('participant_id');
             const results = document.getElementById('participant-search-results');
 
-            if (!nameInput || !participantIdInput || !results || !nameInput.dataset.searchUrl) {
+            if (!nameInput || !participantIdInput || !results || !nameInput.dataset.searchUrl || !nameInput.dataset.registrationUrl) {
                 return;
             }
 
@@ -245,10 +261,28 @@
                 results.replaceChildren();
             };
 
-            const renderEmpty = (message) => {
+            const askToRegister = () => {
+                if (window.confirm('No registration was found for this participant. Do you want to register now?')) {
+                    window.location.href = nameInput.dataset.registrationUrl;
+                }
+            };
+
+            const renderEmpty = (message, offerRegistration = false) => {
                 const item = document.createElement('div');
                 item.className = 'participant-search-empty';
-                item.textContent = message;
+
+                const text = document.createElement('div');
+                text.textContent = message;
+                item.append(text);
+
+                if (offerRegistration) {
+                    const registerButton = document.createElement('button');
+                    registerButton.type = 'button';
+                    registerButton.className = 'participant-register-action';
+                    registerButton.textContent = 'Register as participant';
+                    registerButton.addEventListener('click', askToRegister);
+                    item.append(registerButton);
+                }
 
                 results.replaceChildren(item);
                 results.classList.add('is-open');
@@ -262,7 +296,7 @@
 
             const renderOptions = (options) => {
                 if (!options.length) {
-                    renderEmpty('No matching participants found.');
+                    renderEmpty('No registered participant found with this name.', true);
                     return;
                 }
 

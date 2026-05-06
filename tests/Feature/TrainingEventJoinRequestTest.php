@@ -66,6 +66,18 @@ class TrainingEventJoinRequestTest extends TestCase
             ->assertJsonPath('options.0.hint', 'Registered phone ending 3344');
     }
 
+    public function test_join_request_form_can_send_unregistered_participants_to_registration(): void
+    {
+        [, $event] = $this->participantAndEvent();
+
+        $response = $this->get('/training-event-join-request?training_event_id='.$event->id);
+
+        $response
+            ->assertOk()
+            ->assertSee('data-registration-url="'.route('participant-registration.create').'"', false)
+            ->assertSee('Register as participant');
+    }
+
     public function test_join_request_rejects_name_phone_mismatch(): void
     {
         [$participant, $event] = $this->participantAndEvent();
