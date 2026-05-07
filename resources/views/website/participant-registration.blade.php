@@ -962,11 +962,10 @@
                 });
             };
 
-            const filterHierarchy = () => {
+            const filterHierarchy = (targetZoneId = null, targetWoredaId = null) => {
                 const regionId = regionSelect.value || '';
-                const zoneId = zoneSelect.value || '';
-                const currentZone = zoneSelect.value || '';
-                const currentWoreda = woredaSelect.value || '';
+                const currentZone = targetZoneId === null ? (zoneSelect.value || '') : String(targetZoneId);
+                const currentWoreda = targetWoredaId === null ? (woredaSelect.value || '') : String(targetWoredaId);
 
                 const zoneOptions = originalZoneOptions.filter((option) => {
                     if (option.value === '') {
@@ -982,7 +981,7 @@
 
                 rebuildSelect(zoneSelect, zoneOptions, nextZone);
 
-                const activeZoneId = zoneSelect.value || zoneId;
+                const activeZoneId = zoneSelect.value || currentZone;
                 const woredaOptions = originalWoredaOptions.filter((option) => {
                     if (option.value === '') {
                         return true;
@@ -1006,7 +1005,13 @@
                 rebuildSelect(woredaSelect, woredaOptions, nextWoreda);
             };
 
+            let syncingHierarchyFromOrganization = false;
+
             const clearOrganizationSelection = () => {
+                if (syncingHierarchyFromOrganization) {
+                    return;
+                }
+
                 if (!organizationSelect.tomselect) {
                     organizationSelect.value = '';
                     return;
@@ -1040,6 +1045,38 @@
                 }
 
                 return url.toString();
+            };
+
+            const applyOrganizationHierarchy = (option) => {
+                if (!option) {
+                    return;
+                }
+
+                const regionId = option.region_id ? String(option.region_id) : '';
+                const zoneId = option.zone_id ? String(option.zone_id) : '';
+                const woredaId = option.woreda_id ? String(option.woreda_id) : '';
+
+                if (!regionId && !zoneId && !woredaId) {
+                    return;
+                }
+
+                syncingHierarchyFromOrganization = true;
+
+                if (regionId) {
+                    regionSelect.value = regionId;
+                }
+
+                filterHierarchy(zoneId || null, woredaId || null);
+
+                if (zoneId && Array.from(zoneSelect.options).some((zoneOption) => String(zoneOption.value) === zoneId)) {
+                    zoneSelect.value = zoneId;
+                }
+
+                if (woredaId && Array.from(woredaSelect.options).some((woredaOption) => String(woredaOption.value) === woredaId)) {
+                    woredaSelect.value = woredaId;
+                }
+
+                syncingHierarchyFromOrganization = false;
             };
 
             const organizationTom = new TomSelect(organizationSelect, {
@@ -1081,8 +1118,19 @@
                         this.load('');
                     }
                 },
+                onChange(value) {
+                    if (!value) {
+                        return;
+                    }
+
+                    applyOrganizationHierarchy(this.options[value]);
+                },
             });
             organizationTom.removeOption('');
+
+            if (organizationTom.getValue()) {
+                applyOrganizationHierarchy(organizationTom.options[organizationTom.getValue()]);
+            }
 
             if (professionSelect) {
                 const professionTom = new TomSelect(professionSelect, {

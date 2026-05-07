@@ -72,6 +72,24 @@ class PublicParticipantRegistrationTest extends TestCase
         $this->assertDatabaseCount('participants', 0);
     }
 
+    public function test_organization_search_options_include_hierarchy_for_autofill(): void
+    {
+        [$region, $zone, $woreda, $organization] = $this->participantDependencies();
+
+        $response = $this->getJson('/participant-registration/organization-options?q=Health');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('options.0.value', $organization->id)
+            ->assertJsonPath('options.0.region_id', $region->id)
+            ->assertJsonPath('options.0.zone_id', $zone->id)
+            ->assertJsonPath('options.0.woreda_id', $woreda->id);
+
+        $this->get('/participant-registration')
+            ->assertOk()
+            ->assertSee('applyOrganizationHierarchy', false);
+    }
+
     private function participantDependencies(): array
     {
         $region = Region::query()->create([
