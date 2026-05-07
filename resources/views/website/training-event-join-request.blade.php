@@ -824,6 +824,7 @@
 
             let searchTimer = null;
             let activeRequest = null;
+            let phoneAutofilled = false;
 
             const closeResults = () => {
                 results.classList.remove('is-open');
@@ -887,6 +888,12 @@
             const selectOption = (option) => {
                 participantIdInput.value = option.value;
                 nameInput.value = option.label;
+
+                if (mobilePhoneInput && option.mobile_phone) {
+                    mobilePhoneInput.value = option.mobile_phone;
+                    phoneAutofilled = true;
+                }
+
                 closeResults();
             };
 
@@ -949,9 +956,20 @@
             };
 
             nameInput.addEventListener('input', () => {
+                if (phoneAutofilled && mobilePhoneInput) {
+                    mobilePhoneInput.value = '';
+                    phoneAutofilled = false;
+                }
+
                 window.clearTimeout(searchTimer);
                 searchTimer = window.setTimeout(searchParticipants, 250);
             });
+
+            if (mobilePhoneInput) {
+                mobilePhoneInput.addEventListener('input', () => {
+                    phoneAutofilled = false;
+                });
+            }
 
             nameInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape') {

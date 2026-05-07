@@ -63,7 +63,8 @@ class TrainingEventJoinRequestTest extends TestCase
             ->assertOk()
             ->assertJsonPath('options.0.value', $participant->id)
             ->assertJsonPath('options.0.label', $participant->name)
-            ->assertJsonPath('options.0.hint', 'Registered phone ending 3344');
+            ->assertJsonPath('options.0.hint', 'Registered phone ending 3344')
+            ->assertJsonPath('options.0.mobile_phone', '0911223344');
     }
 
     public function test_join_request_form_can_send_unregistered_participants_to_registration(): void

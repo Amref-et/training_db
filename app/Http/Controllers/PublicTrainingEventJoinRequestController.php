@@ -160,6 +160,7 @@ class PublicTrainingEventJoinRequestController extends Controller
                     'value' => $participant->id,
                     'label' => $this->participantLabel($participant),
                     'hint' => $this->phoneHint($participant->mobile_phone),
+                    'mobile_phone' => (string) $participant->mobile_phone,
                 ])
                 ->values()
                 ->all(),
