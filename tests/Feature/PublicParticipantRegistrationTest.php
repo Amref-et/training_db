@@ -87,7 +87,13 @@ class PublicParticipantRegistrationTest extends TestCase
 
         $this->get('/participant-registration')
             ->assertOk()
-            ->assertSee('applyOrganizationHierarchy', false);
+            ->assertSee('applyOrganizationHierarchy', false)
+            ->assertSeeInOrder([
+                'for="organization_id"',
+                'for="region_id"',
+                'for="zone_id"',
+                'for="woreda_id"',
+            ], false);
     }
 
     private function participantDependencies(): array

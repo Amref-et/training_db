@@ -750,6 +750,18 @@
                         @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
+                    <div class="col-12">
+                        <label class="form-label" for="organization_id">Organization<span class="required-mark" aria-hidden="true">*</span></label>
+                        <select class="form-select @error('organization_id') is-invalid @enderror" id="organization_id" name="organization_id" data-remote-url="{{ route('participant-registration.organization-options') }}" required>
+                            <option value="">Select organization</option>
+                            @if($selectedOrganization)
+                                <option value="{{ $selectedOrganization['value'] }}" selected data-region-id="{{ $selectedOrganization['region_id'] }}" data-zone-id="{{ $selectedOrganization['zone_id'] }}" data-woreda-id="{{ $selectedOrganization['woreda_id'] }}">{{ $selectedOrganization['label'] }}</option>
+                            @endif
+                        </select>
+                        <div class="registration-field-note mt-1">Type at least 2 characters to search. Selecting an organization fills Region, Zone, and Woreda when available.</div>
+                        @error('organization_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                    </div>
+
                     <div class="col-md-4">
                         <label class="form-label" for="region_id">Region<span class="required-mark" aria-hidden="true">*</span></label>
                         <select class="form-select @error('region_id') is-invalid @enderror" id="region_id" name="region_id" required>
@@ -781,18 +793,6 @@
                             @endforeach
                         </select>
                         @error('woreda_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label" for="organization_id">Organization<span class="required-mark" aria-hidden="true">*</span></label>
-                        <select class="form-select @error('organization_id') is-invalid @enderror" id="organization_id" name="organization_id" data-remote-url="{{ route('participant-registration.organization-options') }}" required>
-                            <option value="">Select organization</option>
-                            @if($selectedOrganization)
-                                <option value="{{ $selectedOrganization['value'] }}" selected data-region-id="{{ $selectedOrganization['region_id'] }}" data-zone-id="{{ $selectedOrganization['zone_id'] }}" data-woreda-id="{{ $selectedOrganization['woreda_id'] }}">{{ $selectedOrganization['label'] }}</option>
-                            @endif
-                        </select>
-                        <div class="registration-field-note mt-1">Type at least 2 characters or choose region, zone, and woreda first to load matching organizations.</div>
-                        @error('organization_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>
 
                     <div class="col-12 pt-2">
