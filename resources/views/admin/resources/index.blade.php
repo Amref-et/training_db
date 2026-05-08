@@ -12,6 +12,9 @@
     @if($resource === 'participants' && auth()->user()->hasPermission('participants.view'))
         <a href="{{ route('admin.participants.export') }}" class="btn btn-outline-secondary">Export CSV</a>
     @endif
+    @if($resource === 'training_organizers' && auth()->user()->hasPermission('training_organizers.view'))
+        <a href="{{ route('admin.training-organizers.export') }}" class="btn btn-outline-secondary">Export CSV</a>
+    @endif
     @if($resource === 'organizations' && auth()->user()->hasPermission('zones.view'))
         <a href="{{ route('admin.zones.index') }}" class="btn btn-outline-secondary">Zone List</a>
     @endif
@@ -24,6 +27,13 @@
     @endif
     @if($resource === 'participants' && auth()->user()->hasPermission('participants.create'))
         <form method="POST" action="{{ route('admin.participants.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+            @csrf
+            <input type="file" name="import_file" class="form-control form-control-sm" accept=".csv,.txt" required>
+            <button class="btn btn-outline-dark btn-sm" type="submit">Import CSV</button>
+        </form>
+    @endif
+    @if($resource === 'training_organizers' && auth()->user()->hasPermission('training_organizers.create'))
+        <form method="POST" action="{{ route('admin.training-organizers.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
             @csrf
             <input type="file" name="import_file" class="form-control form-control-sm" accept=".csv,.txt" required>
             <button class="btn btn-outline-dark btn-sm" type="submit">Import CSV</button>

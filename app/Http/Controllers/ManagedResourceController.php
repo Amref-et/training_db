@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\Participant;
 use App\Models\Profession;
 use App\Models\Region;
+use App\Models\TrainingOrganizer;
 use App\Models\Woreda;
 use App\Models\Zone;
 use App\Support\ResourceRegistry;
@@ -365,6 +366,220 @@ class ManagedResourceController extends Controller
         abort_unless(Storage::disk($disk)->exists($path), 404);
 
         return Storage::disk($disk)->download($path, basename($path));
+    }
+
+    public function exportTrainingOrganizers(): StreamedResponse
+    {
+        $fileName = 'training-organizers-export-'.now()->format('Ymd-His').'.csv';
+        $this->audit()->logCustom('Projects exported', 'training_organizers.export', [
+            'auditable_type' => TrainingOrganizer::class,
+            'metadata' => [
+                'exported_records' => TrainingOrganizer::query()->count(),
+                'file_name' => $fileName,
+            ],
+        ]);
+
+        return response()->streamDownload(function () {
+            $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, [
+                'project_code',
+                'project_name',
+                'project_long_name',
+                'donor',
+                'program',
+                'subawardees',
+            ]);
+
+            TrainingOrganizer::query()
+                ->with('subawardees')
+                ->orderBy('id')
+                ->chunkById(500, function ($organizers) use ($handle) {
+                    foreach ($organizers as $organizer) {
+                        fputcsv($handle, [
+                            (string) $organizer->project_code,
+                            (string) $organizer->project_name,
+                            (string) $organizer->project_long_name,
+                            (string) $organizer->donor,
+                            (string) $organizer->program,
+                            $organizer->subawardees
+                                ->pluck('subawardee_name')
+                                ->filter()
+                                ->implode('; '),
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function importTrainingOrganizers(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'import_file' => ['required', 'file', 'mimes:csv,txt', 'max:20480'],
+        ]);
+
+        $path = $validated['import_file']->getRealPath();
+
+        try {
+            $result = $this->importTrainingOrganizersFromCsv((string) $path);
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        $this->audit()->logCustom('Projects imported', 'training_organizers.import', [
+            'auditable_type' => TrainingOrganizer::class,
+            'metadata' => $result,
+        ]);
+
+        $successMessage = 'Project import completed: '.$result['created'].' created, '.$result['updated'].' updated';
+        if ($result['skipped'] > 0) {
+            $successMessage .= ', '.$result['skipped'].' skipped.';
+        } else {
+            $successMessage .= '.';
+        }
+
+        $redirect = back()->with('success', $successMessage);
+
+        if (! empty($result['errors'])) {
+            $previewErrors = array_slice($result['errors'], 0, 8);
+            $moreCount = max(0, count($result['errors']) - count($previewErrors));
+            $message = implode(' ', $previewErrors);
+            if ($moreCount > 0) {
+                $message .= ' ... and '.$moreCount.' more issue(s).';
+            }
+            $redirect->with('error', $message);
+        }
+
+        return $redirect;
+    }
+
+    public function importTrainingOrganizersFromCsv(string $path): array
+    {
+        $handle = $path !== '' ? fopen($path, 'r') : false;
+        if ($handle === false) {
+            throw new \RuntimeException('Unable to read import file.');
+        }
+
+        try {
+            $headerRow = fgetcsv($handle);
+
+            if (! is_array($headerRow) || empty($headerRow)) {
+                throw new \RuntimeException('Invalid CSV file: missing header row.');
+            }
+
+            $headerMap = [];
+            foreach ($headerRow as $index => $column) {
+                $normalized = $this->normalizeCsvHeader((string) $column);
+                if ($normalized !== '' && ! array_key_exists($normalized, $headerMap)) {
+                    $headerMap[$normalized] = $index;
+                }
+            }
+
+            $created = 0;
+            $updated = 0;
+            $skipped = 0;
+            $line = 1;
+            $errors = [];
+            $seenProjectCodes = [];
+
+            while (($row = fgetcsv($handle)) !== false) {
+                $line++;
+
+                if ($this->csvRowIsBlank($row)) {
+                    continue;
+                }
+
+                $projectCode = $this->csvCell($row, $headerMap, ['project_code', 'project_id']);
+                $projectName = $this->csvCell($row, $headerMap, ['project_name', 'project']);
+                $projectLongName = $this->csvCell($row, $headerMap, ['project_long_name', 'long_name']);
+                $donor = $this->csvCell($row, $headerMap, ['donor']);
+                $program = $this->csvCell($row, $headerMap, ['program']);
+                $subawardees = $this->csvTrainingOrganizerSubawardees($row, $headerMap);
+
+                $rowErrors = [];
+
+                if ($projectCode === '') {
+                    $rowErrors[] = 'Project code is required.';
+                } elseif (mb_strlen($projectCode) > 255) {
+                    $rowErrors[] = 'Project code must not exceed 255 characters.';
+                }
+
+                if ($projectName === '') {
+                    $rowErrors[] = 'Project name is required.';
+                } elseif (mb_strlen($projectName) > 255) {
+                    $rowErrors[] = 'Project name must not exceed 255 characters.';
+                }
+
+                foreach ([
+                    'Project long name' => $projectLongName,
+                    'Donor' => $donor,
+                    'Program' => $program,
+                ] as $label => $value) {
+                    if (mb_strlen($value) > 255) {
+                        $rowErrors[] = $label.' must not exceed 255 characters.';
+                    }
+                }
+
+                foreach ($subawardees as $subawardee) {
+                    if (mb_strlen($subawardee) > 255) {
+                        $rowErrors[] = 'Subawardee must not exceed 255 characters.';
+                        break;
+                    }
+                }
+
+                $projectCodeKey = mb_strtolower($projectCode);
+                if ($projectCodeKey !== '' && isset($seenProjectCodes[$projectCodeKey])) {
+                    $rowErrors[] = 'Project code is duplicated in this import file.';
+                }
+
+                if (! empty($rowErrors)) {
+                    $skipped++;
+                    $errors[] = 'Line '.$line.': '.implode(' ', $rowErrors);
+                    continue;
+                }
+
+                $seenProjectCodes[$projectCodeKey] = true;
+
+                $payload = [
+                    'project_code' => $projectCode,
+                    'project_name' => $projectName,
+                    'project_long_name' => $projectLongName !== '' ? $projectLongName : null,
+                    'donor' => $donor !== '' ? $donor : null,
+                    'program' => $program !== '' ? $program : null,
+                ];
+
+                $organizer = TrainingOrganizer::query()
+                    ->whereRaw('LOWER(project_code) = ?', [$projectCodeKey])
+                    ->first();
+
+                if ($organizer) {
+                    $organizer->update($payload);
+                    $updated++;
+                } else {
+                    $organizer = TrainingOrganizer::query()->create($payload);
+                    $created++;
+                }
+
+                $this->syncTrainingOrganizerSubawardees($organizer, $subawardees);
+            }
+
+            return [
+                'created' => $created,
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'errors' => $errors,
+            ];
+        } finally {
+            fclose($handle);
+        }
     }
 
     public function exportOrganizations(): StreamedResponse
@@ -1552,6 +1767,55 @@ class ManagedResourceController extends Controller
             ->filter(fn (array $field) => ($field['type'] ?? null) === 'file')
             ->values()
             ->all();
+    }
+
+    private function csvTrainingOrganizerSubawardees(array $row, array $headerMap): array
+    {
+        $values = $this->splitCsvList($this->csvCell($row, $headerMap, [
+            'subawardees',
+            'subawardee_names',
+            'subawardees_list',
+        ]));
+
+        foreach ($headerMap as $header => $index) {
+            if (! preg_match('/^subawardee(_name)?(_\d+)?$/', (string) $header)) {
+                continue;
+            }
+
+            $cell = trim((string) ($row[(int) $index] ?? ''));
+            if ($cell !== '') {
+                $values = array_merge($values, $this->splitCsvList($cell));
+            }
+        }
+
+        return collect($values)
+            ->map(fn ($value) => trim((string) $value))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function splitCsvList(string $value): array
+    {
+        if (trim($value) === '') {
+            return [];
+        }
+
+        return preg_split('/\s*(?:;|\||\r\n|\r|\n)\s*/', $value) ?: [];
+    }
+
+    private function syncTrainingOrganizerSubawardees(TrainingOrganizer $organizer, array $names): void
+    {
+        $organizer->subawardees()->delete();
+
+        if ($names === []) {
+            return;
+        }
+
+        $organizer->subawardees()->createMany(
+            collect($names)->map(fn (string $name) => ['subawardee_name' => $name])->all()
+        );
     }
 
     private function normalizeCsvHeader(string $header): string
