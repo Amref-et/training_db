@@ -16,6 +16,11 @@ class TrainingOrganizer extends Model
         'project_long_name',
         'donor',
         'program',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     protected static function booted(): void

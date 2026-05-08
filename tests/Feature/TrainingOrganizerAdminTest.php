@@ -31,8 +31,11 @@ class TrainingOrganizerAdminTest extends TestCase
             ->assertSee('Project Long Name')
             ->assertSee('Donor')
             ->assertSee('Program')
+            ->assertSee('Status')
             ->assertSee('DPC')
             ->assertSee('RMNCATH-N')
+            ->assertSee('name="is_active"', false)
+            ->assertSee('type="checkbox"', false)
             ->assertSee('js-creatable-select', false);
     }
 
@@ -47,6 +50,7 @@ class TrainingOrganizerAdminTest extends TestCase
                 'project_long_name' => 'Complete Project Long Name',
                 'donor' => 'USAID',
                 'program' => 'Custom Program Area',
+                'is_active' => '0',
                 'subawardees' => ['Subawardee One'],
             ]);
 
@@ -61,6 +65,7 @@ class TrainingOrganizerAdminTest extends TestCase
             'project_long_name' => 'Complete Project Long Name',
             'donor' => 'USAID',
             'program' => 'Custom Program Area',
+            'is_active' => false,
         ]);
 
         $organizer = TrainingOrganizer::query()
@@ -119,6 +124,7 @@ class TrainingOrganizerAdminTest extends TestCase
             'project_long_name',
             'donor',
             'program',
+            'status',
             'subawardees',
         ], $rows[0]);
 
@@ -128,6 +134,7 @@ class TrainingOrganizerAdminTest extends TestCase
             'Export Project Long Name',
             'CDC',
             'DPC',
+            'Active',
             'Subawardee A; Subawardee B',
         ], $rows[1]);
     }
@@ -146,9 +153,9 @@ class TrainingOrganizerAdminTest extends TestCase
         ]);
 
         $csv = implode("\n", [
-            'project_code,project_name,project_long_name,donor,program,subawardees',
-            'PROJ-NEW,New Project,New Project Long Name,USAID,Custom Program,"Sub A; Sub B"',
-            'PROJ-EXISTING,Updated Project,Updated Project Long Name,CDC,WASH,Updated Subawardee',
+            'project_code,project_name,project_long_name,donor,program,status,subawardees',
+            'PROJ-NEW,New Project,New Project Long Name,USAID,Custom Program,Inactive,"Sub A; Sub B"',
+            'PROJ-EXISTING,Updated Project,Updated Project Long Name,CDC,WASH,Active,Updated Subawardee',
         ]);
 
         $file = UploadedFile::fake()->createWithContent('training-organizers.csv', $csv);
@@ -171,6 +178,7 @@ class TrainingOrganizerAdminTest extends TestCase
             'project_long_name' => 'New Project Long Name',
             'donor' => 'USAID',
             'program' => 'Custom Program',
+            'is_active' => false,
         ]);
 
         $this->assertDatabaseHas('training_organizers', [
@@ -179,6 +187,7 @@ class TrainingOrganizerAdminTest extends TestCase
             'project_long_name' => 'Updated Project Long Name',
             'donor' => 'CDC',
             'program' => 'WASH',
+            'is_active' => true,
         ]);
 
         $newOrganizer = TrainingOrganizer::query()

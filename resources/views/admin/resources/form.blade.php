@@ -99,7 +99,7 @@
                             @php($name = $field['name'])
                             @php($type = $field['type'] ?? 'text')
                             @php($isRequired = (bool) ($field['required'] ?? false))
-                            @php($defaultValue = $record ? data_get($record, $name) : null)
+                            @php($defaultValue = $record ? data_get($record, $name) : ($field['default'] ?? null))
                             @if($type === 'repeater')
                                 @php($defaultValue = $record ? data_get($record, $name, collect())->pluck($field['column'] ?? 'name')->all() : [])
                             @endif
@@ -150,6 +150,22 @@
                                         <button type="button" class="btn btn-outline-secondary btn-sm mt-2 js-repeater-add">{{ $field['add_button'] ?? 'Add Row' }}</button>
                                     </div>
                                     <div class="form-text">Add one row per {{ strtolower($field['item_label'] ?? 'item') }}. Blank rows are ignored.</div>
+                                @elseif($type === 'checkbox')
+                                    @php($checkboxId = 'checkbox-'.preg_replace('/[^a-z0-9\-]+/i', '-', $name))
+                                    @php($isChecked = filter_var($value, FILTER_VALIDATE_BOOLEAN))
+                                    <input type="hidden" name="{{ $name }}" value="0">
+                                    <div class="form-check mt-2">
+                                        <input
+                                            class="form-check-input"
+                                            type="checkbox"
+                                            name="{{ $name }}"
+                                            value="1"
+                                            id="{{ $checkboxId }}"
+                                            @checked($isChecked)
+                                            aria-required="{{ $isRequired ? 'true' : 'false' }}"
+                                        >
+                                        <label class="form-check-label" for="{{ $checkboxId }}">{{ $field['checkbox_label'] ?? $field['label'] }}</label>
+                                    </div>
                                 @elseif($type === 'select')
                                     @php($selectId = 'select-'.preg_replace('/[^a-z0-9\-]+/i', '-', $name))
                                     @php($allowsCustomSelect = (bool) ($field['allow_custom'] ?? false))

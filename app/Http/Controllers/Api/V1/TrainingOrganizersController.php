@@ -64,6 +64,7 @@ class TrainingOrganizersController extends ApiController
             'project_long_name' => 'nullable|string|max:255',
             'donor' => 'nullable|string|max:255',
             'program' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
             'subawardees' => 'nullable|array',
             'subawardees.*' => 'nullable|string|max:255|distinct',
         ]);

@@ -392,6 +392,7 @@ class ManagedResourceController extends Controller
                 'project_long_name',
                 'donor',
                 'program',
+                'status',
                 'subawardees',
             ]);
 
@@ -406,6 +407,7 @@ class ManagedResourceController extends Controller
                             (string) $organizer->project_long_name,
                             (string) $organizer->donor,
                             (string) $organizer->program,
+                            $organizer->is_active ? 'Active' : 'Inactive',
                             $organizer->subawardees
                                 ->pluck('subawardee_name')
                                 ->filter()
@@ -502,6 +504,8 @@ class ManagedResourceController extends Controller
                 $projectLongName = $this->csvCell($row, $headerMap, ['project_long_name', 'long_name']);
                 $donor = $this->csvCell($row, $headerMap, ['donor']);
                 $program = $this->csvCell($row, $headerMap, ['program']);
+                $statusRaw = $this->csvCell($row, $headerMap, ['status', 'is_active', 'active']);
+                $status = $this->normalizeCsvBoolean($statusRaw);
                 $subawardees = $this->csvTrainingOrganizerSubawardees($row, $headerMap);
 
                 $rowErrors = [];
@@ -535,6 +539,10 @@ class ManagedResourceController extends Controller
                     }
                 }
 
+                if ($statusRaw !== '' && $status === null) {
+                    $rowErrors[] = 'Status must be Active/Inactive, Yes/No, or 1/0.';
+                }
+
                 $projectCodeKey = mb_strtolower($projectCode);
                 if ($projectCodeKey !== '' && isset($seenProjectCodes[$projectCodeKey])) {
                     $rowErrors[] = 'Project code is duplicated in this import file.';
@@ -555,6 +563,10 @@ class ManagedResourceController extends Controller
                     'donor' => $donor !== '' ? $donor : null,
                     'program' => $program !== '' ? $program : null,
                 ];
+
+                if ($status !== null) {
+                    $payload['is_active'] = $status;
+                }
 
                 $organizer = TrainingOrganizer::query()
                     ->whereRaw('LOWER(project_code) = ?', [$projectCodeKey])
@@ -1637,6 +1649,19 @@ class ManagedResourceController extends Controller
     {
         $data = $request->validate($this->rules($config, $record));
 
+        foreach ($this->checkboxFields($config) as $field) {
+            $name = $field['name'];
+
+            if ($request->has($name)) {
+                $data[$name] = $request->boolean($name);
+                continue;
+            }
+
+            if ($record === null && array_key_exists('default', $field)) {
+                $data[$name] = (bool) $field['default'];
+            }
+        }
+
         foreach ($this->fileFields($config) as $field) {
             $name = $field['name'];
 
@@ -1769,6 +1794,14 @@ class ManagedResourceController extends Controller
             ->all();
     }
 
+    private function checkboxFields(array $config): array
+    {
+        return collect($config['fields'])
+            ->filter(fn (array $field) => ($field['type'] ?? null) === 'checkbox')
+            ->values()
+            ->all();
+    }
+
     private function csvTrainingOrganizerSubawardees(array $row, array $headerMap): array
     {
         $values = $this->splitCsvList($this->csvCell($row, $headerMap, [
@@ -1803,6 +1836,21 @@ class ManagedResourceController extends Controller
         }
 
         return preg_split('/\s*(?:;|\||\r\n|\r|\n)\s*/', $value) ?: [];
+    }
+
+    private function normalizeCsvBoolean(string $value): ?bool
+    {
+        $normalized = mb_strtolower(trim($value));
+
+        if ($normalized === '') {
+            return null;
+        }
+
+        return match ($normalized) {
+            '1', 'true', 'yes', 'y', 'active', 'enabled' => true,
+            '0', 'false', 'no', 'n', 'inactive', 'disabled' => false,
+            default => null,
+        };
     }
 
     private function syncTrainingOrganizerSubawardees(TrainingOrganizer $organizer, array $names): void

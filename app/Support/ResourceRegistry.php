@@ -262,6 +262,7 @@ class ResourceRegistry
                     ['label' => 'Project Long Name', 'value' => 'project_long_name'],
                     ['label' => 'Donor', 'value' => 'donor'],
                     ['label' => 'Program', 'value' => 'program'],
+                    ['label' => 'Status', 'value' => 'is_active', 'type' => 'boolean'],
                     ['label' => 'Subawardees', 'value' => 'subawardees_list'],
                     ['label' => 'Created', 'value' => 'created_at'],
                 ],
@@ -271,6 +272,7 @@ class ResourceRegistry
                     ['name' => 'project_long_name', 'label' => 'Project Long Name', 'type' => 'text'],
                     ['name' => 'donor', 'label' => 'Donor', 'type' => 'text'],
                     ['name' => 'program', 'label' => 'Program', 'type' => 'select', 'choices' => self::PROGRAMS, 'allow_custom' => true],
+                    ['name' => 'is_active', 'label' => 'Status', 'type' => 'checkbox', 'checkbox_label' => 'Active', 'default' => true],
                     ['name' => 'subawardees', 'label' => 'Subawardees', 'type' => 'repeater', 'relation' => 'subawardees', 'column' => 'subawardee_name', 'item_label' => 'Subawardee', 'add_button' => 'Add Subawardee'],
                 ],
                 'rules' => [
@@ -279,6 +281,7 @@ class ResourceRegistry
                     'project_long_name' => 'nullable|string|max:255',
                     'donor' => 'nullable|string|max:255',
                     'program' => 'nullable|string|max:255',
+                    'is_active' => 'nullable|boolean',
                     'subawardees' => 'nullable|array',
                     'subawardees.*' => 'nullable|string|max:255|distinct',
                 ], 'order_by' => 'project_name',

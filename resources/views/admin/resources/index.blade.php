@@ -66,6 +66,8 @@
                                     @else
                                         -
                                     @endif
+                                @elseif(($column['type'] ?? null) === 'boolean')
+                                    <span class="badge text-bg-{{ $value ? 'success' : 'secondary' }}">{{ $value ? 'Active' : 'Inactive' }}</span>
                                 @elseif($value instanceof \Illuminate\Support\Carbon)
                                     {{ $value->format('Y-m-d') }}
                                 @else

@@ -16,6 +16,7 @@ class TrainingOrganizerResource extends JsonResource
             'project_long_name' => $this->project_long_name,
             'donor' => $this->donor,
             'program' => $this->program,
+            'is_active' => (bool) $this->is_active,
             'subawardees' => $this->whenLoaded('subawardees', fn () => $this->subawardees->pluck('subawardee_name')->values()->all()),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
