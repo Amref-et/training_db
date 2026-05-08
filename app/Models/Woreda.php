@@ -9,7 +9,7 @@ class Woreda extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['region_id', 'zone_id', 'name', 'description'];
+    protected $fillable = ['external_id', 'region_id', 'zone_id', 'name', 'description'];
 
     public function region()
     {

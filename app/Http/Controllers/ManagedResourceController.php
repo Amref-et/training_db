@@ -620,6 +620,7 @@ class ManagedResourceController extends Controller
                 'region',
                 'zone',
                 'woreda',
+                'organization_id',
                 'organization',
                 'facility',
                 'name',
@@ -643,21 +644,25 @@ class ManagedResourceController extends Controller
                 ->chunkById(500, function ($organizations) use ($handle) {
                     foreach ($organizations as $organization) {
                         $zoneName = (string) data_get($organization, 'zoneDefinition.name', (string) $organization->zone);
+                        $regionExternalId = (string) (data_get($organization, 'region.external_id') ?: $organization->region_id);
+                        $zoneExternalId = (string) (data_get($organization, 'zoneDefinition.external_id') ?: $organization->zone_id);
+                        $woredaExternalId = (string) (data_get($organization, 'woreda.external_id') ?: $organization->woreda_id);
                         fputcsv($handle, [
                             (string) data_get($organization, 'region.name', ''),
                             $zoneName,
                             (string) data_get($organization, 'woreda.name', ''),
+                            (string) ($organization->external_id ?: $organization->id),
                             (string) $organization->name,
                             (string) $organization->name,
                             (string) $organization->name,
                             (string) $organization->category,
                             (string) $organization->type,
-                            $organization->region_id,
+                            $regionExternalId,
                             (string) data_get($organization, 'region.name', ''),
-                            $organization->zone_id,
+                            $zoneExternalId,
                             $zoneName,
                             $zoneName,
-                            $organization->woreda_id,
+                            $woredaExternalId,
                             (string) data_get($organization, 'woreda.name', ''),
                             (string) $organization->city_town,
                             (string) $organization->phone,
@@ -740,27 +745,45 @@ class ManagedResourceController extends Controller
             }
 
             $regionsById = [];
+            $regionsByExternalId = [];
             $regionsByName = [];
             foreach (Region::query()->get() as $region) {
                 $regionsById[(int) $region->id] = $region;
+                $regionExternalId = $this->normalizeExternalId(data_get($region, 'external_id'));
+                if ($regionExternalId !== '') {
+                    $regionsByExternalId[$regionExternalId] = $region;
+                }
                 $regionsByName[mb_strtolower(trim((string) $region->name))] = $region;
             }
 
             $zonesById = [];
+            $zonesByExternalId = [];
             $zonesByName = [];
             foreach (Zone::query()->get() as $zone) {
                 $zonesById[(int) $zone->id] = $zone;
+                $zoneExternalId = $this->normalizeExternalId(data_get($zone, 'external_id'));
+                if ($zoneExternalId !== '') {
+                    $zonesByExternalId[$zoneExternalId] = $zone;
+                }
                 $zonesByName[mb_strtolower(trim((string) $zone->name))] = $zone;
             }
 
             $woredasById = [];
+            $woredasByExternalScopedKey = [];
             $woredasByScopedKey = [];
             $woredasByName = [];
             foreach (Woreda::query()->get() as $woreda) {
                 $woredasById[(int) $woreda->id] = $woreda;
                 $nameKey = mb_strtolower(trim((string) $woreda->name));
+                $woredaExternalId = $this->normalizeExternalId(data_get($woreda, 'external_id'));
                 $woredasByName[$nameKey] ??= [];
                 $woredasByName[$nameKey][] = $woreda;
+                if ($woredaExternalId !== '' && $woreda->zone_id !== null) {
+                    $woredasByExternalScopedKey[$woredaExternalId.'|z:'.(int) $woreda->zone_id] = $woreda;
+                }
+                if ($woredaExternalId !== '' && $woreda->region_id !== null) {
+                    $woredasByExternalScopedKey[$woredaExternalId.'|r:'.(int) $woreda->region_id] = $woreda;
+                }
                 if ($woreda->zone_id !== null) {
                     $woredasByScopedKey[$nameKey.'|z:'.(int) $woreda->zone_id] = $woreda;
                 }
@@ -769,8 +792,13 @@ class ManagedResourceController extends Controller
                 }
             }
 
+            $organizationsByExternalId = [];
             $organizationsByName = [];
             foreach (Organization::query()->get() as $organization) {
+                $organizationExternalId = $this->normalizeExternalId(data_get($organization, 'external_id'));
+                if ($organizationExternalId !== '') {
+                    $organizationsByExternalId[$organizationExternalId] = $organization;
+                }
                 $organizationsByName[mb_strtolower(trim((string) $organization->name))] = $organization;
             }
 
@@ -787,6 +815,8 @@ class ManagedResourceController extends Controller
                     continue;
                 }
 
+                $organizationIdRaw = $this->csvCell($row, $headerMap, ['organization_id', 'facility_id', 'mfr_id']);
+                $organizationExternalId = $this->normalizeExternalId($organizationIdRaw);
                 $name = $this->csvCell($row, $headerMap, ['organization', 'facility', 'name', 'organization_name', 'facility_name']);
                 $rawCategory = $this->csvCell($row, $headerMap, ['category', 'facility_organization_category']);
                 $rawType = $this->csvCell($row, $headerMap, ['type', 'organization_type']);
@@ -807,7 +837,10 @@ class ManagedResourceController extends Controller
                 }
 
                 $organizationKey = mb_strtolower(trim($name));
-                $existing = $name !== '' ? ($organizationsByName[$organizationKey] ?? null) : null;
+                $existing = $organizationExternalId !== ''
+                    ? ($organizationsByExternalId[$organizationExternalId] ?? null)
+                    : null;
+                $existing ??= $name !== '' ? ($organizationsByName[$organizationKey] ?? null) : null;
 
                 $category = $this->matchChoiceValue($rawCategory, $categoryOptions);
                 if ($rawCategory !== '' && $category === null) {
@@ -821,39 +854,85 @@ class ManagedResourceController extends Controller
                 }
                 $type = $type ?? ($existing?->type ?: self::CSV_ORGANIZATION_DEFAULT_TYPE);
 
-                $region = null;
-                if ($regionIdRaw !== '' && ctype_digit($regionIdRaw)) {
-                    $region = $regionsById[(int) $regionIdRaw] ?? null;
-                }
-                if ($region === null && $regionName !== '') {
-                    $regionKey = mb_strtolower(trim($regionName));
-                    $region = $regionsByName[$regionKey] ?? null;
-                    if ($region === null && $regionIdRaw === '') {
-                        $region = Region::query()->create(['name' => trim($regionName)]);
-                        $regionsById[(int) $region->id] = $region;
-                        $regionsByName[$regionKey] = $region;
+                $regionExternalId = $this->normalizeExternalId($regionIdRaw);
+                $region = $regionExternalId !== '' ? ($regionsByExternalId[$regionExternalId] ?? null) : null;
+                $regionKey = mb_strtolower(trim($regionName));
+                $region ??= $regionKey !== '' ? ($regionsByName[$regionKey] ?? null) : null;
+                $region ??= ($regionExternalId !== '' && ctype_digit($regionExternalId)) ? ($regionsById[(int) $regionExternalId] ?? null) : null;
+                if ($region === null && $regionKey !== '') {
+                    $region = Region::query()->create([
+                        'external_id' => $regionExternalId !== '' ? $regionExternalId : null,
+                        'name' => trim($regionName),
+                    ]);
+                    $regionsById[(int) $region->id] = $region;
+                    if ($regionExternalId !== '') {
+                        $regionsByExternalId[$regionExternalId] = $region;
                     }
+                    $regionsByName[$regionKey] = $region;
+                }
+                if ($region !== null) {
+                    $regionChanged = false;
+                    if ($regionExternalId !== '' && (string) $region->external_id !== $regionExternalId) {
+                        $region->external_id = $regionExternalId;
+                        $regionChanged = true;
+                    }
+                    if ($regionKey !== '' && (string) $region->name !== trim($regionName)) {
+                        $region->name = trim($regionName);
+                        $regionChanged = true;
+                    }
+                    if ($regionChanged) {
+                        $region->save();
+                    }
+                    $regionsById[(int) $region->id] = $region;
+                    if ($regionExternalId !== '') {
+                        $regionsByExternalId[$regionExternalId] = $region;
+                    }
+                    $regionsByName[mb_strtolower(trim((string) $region->name))] = $region;
                 }
                 if (($regionIdRaw !== '' || $regionName !== '') && $region === null) {
                     $rowErrors[] = 'Region not found.';
                 }
 
-                $zone = null;
-                if ($zoneIdRaw !== '' && ctype_digit($zoneIdRaw)) {
-                    $zone = $zonesById[(int) $zoneIdRaw] ?? null;
-                }
-                if ($zone === null && $zoneName !== '') {
-                    $zoneKey = mb_strtolower(trim($zoneName));
-                    $zone = $zonesByName[$zoneKey] ?? null;
-                    if ($zone === null && $region?->id !== null) {
-                        $zone = Zone::query()->create([
-                            'name' => trim($zoneName),
-                            'description' => null,
-                            'region_id' => $region->id,
-                        ]);
-                        $zonesById[(int) $zone->id] = $zone;
-                        $zonesByName[$zoneKey] = $zone;
+                $zoneExternalId = $this->normalizeExternalId($zoneIdRaw);
+                $zone = $zoneExternalId !== '' ? ($zonesByExternalId[$zoneExternalId] ?? null) : null;
+                $zoneKey = mb_strtolower(trim($zoneName));
+                $zone ??= $zoneKey !== '' ? ($zonesByName[$zoneKey] ?? null) : null;
+                $zone ??= ($zoneExternalId !== '' && ctype_digit($zoneExternalId)) ? ($zonesById[(int) $zoneExternalId] ?? null) : null;
+                if ($zone === null && $zoneKey !== '' && $region?->id !== null) {
+                    $zone = Zone::query()->create([
+                        'external_id' => $zoneExternalId !== '' ? $zoneExternalId : null,
+                        'name' => trim($zoneName),
+                        'description' => null,
+                        'region_id' => $region->id,
+                    ]);
+                    $zonesById[(int) $zone->id] = $zone;
+                    if ($zoneExternalId !== '') {
+                        $zonesByExternalId[$zoneExternalId] = $zone;
                     }
+                    $zonesByName[$zoneKey] = $zone;
+                }
+                if ($zone !== null) {
+                    $zoneChanged = false;
+                    if ($zoneExternalId !== '' && (string) $zone->external_id !== $zoneExternalId) {
+                        $zone->external_id = $zoneExternalId;
+                        $zoneChanged = true;
+                    }
+                    if ($zoneKey !== '' && (string) $zone->name !== trim($zoneName)) {
+                        $zone->name = trim($zoneName);
+                        $zoneChanged = true;
+                    }
+                    if ($region?->id !== null && (int) $zone->region_id !== (int) $region->id) {
+                        $zone->region_id = (int) $region->id;
+                        $zoneChanged = true;
+                    }
+                    if ($zoneChanged) {
+                        $zone->save();
+                    }
+                    $zonesById[(int) $zone->id] = $zone;
+                    if ($zoneExternalId !== '') {
+                        $zonesByExternalId[$zoneExternalId] = $zone;
+                    }
+                    $zonesByName[mb_strtolower(trim((string) $zone->name))] = $zone;
                 }
                 if (($zoneIdRaw !== '' || $zoneName !== '') && $zone === null) {
                     $rowErrors[] = $region === null
@@ -870,20 +949,24 @@ class ManagedResourceController extends Controller
                     $zone->save();
                 }
 
+                $woredaExternalId = $this->normalizeExternalId($woredaIdRaw);
                 $woreda = null;
-                if ($woredaIdRaw !== '' && ctype_digit($woredaIdRaw)) {
-                    $woreda = $woredasById[(int) $woredaIdRaw] ?? null;
+                $woredaKey = mb_strtolower(trim($woredaName));
+                if ($woredaExternalId !== '' && $zone?->id !== null && isset($woredasByExternalScopedKey[$woredaExternalId.'|z:'.$zone->id])) {
+                    $woreda = $woredasByExternalScopedKey[$woredaExternalId.'|z:'.$zone->id];
+                } elseif ($woredaExternalId !== '' && $zone?->id === null && $region?->id !== null && isset($woredasByExternalScopedKey[$woredaExternalId.'|r:'.$region->id])) {
+                    $woreda = $woredasByExternalScopedKey[$woredaExternalId.'|r:'.$region->id];
                 }
-                if ($woreda === null && $woredaName !== '') {
-                    $woredaKey = mb_strtolower(trim($woredaName));
+                if ($woreda === null && $woredaKey !== '') {
                     if ($zone?->id !== null && isset($woredasByScopedKey[$woredaKey.'|z:'.$zone->id])) {
                         $woreda = $woredasByScopedKey[$woredaKey.'|z:'.$zone->id];
-                    } elseif ($region?->id !== null && isset($woredasByScopedKey[$woredaKey.'|r:'.$region->id])) {
+                    } elseif ($zone?->id === null && $region?->id !== null && isset($woredasByScopedKey[$woredaKey.'|r:'.$region->id])) {
                         $woreda = $woredasByScopedKey[$woredaKey.'|r:'.$region->id];
-                    } elseif (count($woredasByName[$woredaKey] ?? []) === 1) {
+                    } elseif ($woredaExternalId === '' && $zone?->id === null && $region?->id === null && count($woredasByName[$woredaKey] ?? []) === 1) {
                         $woreda = $woredasByName[$woredaKey][0];
                     } elseif ($region?->id !== null || $zone?->id !== null) {
                         $woreda = Woreda::query()->create([
+                            'external_id' => $woredaExternalId !== '' ? $woredaExternalId : null,
                             'name' => trim($woredaName),
                             'description' => null,
                             'region_id' => $region?->id,
@@ -892,6 +975,12 @@ class ManagedResourceController extends Controller
                         $woredasById[(int) $woreda->id] = $woreda;
                         $woredasByName[$woredaKey] ??= [];
                         $woredasByName[$woredaKey][] = $woreda;
+                        if ($woredaExternalId !== '' && $woreda->zone_id !== null) {
+                            $woredasByExternalScopedKey[$woredaExternalId.'|z:'.(int) $woreda->zone_id] = $woreda;
+                        }
+                        if ($woredaExternalId !== '' && $woreda->region_id !== null) {
+                            $woredasByExternalScopedKey[$woredaExternalId.'|r:'.(int) $woreda->region_id] = $woreda;
+                        }
                         if ($woreda->zone_id !== null) {
                             $woredasByScopedKey[$woredaKey.'|z:'.(int) $woreda->zone_id] = $woreda;
                         }
@@ -913,6 +1002,16 @@ class ManagedResourceController extends Controller
                 if ($woreda !== null) {
                     $woredaChanged = false;
 
+                    if ($woredaExternalId !== '' && (string) $woreda->external_id !== $woredaExternalId) {
+                        $woreda->external_id = $woredaExternalId;
+                        $woredaChanged = true;
+                    }
+
+                    if ($woredaKey !== '' && (string) $woreda->name !== trim($woredaName)) {
+                        $woreda->name = trim($woredaName);
+                        $woredaChanged = true;
+                    }
+
                     if ($woreda->zone_id === null && $zone?->id !== null) {
                         $woreda->zone_id = (int) $zone->id;
                         $woredaChanged = true;
@@ -926,6 +1025,13 @@ class ManagedResourceController extends Controller
                     if ($woredaChanged) {
                         $woreda->save();
                         $woredaKey = mb_strtolower(trim((string) $woreda->name));
+                        $woredaExternalId = $this->normalizeExternalId($woreda->external_id);
+                        if ($woredaExternalId !== '' && $woreda->zone_id !== null) {
+                            $woredasByExternalScopedKey[$woredaExternalId.'|z:'.(int) $woreda->zone_id] = $woreda;
+                        }
+                        if ($woredaExternalId !== '' && $woreda->region_id !== null) {
+                            $woredasByExternalScopedKey[$woredaExternalId.'|r:'.(int) $woreda->region_id] = $woreda;
+                        }
                         if ($woreda->zone_id !== null) {
                             $woredasByScopedKey[$woredaKey.'|z:'.(int) $woreda->zone_id] = $woreda;
                         }
@@ -981,6 +1087,7 @@ class ManagedResourceController extends Controller
                 }
 
                 $payload = [
+                    'external_id' => $organizationExternalId !== '' ? $organizationExternalId : null,
                     'name' => $name,
                     'category' => $category,
                     'type' => $type,
@@ -1006,8 +1113,15 @@ class ManagedResourceController extends Controller
                         $existing->save();
                         $updated++;
                     }
+                    if ($organizationExternalId !== '') {
+                        $organizationsByExternalId[$organizationExternalId] = $existing;
+                    }
+                    $organizationsByName[mb_strtolower(trim((string) $existing->name))] = $existing;
                 } else {
                     $createdOrganization = Organization::query()->create($payload);
+                    if ($organizationExternalId !== '') {
+                        $organizationsByExternalId[$organizationExternalId] = $createdOrganization;
+                    }
                     $organizationsByName[$organizationKey] = $createdOrganization;
                     $created++;
                 }
@@ -1948,9 +2062,22 @@ class ManagedResourceController extends Controller
         return (int) $stringValue;
     }
 
+    private function normalizeExternalId(mixed $value): string
+    {
+        return trim((string) $value);
+    }
+
     private function resolveRegion(string $regionIdRaw, string $regionName): ?Region
     {
-        if ($regionIdRaw !== '' && ctype_digit($regionIdRaw)) {
+        $regionExternalId = $this->normalizeExternalId($regionIdRaw);
+        if ($regionExternalId !== '' && Schema::hasColumn('regions', 'external_id')) {
+            $region = Region::query()->where('external_id', $regionExternalId)->first();
+            if ($region) {
+                return $region;
+            }
+        }
+
+        if ($regionExternalId !== '' && ctype_digit($regionExternalId)) {
             $region = Region::query()->find((int) $regionIdRaw);
             if ($region) {
                 return $region;
@@ -1987,8 +2114,16 @@ class ManagedResourceController extends Controller
     {
         $zone = null;
 
-        if ($zoneIdRaw !== '' && ctype_digit($zoneIdRaw)) {
-            $zone = Zone::query()->with('region')->find((int) $zoneIdRaw);
+        $zoneExternalId = $this->normalizeExternalId($zoneIdRaw);
+        if ($zoneExternalId !== '' && Schema::hasColumn('zones', 'external_id')) {
+            $zone = Zone::query()->with('region')->where('external_id', $zoneExternalId)->first();
+            if ($zone) {
+                return $zone;
+            }
+        }
+
+        if ($zoneExternalId !== '' && ctype_digit($zoneExternalId)) {
+            $zone = Zone::query()->with('region')->find((int) $zoneExternalId);
             if ($zone) {
                 return $zone;
             }
@@ -2031,8 +2166,22 @@ class ManagedResourceController extends Controller
 
     private function resolveOrCreateWoreda(string $woredaIdRaw, string $woredaName, ?int $regionId = null, ?int $zoneId = null): ?Woreda
     {
-        if ($woredaIdRaw !== '' && ctype_digit($woredaIdRaw)) {
-            $woreda = Woreda::query()->with(['region', 'zone'])->find((int) $woredaIdRaw);
+        $woredaExternalId = $this->normalizeExternalId($woredaIdRaw);
+        if ($woredaExternalId !== '' && Schema::hasColumn('woredas', 'external_id')) {
+            $query = Woreda::query()->with(['region', 'zone'])->where('external_id', $woredaExternalId);
+            if ($zoneId !== null) {
+                $query->where('zone_id', $zoneId);
+            } elseif ($regionId !== null) {
+                $query->where('region_id', $regionId);
+            }
+            $woreda = $query->first();
+            if ($woreda) {
+                return $woreda;
+            }
+        }
+
+        if ($woredaExternalId !== '' && ctype_digit($woredaExternalId)) {
+            $woreda = Woreda::query()->with(['region', 'zone'])->find((int) $woredaExternalId);
             if ($woreda) {
                 return $woreda;
             }
@@ -2060,6 +2209,7 @@ class ManagedResourceController extends Controller
         }
 
         return Woreda::query()->create([
+            'external_id' => $woredaExternalId !== '' ? $woredaExternalId : null,
             'region_id' => $regionId,
             'zone_id' => $zoneId,
             'name' => $normalizedWoredaName,
@@ -2069,8 +2219,16 @@ class ManagedResourceController extends Controller
 
     private function resolveWoreda(string $woredaIdRaw, string $woredaName): ?Woreda
     {
-        if ($woredaIdRaw !== '' && ctype_digit($woredaIdRaw)) {
-            $woreda = Woreda::query()->with(['region', 'zone'])->find((int) $woredaIdRaw);
+        $woredaExternalId = $this->normalizeExternalId($woredaIdRaw);
+        if ($woredaExternalId !== '' && Schema::hasColumn('woredas', 'external_id')) {
+            $matches = Woreda::query()->with(['region', 'zone'])->where('external_id', $woredaExternalId)->limit(2)->get();
+            if ($matches->count() === 1) {
+                return $matches->first();
+            }
+        }
+
+        if ($woredaExternalId !== '' && ctype_digit($woredaExternalId)) {
+            $woreda = Woreda::query()->with(['region', 'zone'])->find((int) $woredaExternalId);
             if ($woreda) {
                 return $woreda;
             }
@@ -2088,8 +2246,16 @@ class ManagedResourceController extends Controller
 
     private function resolveOrganization(string $organizationIdRaw, string $organizationName): ?Organization
     {
-        if ($organizationIdRaw !== '' && ctype_digit($organizationIdRaw)) {
-            $organization = Organization::query()->find((int) $organizationIdRaw);
+        $organizationExternalId = $this->normalizeExternalId($organizationIdRaw);
+        if ($organizationExternalId !== '' && Schema::hasColumn('organizations', 'external_id')) {
+            $organization = Organization::query()->where('external_id', $organizationExternalId)->first();
+            if ($organization) {
+                return $organization;
+            }
+        }
+
+        if ($organizationExternalId !== '' && ctype_digit($organizationExternalId)) {
+            $organization = Organization::query()->find((int) $organizationExternalId);
             if ($organization) {
                 return $organization;
             }

@@ -1062,7 +1062,7 @@
 
     const cmsEditorPlugins = [
         'advlist', 'anchor', 'autolink', 'autoresize', 'autosave', 'charmap', 'code', 'codesample',
-        'directionality', 'emoticons', 'fullscreen', 'help', 'hr', 'image', 'insertdatetime', 'link',
+        'directionality', 'emoticons', 'fullscreen', 'help', 'image', 'insertdatetime', 'link',
         'lists', 'media', 'nonbreaking', 'pagebreak', 'preview', 'quickbars', 'save', 'searchreplace',
         'table', 'visualblocks', 'visualchars', 'wordcount'
     ];
@@ -1082,13 +1082,14 @@
                 height: 280,
                 menubar: true,
                 toolbar_mode: 'sliding',
+                license_key: 'gpl',
                 branding: false,
                 promotion: false,
                 convert_urls: false,
                 relative_urls: false,
                 remove_script_host: false,
                 plugins: cmsEditorPlugins,
-                toolbar: 'undo redo restoredraft | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | link image media table charmap emoticons hr pagebreak nonbreaking insertdatetime | ltr rtl | removeformat | searchreplace visualblocks visualchars preview fullscreen code',
+                toolbar: 'undo redo restoredraft | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | link image media table charmap emoticons pagebreak nonbreaking insertdatetime | ltr rtl | removeformat | searchreplace visualblocks visualchars preview fullscreen code',
             });
         });
     }

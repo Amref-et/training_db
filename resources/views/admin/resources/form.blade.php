@@ -114,7 +114,7 @@
                                     @if($isRequired)<span class="required-mark" aria-hidden="true">*</span>@endif
                                 </label>
                                 @if(in_array($type, ['textarea', 'tinymce'], true))
-                                    <textarea name="{{ $name }}" rows="8" class="form-control js-tinymce" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}">{{ $value }}</textarea>
+                                    <textarea name="{{ $name }}" rows="8" class="form-control js-tinymce" @if($isRequired) data-required="1" @endif aria-required="{{ $isRequired ? 'true' : 'false' }}">{{ $value }}</textarea>
                                 @elseif($type === 'multiselect')
                                     @php($selectedValues = collect(is_array($value) ? $value : [])->map(fn ($item) => (string) $item)->all())
                                     @php($selectId = 'multiselect-'.preg_replace('/[^a-z0-9\-]+/i', '-', $name))
@@ -251,16 +251,17 @@
             selector: 'textarea.js-tinymce',
             height: 360,
             menubar: true,
+            license_key: 'gpl',
             branding: false,
             promotion: false,
             toolbar_mode: 'sliding',
             plugins: [
                 'advlist', 'anchor', 'autolink', 'autoresize', 'autosave', 'charmap', 'code', 'codesample',
-                'directionality', 'emoticons', 'fullscreen', 'help', 'hr', 'image', 'insertdatetime', 'link',
+                'directionality', 'emoticons', 'fullscreen', 'help', 'image', 'insertdatetime', 'link',
                 'lists', 'media', 'nonbreaking', 'pagebreak', 'preview', 'quickbars', 'save', 'searchreplace',
                 'table', 'visualblocks', 'visualchars', 'wordcount'
             ],
-            toolbar: 'undo redo restoredraft | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | link image media table charmap emoticons hr pagebreak nonbreaking insertdatetime | ltr rtl | removeformat | searchreplace visualblocks visualchars preview fullscreen code',
+            toolbar: 'undo redo restoredraft | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | outdent indent | bullist numlist | link image media table charmap emoticons pagebreak nonbreaking insertdatetime | ltr rtl | removeformat | searchreplace visualblocks visualchars preview fullscreen code',
             contextmenu: 'undo redo | link image table',
             quickbars_selection_toolbar: 'bold italic underline | blocks | quicklink blockquote',
             quickbars_insert_toolbar: 'quickimage quicktable',

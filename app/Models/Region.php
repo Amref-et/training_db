@@ -9,7 +9,7 @@ class Region extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['external_id', 'name'];
 
     public function zones()
     {

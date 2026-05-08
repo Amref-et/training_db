@@ -10,6 +10,7 @@ class Zone extends Model
     use HasFactory;
 
     protected $fillable = [
+        'external_id',
         'region_id',
         'name',
         'description',
