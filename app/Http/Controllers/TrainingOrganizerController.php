@@ -17,6 +17,9 @@ class TrainingOrganizerController extends Controller
         $data = $request->validate([
             'project_code' => 'required|string|max:255|unique:training_organizers,project_code',
             'project_name' => 'required|string|max:255',
+            'project_long_name' => 'nullable|string|max:255',
+            'donor' => 'nullable|string|max:255',
+            'program' => 'nullable|string|max:255',
             'subawardees' => 'nullable|array',
             'subawardees.*' => 'nullable|string|max:255|distinct',
         ]);
@@ -40,6 +43,9 @@ class TrainingOrganizerController extends Controller
         $data = $request->validate([
             'project_code' => 'required|string|max:255|unique:training_organizers,project_code,'.$trainingOrganizer->id.',id',
             'project_name' => 'required|string|max:255',
+            'project_long_name' => 'nullable|string|max:255',
+            'donor' => 'nullable|string|max:255',
+            'program' => 'nullable|string|max:255',
             'subawardees' => 'nullable|array',
             'subawardees.*' => 'nullable|string|max:255|distinct',
         ]);

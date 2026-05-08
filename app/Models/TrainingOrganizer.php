@@ -13,6 +13,9 @@ class TrainingOrganizer extends Model
         'title',
         'project_code',
         'project_name',
+        'project_long_name',
+        'donor',
+        'program',
     ];
 
     protected static function booted(): void

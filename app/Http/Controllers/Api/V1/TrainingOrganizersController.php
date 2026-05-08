@@ -13,7 +13,7 @@ class TrainingOrganizersController extends ApiController
         $this->ensurePermission($request, 'training_organizers');
 
         $query = TrainingOrganizer::query()->with('subawardees')->orderBy('project_name');
-        $this->applySearch($query, $request, ['project_code', 'project_name', 'title']);
+        $this->applySearch($query, $request, ['project_code', 'project_name', 'project_long_name', 'donor', 'program', 'title']);
 
         return $this->paginatedResponse($query->paginate($this->perPage($request)), TrainingOrganizerResource::class);
     }
@@ -61,6 +61,9 @@ class TrainingOrganizersController extends ApiController
         $data = $request->validate([
             'project_code' => 'required|string|max:255|unique:training_organizers,project_code,'.($trainingOrganizer?->id ?? 'NULL').',id',
             'project_name' => 'required|string|max:255',
+            'project_long_name' => 'nullable|string|max:255',
+            'donor' => 'nullable|string|max:255',
+            'program' => 'nullable|string|max:255',
             'subawardees' => 'nullable|array',
             'subawardees.*' => 'nullable|string|max:255|distinct',
         ]);

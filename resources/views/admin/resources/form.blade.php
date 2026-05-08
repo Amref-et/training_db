@@ -11,7 +11,8 @@
 @php($hasMultiSelectField = collect($config['fields'])->contains(fn ($field) => ($field['type'] ?? 'text') === 'multiselect'))
 @php($hasRepeaterField = collect($config['fields'])->contains(fn ($field) => ($field['type'] ?? 'text') === 'repeater'))
 @php($hasHierarchySelectors = collect($config['fields'])->pluck('name')->intersect(['region_id', 'zone_id', 'woreda_id'])->isNotEmpty())
-@php($hasSearchableSelect = collect($config['fields'])->contains(fn ($field) => ($field['type'] ?? 'text') === 'select' && in_array($field['name'] ?? '', ['region_id', 'zone_id', 'woreda_id', 'organization_id', 'project_subawardee_id'], true)))
+@php($searchableSelectNames = ['region_id', 'zone_id', 'woreda_id', 'organization_id', 'project_subawardee_id'])
+@php($hasSearchableSelect = collect($config['fields'])->contains(fn ($field) => ($field['type'] ?? 'text') === 'select' && (in_array($field['name'] ?? '', $searchableSelectNames, true) || !empty($field['allow_custom']))))
 @php($hasTrainingEventOrganizerFields = collect($config['fields'])->pluck('name')->intersect(['training_organizer_id', 'organizer_type', 'project_subawardee_id'])->count() === 3)
 @php($fieldGroups = collect($config['fields'])->groupBy(fn ($field) => $field['tab'] ?? 'General'))
 @php($useFieldTabs = $fieldGroups->count() > 1)
@@ -151,12 +152,14 @@
                                     <div class="form-text">Add one row per {{ strtolower($field['item_label'] ?? 'item') }}. Blank rows are ignored.</div>
                                 @elseif($type === 'select')
                                     @php($selectId = 'select-'.preg_replace('/[^a-z0-9\-]+/i', '-', $name))
-                                    @php($isSearchableSelect = in_array($name, ['region_id', 'zone_id', 'woreda_id', 'organization_id', 'project_subawardee_id'], true))
+                                    @php($allowsCustomSelect = (bool) ($field['allow_custom'] ?? false))
+                                    @php($isSearchableSelect = $allowsCustomSelect || in_array($name, $searchableSelectNames, true))
                                     @php($isRemoteSearchableSelect = $resource === 'participants' && $name === 'organization_id')
+                                    @php($hasSelectedCustomOption = $allowsCustomSelect && $value !== '' && !collect($fieldOptions[$name] ?? [])->contains(fn ($option) => (string) $option['value'] === (string) $value))
                                     <select
                                         id="{{ $selectId }}"
                                         name="{{ $name }}"
-                                        class="form-select {{ $isSearchableSelect ? 'js-searchable-select' : '' }} {{ $isRemoteSearchableSelect ? 'js-remote-searchable-select' : '' }}"
+                                        class="form-select {{ $isSearchableSelect ? 'js-searchable-select' : '' }} {{ $allowsCustomSelect ? 'js-creatable-select' : '' }} {{ $isRemoteSearchableSelect ? 'js-remote-searchable-select' : '' }}"
                                         @required($isRequired)
                                         aria-required="{{ $isRequired ? 'true' : 'false' }}"
                                         @if($isRemoteSearchableSelect) data-remote-url="{{ route('admin.participants.organization-options') }}" @endif
@@ -174,6 +177,9 @@
                                                 {{ $option['label'] }}
                                             </option>
                                         @endforeach
+                                        @if($hasSelectedCustomOption)
+                                            <option value="{{ $value }}" selected>{{ $value }}</option>
+                                        @endif
                                     </select>
                                 @elseif($type === 'file')
                                     <input type="file" name="{{ $name }}" class="form-control" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}" @if(!empty($field['accept'])) accept="{{ $field['accept'] }}" @endif>
@@ -678,9 +684,12 @@
                     return;
                 }
 
+                const allowsCustom = select.classList.contains('js-creatable-select');
                 const placeholder = select.options[0]?.textContent?.trim() || 'Search';
                 const instance = new TomSelect(select, {
-                    create: false,
+                    create: allowsCustom,
+                    createOnBlur: allowsCustom,
+                    persist: true,
                     allowEmptyOption: false,
                     maxOptions: 500,
                     hidePlaceholder: true,

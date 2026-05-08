@@ -708,6 +708,9 @@ class OpenApiController extends Controller
                     'id' => ['type' => 'integer'],
                     'project_code' => ['type' => 'string'],
                     'project_name' => ['type' => 'string'],
+                    'project_long_name' => ['type' => 'string', 'nullable' => true],
+                    'donor' => ['type' => 'string', 'nullable' => true],
+                    'program' => ['type' => 'string', 'nullable' => true],
                     'subawardees' => [
                         'type' => 'array',
                         'items' => ['type' => 'string'],
@@ -722,6 +725,14 @@ class OpenApiController extends Controller
                 'properties' => [
                     'project_code' => ['type' => 'string', 'maxLength' => 255],
                     'project_name' => ['type' => 'string', 'maxLength' => 255],
+                    'project_long_name' => ['type' => 'string', 'nullable' => true, 'maxLength' => 255],
+                    'donor' => ['type' => 'string', 'nullable' => true, 'maxLength' => 255],
+                    'program' => [
+                        'type' => 'string',
+                        'nullable' => true,
+                        'maxLength' => 255,
+                        'description' => 'Suggested values include DPC, HSS, WASH, Youth development, and RMNCATH-N. Custom program names are accepted.',
+                    ],
                     'subawardees' => [
                         'type' => 'array',
                         'items' => ['type' => 'string', 'maxLength' => 255],

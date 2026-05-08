@@ -89,6 +89,14 @@ class ResourceRegistry
         'Other (specify)',
     ];
 
+    private const PROGRAMS = [
+        'DPC',
+        'HSS',
+        'WASH',
+        'Youth development',
+        'RMNCATH-N',
+    ];
+
     public static function staticResources(): array
     {
         return [
@@ -247,21 +255,30 @@ class ResourceRegistry
             ],
             'training_organizers' => [
                 'path' => 'training-organizers', 'permission' => 'training_organizers', 'label' => 'Projects', 'singular' => 'Project', 'model' => TrainingOrganizer::class,
-                'title_column' => 'project_name', 'eager' => ['subawardees'], 'search' => ['project_code', 'project_name', 'title'],
+                'title_column' => 'project_name', 'eager' => ['subawardees'], 'search' => ['project_code', 'project_name', 'project_long_name', 'donor', 'program', 'title'],
                 'columns' => [
                     ['label' => 'Project Code', 'value' => 'project_code'],
                     ['label' => 'Project Name', 'value' => 'project_name'],
+                    ['label' => 'Project Long Name', 'value' => 'project_long_name'],
+                    ['label' => 'Donor', 'value' => 'donor'],
+                    ['label' => 'Program', 'value' => 'program'],
                     ['label' => 'Subawardees', 'value' => 'subawardees_list'],
                     ['label' => 'Created', 'value' => 'created_at'],
                 ],
                 'fields' => [
                     ['name' => 'project_code', 'label' => 'Project Code', 'type' => 'text', 'required' => true],
                     ['name' => 'project_name', 'label' => 'Project Name', 'type' => 'text', 'required' => true],
+                    ['name' => 'project_long_name', 'label' => 'Project Long Name', 'type' => 'text'],
+                    ['name' => 'donor', 'label' => 'Donor', 'type' => 'text'],
+                    ['name' => 'program', 'label' => 'Program', 'type' => 'select', 'choices' => self::PROGRAMS, 'allow_custom' => true],
                     ['name' => 'subawardees', 'label' => 'Subawardees', 'type' => 'repeater', 'relation' => 'subawardees', 'column' => 'subawardee_name', 'item_label' => 'Subawardee', 'add_button' => 'Add Subawardee'],
                 ],
                 'rules' => [
                     'project_code' => 'required|string|max:255|unique:training_organizers,project_code,{{id}},id',
                     'project_name' => 'required|string|max:255',
+                    'project_long_name' => 'nullable|string|max:255',
+                    'donor' => 'nullable|string|max:255',
+                    'program' => 'nullable|string|max:255',
                     'subawardees' => 'nullable|array',
                     'subawardees.*' => 'nullable|string|max:255|distinct',
                 ], 'order_by' => 'project_name',
