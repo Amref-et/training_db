@@ -16,7 +16,7 @@ class TrainingController extends Controller
     {
         $request->validate([
             'training_title' => 'required|string|max:255',
-            'training_description' => 'required|string',
+            'training_description' => 'string',
             'modality' => 'required|in:Face 2 Face,Online,Blended',
             'type' => 'required|in:Basic,Refresher,ToT'
         ]);
@@ -33,7 +33,7 @@ class TrainingController extends Controller
     {
         $request->validate([
             'training_title' => 'required|string|max:255',
-            'training_description' => 'required|string',
+            'training_description' => 'string',
             'modality' => 'required|in:Face 2 Face,Online,Blended',
             'type' => 'required|in:Basic,Refresher,ToT'
         ]);

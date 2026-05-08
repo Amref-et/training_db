@@ -190,9 +190,9 @@
         .site-brand-logo-shell { display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, #ffffff 86%, var(--header-bg)); border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); padding: .25rem .45rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .12); flex: 0 0 auto; max-width: min(42vw, 240px); overflow: hidden; }
         .site-brand-logo { width: auto; height: var(--header-logo-height); max-width: min(38vw, 220px); object-fit: contain; display: block; }
         .site-nav-panel { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; margin-left: auto; flex-wrap: wrap; }
-        .site-menu-toggle { display: none; align-items: center; gap: .5rem; border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); background: color-mix(in srgb, #ffffff 88%, var(--header-bg)); color: var(--header-text); font: inherit; font-weight: 600; line-height: 1; padding: .55rem .75rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .08); }
+        .site-menu-toggle { display: none; align-items: center; gap: .5rem; border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); background: color-mix(in srgb, #ffffff 88%, var(--header-bg)); color: #000000; font: inherit; font-weight: 600; line-height: 1; padding: .55rem .75rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .08); }
         .site-menu-toggle:hover,
-        .site-menu-toggle:focus-visible { background: rgba(15, 23, 42, .08); color: var(--header-text); }
+        .site-menu-toggle:focus-visible { background: rgba(15, 23, 42, .08); color: #000000; }
         .site-menu-toggle:focus-visible { outline: 3px solid color-mix(in srgb, var(--header-link) 34%, transparent); outline-offset: 2px; }
         .site-menu-toggle-bars,
         .site-menu-toggle-bars::before,

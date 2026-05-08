@@ -293,9 +293,9 @@ class ResourceRegistry
                 'fields' => [
                     ['name' => 'training_category_id', 'label' => 'Training Category', 'type' => 'select', 'required' => true, 'options' => ['model' => TrainingCategory::class, 'value' => 'id', 'label' => 'name']],
                     ['name' => 'title', 'label' => 'Training Title', 'type' => 'text', 'required' => true],
-                    ['name' => 'description', 'label' => 'Description', 'type' => 'textarea', 'required' => true],
-                    ['name' => 'modality', 'label' => 'Modality', 'type' => 'select', 'required' => true, 'choices' => ['Face 2 face', 'Online', 'Blended']],
-                    ['name' => 'type', 'label' => 'Type', 'type' => 'select', 'required' => true, 'choices' => ['Basic', 'Refresher', 'ToT']],
+                    ['name' => 'description', 'label' => 'Description', 'type' => 'textarea', 'required' => false],
+                    ['name' => 'modality', 'label' => 'Modality', 'type' => 'select', 'required' => false, 'choices' => ['Face 2 face', 'Online', 'Blended']],
+                    ['name' => 'type', 'label' => 'Type', 'type' => 'select', 'required' => false, 'choices' => ['Basic', 'Refresher', 'ToT']],
                 ],
                 'rules' => ['training_category_id' => 'required|exists:training_categories,id', 'title' => 'required|string|max:255', 'description' => 'nullable|string', 'modality' => 'nullable|in:Face 2 face,Online,Blended', 'type' => 'nullable|in:Basic,Refresher,ToT'], 'order_by' => 'title',
             ],
