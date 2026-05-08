@@ -151,6 +151,66 @@ class OrganizationImportExportTest extends TestCase
         $this->assertSame('1401', $rows[1][14]);
     }
 
+    public function test_mfr_facility_reimport_updates_existing_hierarchy_and_organization_by_external_ids(): void
+    {
+        $user = $this->adminUser();
+
+        $initialCsv = implode("\n", [
+            'region,zone,woreda,organization_id,organization,facility,name,category,type,region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,city_town,phone,fax',
+            'Old Region,Old Zone,Old Woreda,1000932,Old Facility,Old Facility,Old Facility,Private,Hospital,1,Old Region,212,Old Zone,1401,Old Woreda,Old City,0111111111,0222222222',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->from(route('admin.organizations.index'))
+            ->post(route('admin.organizations.import'), [
+                'import_file' => UploadedFile::fake()->createWithContent('initial-mfr.csv', $initialCsv),
+            ])
+            ->assertRedirect(route('admin.organizations.index'))
+            ->assertSessionHas('success', 'Organization import completed: 1 created, 0 updated.');
+
+        $updateCsv = implode("\n", [
+            'region,zone,woreda,organization_id,organization,facility,name,category,type,region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,city_town,phone,fax',
+            'Updated Region,Updated Zone,Updated Woreda,1000932,Updated Facility,Updated Facility,Updated Facility,Government/Public,Hospital,1,Updated Region,212,Updated Zone,1401,Updated Woreda,New City,0333333333,0444444444',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->from(route('admin.organizations.index'))
+            ->post(route('admin.organizations.import'), [
+                'import_file' => UploadedFile::fake()->createWithContent('updated-mfr.csv', $updateCsv),
+            ])
+            ->assertRedirect(route('admin.organizations.index'))
+            ->assertSessionHas('success', 'Organization import completed: 0 created, 1 updated.');
+
+        $this->assertSame(1, Region::query()->where('external_id', '1')->count());
+        $this->assertSame(1, Zone::query()->where('external_id', '212')->count());
+        $this->assertSame(1, Woreda::query()->where('external_id', '1401')->count());
+        $this->assertSame(1, Organization::query()->where('external_id', '1000932')->count());
+
+        $region = Region::query()->where('external_id', '1')->firstOrFail();
+        $zone = Zone::query()->where('external_id', '212')->firstOrFail();
+        $woreda = Woreda::query()->where('external_id', '1401')->firstOrFail();
+
+        $this->assertSame('Updated Region', $region->name);
+        $this->assertSame('Updated Zone', $zone->name);
+        $this->assertSame('Updated Woreda', $woreda->name);
+
+        $this->assertDatabaseHas('organizations', [
+            'external_id' => '1000932',
+            'name' => 'Updated Facility',
+            'category' => 'Government/Public',
+            'type' => 'Hospital',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'zone' => $zone->name,
+            'woreda_id' => $woreda->id,
+            'city_town' => 'New City',
+            'phone' => '0333333333',
+            'fax' => '0444444444',
+        ]);
+    }
+
     private function adminUser(): User
     {
         $user = User::factory()->create();
