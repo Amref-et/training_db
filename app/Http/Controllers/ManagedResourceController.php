@@ -784,6 +784,10 @@ class ManagedResourceController extends Controller
                 }
             }
 
+            if ($forceOverwrite) {
+                $this->overwriteOrganizationHierarchyFromCsv($path, $headerMap);
+            }
+
             $regionsById = [];
             $regionsByExternalId = [];
             $regionsByName = [];
@@ -799,13 +803,18 @@ class ManagedResourceController extends Controller
             $zonesById = [];
             $zonesByExternalId = [];
             $zonesByName = [];
+            $zonesByScopedKey = [];
             foreach (Zone::query()->get() as $zone) {
                 $zonesById[(int) $zone->id] = $zone;
                 $zoneExternalId = $this->normalizeExternalId(data_get($zone, 'external_id'));
                 if ($zoneExternalId !== '') {
                     $zonesByExternalId[$zoneExternalId] = $zone;
                 }
-                $zonesByName[mb_strtolower(trim((string) $zone->name))] = $zone;
+                $zoneKey = mb_strtolower(trim((string) $zone->name));
+                $zonesByName[$zoneKey] = $zone;
+                if ($zone->region_id !== null) {
+                    $zonesByScopedKey[$zoneKey.'|r:'.(int) $zone->region_id] = $zone;
+                }
             }
 
             $woredasById = [];
@@ -943,6 +952,9 @@ class ManagedResourceController extends Controller
                 $zoneExternalId = $this->normalizeExternalId($zoneIdRaw);
                 $zone = $zoneExternalId !== '' ? ($zonesByExternalId[$zoneExternalId] ?? null) : null;
                 $zoneKey = mb_strtolower(trim($zoneName));
+                if ($zone === null && $zoneKey !== '' && $region?->id !== null) {
+                    $zone = $zonesByScopedKey[$zoneKey.'|r:'.(int) $region->id] ?? null;
+                }
                 $zone ??= $zoneKey !== '' ? ($zonesByName[$zoneKey] ?? null) : null;
                 $zone ??= ($zoneExternalId !== '' && ctype_digit($zoneExternalId)) ? ($zonesById[(int) $zoneExternalId] ?? null) : null;
                 if ($zone === null && $zoneKey !== '' && $region?->id !== null) {
@@ -957,6 +969,7 @@ class ManagedResourceController extends Controller
                         $zonesByExternalId[$zoneExternalId] = $zone;
                     }
                     $zonesByName[$zoneKey] = $zone;
+                    $zonesByScopedKey[$zoneKey.'|r:'.(int) $zone->region_id] = $zone;
                 }
                 if ($zone !== null) {
                     $zoneChanged = false;
@@ -1203,6 +1216,64 @@ class ManagedResourceController extends Controller
                 'skipped_rows' => $skippedRows,
                 'import_mode' => $importMode,
             ];
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    private function overwriteOrganizationHierarchyFromCsv(string $path, array $headerMap): void
+    {
+        $handle = $path !== '' ? fopen($path, 'r') : false;
+        if ($handle === false) {
+            throw new \RuntimeException('Unable to read import file.');
+        }
+
+        try {
+            $headerRow = fgetcsv($handle);
+            if (! is_array($headerRow) || empty($headerRow)) {
+                return;
+            }
+
+            while (($row = fgetcsv($handle)) !== false) {
+                if ($this->csvRowIsBlank($row)) {
+                    continue;
+                }
+
+                $regionIdRaw = $this->csvCell($row, $headerMap, ['region_id']);
+                $regionName = $this->csvCell($row, $headerMap, ['region_name', 'region']);
+                $zoneIdRaw = $this->csvCell($row, $headerMap, ['zone_id']);
+                $zoneName = $this->csvCell($row, $headerMap, ['zone_name', 'zone']);
+                $woredaIdRaw = $this->csvCell($row, $headerMap, ['woreda_id']);
+                $woredaName = $this->csvCell($row, $headerMap, ['woreda_name', 'woreda']);
+
+                $region = $this->resolveOrCreateRegion($regionIdRaw, $regionName);
+                if ($region === null) {
+                    continue;
+                }
+
+                $zone = null;
+                if ($zoneIdRaw !== '' || trim($zoneName) !== '') {
+                    $zone = $this->resolveOrCreateZone($zoneIdRaw, $zoneName, (int) $region->id);
+                }
+
+                if ($woredaIdRaw !== '' || trim($woredaName) !== '') {
+                    $woreda = $this->resolveOrCreateWoreda($woredaIdRaw, $woredaName, (int) $region->id, $zone?->id);
+                    if ($woreda !== null) {
+                        $woredaChanged = false;
+                        if ($zone?->id !== null && $woreda->zone_id !== $zone->id) {
+                            $woreda->zone_id = $zone->id;
+                            $woredaChanged = true;
+                        }
+                        if ($woreda->region_id === null || (int) $woreda->region_id !== (int) $region->id) {
+                            $woreda->region_id = (int) $region->id;
+                            $woredaChanged = true;
+                        }
+                        if ($woredaChanged) {
+                            $woreda->save();
+                        }
+                    }
+                }
+            }
         } finally {
             fclose($handle);
         }
@@ -2362,6 +2433,54 @@ class ManagedResourceController extends Controller
 
         return Region::query()->create([
             'name' => $normalizedRegionName,
+        ]);
+    }
+
+    private function resolveOrCreateZone(string $zoneIdRaw, string $zoneName, int $regionId): ?Zone
+    {
+        $zoneExternalId = $this->normalizeExternalId($zoneIdRaw);
+        if ($zoneExternalId !== '' && Schema::hasColumn('zones', 'external_id')) {
+            $zone = Zone::query()->with('region')->where('external_id', $zoneExternalId)->first();
+            if ($zone) {
+                if ($zone->region_id === null || (int) $zone->region_id !== $regionId) {
+                    $zone->region_id = $regionId;
+                    $zone->save();
+                }
+
+                return $zone;
+            }
+        }
+
+        if ($zoneExternalId !== '' && ctype_digit($zoneExternalId)) {
+            $zone = Zone::query()->with('region')->find((int) $zoneExternalId);
+            if ($zone) {
+                if ($zone->region_id === null || (int) $zone->region_id !== $regionId) {
+                    $zone->region_id = $regionId;
+                    $zone->save();
+                }
+
+                return $zone;
+            }
+        }
+
+        $normalizedZoneName = trim($zoneName);
+        if ($normalizedZoneName === '') {
+            return null;
+        }
+
+        $zone = Zone::query()->with('region')
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($normalizedZoneName)])
+            ->where('region_id', $regionId)
+            ->first();
+        if ($zone) {
+            return $zone;
+        }
+
+        return Zone::query()->create([
+            'external_id' => $zoneExternalId !== '' ? $zoneExternalId : null,
+            'name' => $normalizedZoneName,
+            'description' => null,
+            'region_id' => $regionId,
         ]);
     }
 
