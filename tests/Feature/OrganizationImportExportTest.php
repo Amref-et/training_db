@@ -26,9 +26,9 @@ class OrganizationImportExportTest extends TestCase
     public function test_mfr_facility_import_uses_external_ids_for_hierarchy_and_organizations(): void
     {
         $csv = implode("\n", [
-            'region,zone,woreda,organization_id,organization,facility,name,category,type,region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,city_town,phone,fax',
-            'Addis Ababa City Administration,Kolfe Sub city,Woreda 1,1000932,ALERT Comprehensive Specialized Hospital,ALERT Comprehensive Specialized Hospital,ALERT Comprehensive Specialized Hospital,,Hospital,1,Addis Ababa City Administration,212,Kolfe Sub city,1401,Woreda 1,,,',
-            'Addis Ababa City Administration,Gulele Sub City,Woreda 1,1000942,St. Peter General Hospital,St. Peter General Hospital,St. Peter General Hospital,,Hospital,1,Addis Ababa City Administration,157,Gulele Sub City,1401,Woreda 1,,,',
+            'region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,organization_id,organization,category,type,city_town,phone,fax',
+            '1,Addis Ababa City Administration,212,Kolfe Sub city,1401,Woreda 1,1000932,ALERT Comprehensive Specialized Hospital,,Hospital,,,',
+            '1,Addis Ababa City Administration,157,Gulele Sub City,1401,Woreda 1,1000942,St. Peter General Hospital,,Hospital,,,',
         ]);
 
         $file = UploadedFile::fake()->createWithContent('mfr-facilities.csv', $csv);
@@ -124,31 +124,36 @@ class OrganizationImportExportTest extends TestCase
             ->values();
 
         $this->assertSame([
-            'region',
-            'zone',
-            'woreda',
-            'organization_id',
-            'organization',
-            'facility',
-            'name',
-            'category',
-            'type',
             'region_id',
             'region_name',
             'zone_id',
             'zone_name',
-            'zone',
             'woreda_id',
             'woreda_name',
+            'organization_id',
+            'organization',
+            'category',
+            'type',
             'city_town',
             'phone',
             'fax',
         ], $rows[0]);
 
-        $this->assertSame('1000932', $rows[1][3]);
-        $this->assertSame('1', $rows[1][9]);
-        $this->assertSame('212', $rows[1][11]);
-        $this->assertSame('1401', $rows[1][14]);
+        $this->assertSame([
+            '1',
+            'Addis Ababa City Administration',
+            '212',
+            'Kolfe Sub city',
+            '1401',
+            'Woreda 1',
+            '1000932',
+            'ALERT Comprehensive Specialized Hospital',
+            'Private',
+            'Hospital',
+            '',
+            '',
+            '',
+        ], $rows[1]);
     }
 
     public function test_mfr_facility_reimport_updates_existing_hierarchy_and_organization_by_external_ids(): void
@@ -156,8 +161,8 @@ class OrganizationImportExportTest extends TestCase
         $user = $this->adminUser();
 
         $initialCsv = implode("\n", [
-            'region,zone,woreda,organization_id,organization,facility,name,category,type,region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,city_town,phone,fax',
-            'Old Region,Old Zone,Old Woreda,1000932,Old Facility,Old Facility,Old Facility,Private,Hospital,1,Old Region,212,Old Zone,1401,Old Woreda,Old City,0111111111,0222222222',
+            'region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,organization_id,organization,category,type,city_town,phone,fax',
+            '1,Old Region,212,Old Zone,1401,Old Woreda,1000932,Old Facility,Private,Hospital,Old City,0111111111,0222222222',
         ]);
 
         $this
@@ -170,8 +175,8 @@ class OrganizationImportExportTest extends TestCase
             ->assertSessionHas('success', 'Organization import completed: 1 created, 0 updated.');
 
         $updateCsv = implode("\n", [
-            'region,zone,woreda,organization_id,organization,facility,name,category,type,region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,city_town,phone,fax',
-            'Updated Region,Updated Zone,Updated Woreda,1000932,Updated Facility,Updated Facility,Updated Facility,Government/Public,Hospital,1,Updated Region,212,Updated Zone,1401,Updated Woreda,New City,0333333333,0444444444',
+            'region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,organization_id,organization,category,type,city_town,phone,fax',
+            '1,Updated Region,212,Updated Zone,1401,Updated Woreda,1000932,Updated Facility,Government/Public,Hospital,New City,0333333333,0444444444',
         ]);
 
         $this
