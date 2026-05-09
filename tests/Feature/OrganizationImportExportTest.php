@@ -10,6 +10,7 @@ use App\Models\Zone;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class OrganizationImportExportTest extends TestCase
@@ -207,6 +208,75 @@ class OrganizationImportExportTest extends TestCase
             'name' => 'Unclassified Facility',
             'category' => 'Private',
             'type' => 'Other (specify)',
+        ]);
+    }
+
+    public function test_organization_import_writes_skipped_rows_report(): void
+    {
+        Storage::fake('local');
+
+        $user = $this->adminUser();
+        $csv = implode("\n", [
+            implode(',', self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS),
+            '1,Addis Ababa,212,Kolfe,1401,Woreda 1,1000932,Kolfe Specialty Clinic,Private,Hospital,,,',
+            '1,Addis Ababa,212,Kolfe,1401,Woreda 1,1000933,,Private,Hospital,,,',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->from(route('admin.organizations.index'))
+            ->post(route('admin.organizations.import'), [
+                'import_file' => UploadedFile::fake()->createWithContent('mfr-facilities.csv', $csv),
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.organizations.index'))
+            ->assertSessionHas('success', 'Organization import completed: 1 created, 0 updated, 1 skipped.')
+            ->assertSessionHas('warning')
+            ->assertSessionHas('organization_import_report');
+
+        $report = $response->baseResponse->getSession()->get('organization_import_report');
+        Storage::disk('local')->assertExists('organization-import-reports/'.$report['file_name']);
+
+        $download = $this
+            ->actingAs($user)
+            ->get(route('admin.organizations.import-report', ['report' => $report['file_name']]));
+
+        $download->assertOk();
+
+        $rows = collect(preg_split('/\r\n|\r|\n/', trim($download->streamedContent())))
+            ->filter()
+            ->map(fn (string $line): array => str_getcsv($line))
+            ->values();
+
+        $this->assertSame(array_merge([
+            'line_number',
+            'status',
+            'reason',
+        ], self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS), $rows[0]);
+
+        $this->assertSame([
+            '3',
+            'skipped_not_created',
+            'Organization name is required.',
+            '1',
+            'Addis Ababa',
+            '212',
+            'Kolfe',
+            '1401',
+            'Woreda 1',
+            '1000933',
+            '',
+            'Private',
+            'Hospital',
+            '',
+            '',
+            '',
+        ], $rows[1]);
+
+        $this->assertSame(1, Organization::query()->count());
+        $this->assertDatabaseMissing('organizations', [
+            'external_id' => '1000933',
         ]);
     }
 

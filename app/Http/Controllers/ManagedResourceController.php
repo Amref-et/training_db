@@ -46,6 +46,8 @@ class ManagedResourceController extends Controller
         'fax',
     ];
 
+    private const ORGANIZATION_IMPORT_REPORT_DIRECTORY = 'organization-import-reports';
+
     public function index(Request $request, string $resource): View
     {
         $config = ResourceRegistry::get($resource);
@@ -681,6 +683,21 @@ class ManagedResourceController extends Controller
         ]);
     }
 
+    public function downloadOrganizationImportReport(string $report): StreamedResponse
+    {
+        $fileName = basename($report);
+        if (! preg_match('/^organizations-import-skipped-\d{8}-\d{6}-[A-Za-z0-9]{6}\.csv$/', $fileName)) {
+            abort(404);
+        }
+
+        $path = self::ORGANIZATION_IMPORT_REPORT_DIRECTORY.'/'.$fileName;
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->download($path, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function importOrganizations(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -698,9 +715,20 @@ class ManagedResourceController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
+        $report = null;
+        if (! empty($result['skipped_rows'])) {
+            $report = $this->writeOrganizationSkippedRowsReport($result['skipped_rows']);
+        }
+
         $this->audit()->logCustom('Organizations imported', 'organizations.import', [
             'auditable_type' => Organization::class,
-            'metadata' => $result,
+            'metadata' => [
+                'created' => $result['created'],
+                'updated' => $result['updated'],
+                'skipped' => $result['skipped'],
+                'error_count' => count($result['errors']),
+                'skipped_report_file' => $report['file_name'] ?? null,
+            ],
         ]);
 
         $successMessage = 'Organization import completed: '.$result['created'].' created, '.$result['updated'].' updated';
@@ -712,14 +740,12 @@ class ManagedResourceController extends Controller
 
         $redirect = back()->with('success', $successMessage);
 
-        if (! empty($result['errors'])) {
-            $previewErrors = array_slice($result['errors'], 0, 8);
-            $moreCount = max(0, count($result['errors']) - count($previewErrors));
-            $message = implode(' ', $previewErrors);
-            if ($moreCount > 0) {
-                $message .= ' ... and '.$moreCount.' more issue(s).';
-            }
-            $redirect->with('error', $message);
+        if ($report !== null) {
+            $redirect
+                ->with('warning', $result['skipped'].' organization row(s) were skipped and not created. Download the skipped rows CSV, correct the listed reason, and import again.')
+                ->with('organization_import_report', $report);
+        } elseif (! empty($result['errors'])) {
+            $redirect->with('warning', implode(' ', array_slice($result['errors'], 0, 8)));
         }
 
         return $redirect;
@@ -813,6 +839,7 @@ class ManagedResourceController extends Controller
             $skipped = 0;
             $line = 1;
             $errors = [];
+            $skippedRows = [];
 
             while (($row = fgetcsv($handle)) !== false) {
                 $line++;
@@ -835,6 +862,21 @@ class ManagedResourceController extends Controller
                 $regionName = $this->csvCell($row, $headerMap, ['region_name', 'region']);
                 $woredaIdRaw = $this->csvCell($row, $headerMap, ['woreda_id']);
                 $woredaName = $this->csvCell($row, $headerMap, ['woreda_name', 'woreda']);
+                $reportRow = [
+                    'region_id' => $regionIdRaw,
+                    'region_name' => $regionName,
+                    'zone_id' => $zoneIdRaw,
+                    'zone_name' => $zoneName,
+                    'woreda_id' => $woredaIdRaw,
+                    'woreda_name' => $woredaName,
+                    'organization_id' => $organizationIdRaw,
+                    'organization' => $name,
+                    'category' => $rawCategory,
+                    'type' => $rawType,
+                    'city_town' => $cityTown,
+                    'phone' => $phone,
+                    'fax' => $fax,
+                ];
 
                 $rowErrors = [];
 
@@ -1079,7 +1121,13 @@ class ManagedResourceController extends Controller
 
                 if (! empty($rowErrors)) {
                     $skipped++;
-                    $errors[] = 'Line '.$line.': '.implode(' ', $rowErrors);
+                    $reason = implode(' ', $rowErrors);
+                    $errors[] = 'Line '.$line.': '.$reason;
+                    $skippedRows[] = [
+                        'line' => $line,
+                        'reason' => $reason,
+                        'row' => $reportRow,
+                    ];
                     continue;
                 }
 
@@ -1129,10 +1177,56 @@ class ManagedResourceController extends Controller
                 'updated' => $updated,
                 'skipped' => $skipped,
                 'errors' => $errors,
+                'skipped_rows' => $skippedRows,
             ];
         } finally {
             fclose($handle);
         }
+    }
+
+    private function writeOrganizationSkippedRowsReport(array $skippedRows): ?array
+    {
+        if (empty($skippedRows)) {
+            return null;
+        }
+
+        $fileName = 'organizations-import-skipped-'.now()->format('Ymd-His').'-'.Str::random(6).'.csv';
+        $path = self::ORGANIZATION_IMPORT_REPORT_DIRECTORY.'/'.$fileName;
+        $stream = fopen('php://temp', 'r+');
+
+        if ($stream === false) {
+            throw new \RuntimeException('Unable to create organization import skipped rows report.');
+        }
+
+        try {
+            fputcsv($stream, array_merge([
+                'line_number',
+                'status',
+                'reason',
+            ], self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS));
+
+            foreach ($skippedRows as $skippedRow) {
+                $row = (array) ($skippedRow['row'] ?? []);
+                fputcsv($stream, array_merge([
+                    (int) ($skippedRow['line'] ?? 0),
+                    'skipped_not_created',
+                    (string) ($skippedRow['reason'] ?? ''),
+                ], array_map(
+                    fn (string $header): string => (string) ($row[$header] ?? ''),
+                    self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS
+                )));
+            }
+
+            rewind($stream);
+            Storage::disk('local')->put($path, stream_get_contents($stream));
+        } finally {
+            fclose($stream);
+        }
+
+        return [
+            'file_name' => $fileName,
+            'url' => route('admin.organizations.import-report', ['report' => $fileName]),
+        ];
     }
 
     public function exportParticipants(): StreamedResponse

@@ -47,6 +47,23 @@
 @endsection
 
 @section('content')
+@if($resource === 'organizations')
+    @if(session('organization_import_report'))
+        <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>Skipped organization rows were written to a separate CSV with the original line numbers and reasons.</span>
+            <a href="{{ session('organization_import_report.url') }}" class="btn btn-sm btn-outline-dark">Download Skipped Rows</a>
+        </div>
+    @endif
+    <div class="panel p-3 mb-3">
+        <div class="fw-semibold mb-2">Organization import steps</div>
+        <ol class="mb-0 small text-secondary">
+            <li>Download the template and keep the header unchanged.</li>
+            <li>Fill Region, Zone, Woreda, and Organization IDs/names from the export or MFR file.</li>
+            <li>Import the CSV; valid rows are created or updated automatically.</li>
+            <li>If rows are skipped, download the skipped rows CSV, correct the listed reason, and import again.</li>
+        </ol>
+    </div>
+@endif
 <div class="panel p-4">
     <form method="GET" class="row g-3 mb-4">
         <div class="col-md-10"><input type="text" class="form-control" name="q" value="{{ $query }}" placeholder="Search {{ strtolower($config['label']) }}"></div>
