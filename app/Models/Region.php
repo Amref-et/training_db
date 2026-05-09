@@ -11,6 +11,11 @@ class Region extends Model
 
     protected $fillable = ['external_id', 'name'];
 
+    public function getImportIdAttribute(): string
+    {
+        return (string) ($this->external_id ?: $this->id);
+    }
+
     public function zones()
     {
         return $this->hasMany(Zone::class);

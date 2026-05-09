@@ -103,14 +103,14 @@ class ResourceRegistry
             'regions' => [
                 'path' => 'regions', 'permission' => 'regions', 'label' => 'Regions', 'singular' => 'Region', 'model' => Region::class,
                 'title_column' => 'name', 'search' => ['name'],
-                'columns' => [['label' => 'Name', 'value' => 'name'], ['label' => 'Created', 'value' => 'created_at']],
+                'columns' => [['label' => 'Region ID', 'value' => 'import_id'], ['label' => 'Name', 'value' => 'name'], ['label' => 'Created', 'value' => 'created_at']],
                 'fields' => [['name' => 'name', 'label' => 'Region Name', 'type' => 'text', 'required' => true]],
                 'rules' => ['name' => 'required|string|max:255|unique:regions,name,{{id}},id'], 'order_by' => 'name',
             ],
             'woredas' => [
                 'path' => 'woredas', 'permission' => 'woredas', 'label' => 'Woredas', 'singular' => 'Woreda', 'model' => Woreda::class,
                 'title_column' => 'name', 'eager' => ['region', 'zone'], 'search' => ['name', 'description'],
-                'columns' => [['label' => 'Name', 'value' => 'name'], ['label' => 'Region', 'value' => 'region.name'], ['label' => 'Zone', 'value' => 'zone.name'], ['label' => 'Description', 'value' => 'description']],
+                'columns' => [['label' => 'Woreda ID', 'value' => 'import_id'], ['label' => 'Region ID', 'value' => 'region.import_id'], ['label' => 'Zone ID', 'value' => 'zone.import_id'], ['label' => 'Name', 'value' => 'name'], ['label' => 'Region', 'value' => 'region.name'], ['label' => 'Zone', 'value' => 'zone.name'], ['label' => 'Description', 'value' => 'description']],
                 'fields' => [
                     ['name' => 'region_id', 'label' => 'Region', 'type' => 'select', 'options' => ['model' => Region::class, 'value' => 'id', 'label' => 'name']],
                     ['name' => 'zone_id', 'label' => 'Zone', 'type' => 'select', 'required' => true, 'options' => ['model' => Zone::class, 'value' => 'id', 'label' => 'name']],
@@ -123,6 +123,8 @@ class ResourceRegistry
                 'path' => 'zones', 'permission' => 'zones', 'label' => 'Zones', 'singular' => 'Zone', 'model' => Zone::class,
                 'title_column' => 'name', 'eager' => ['region'], 'search' => ['name', 'description'],
                 'columns' => [
+                    ['label' => 'Zone ID', 'value' => 'import_id'],
+                    ['label' => 'Region ID', 'value' => 'region.import_id'],
                     ['label' => 'Region', 'value' => 'region.name'],
                     ['label' => 'Name', 'value' => 'name'],
                     ['label' => 'Description', 'value' => 'description'],
@@ -144,6 +146,10 @@ class ResourceRegistry
                 'path' => 'organizations', 'permission' => 'organizations', 'label' => 'Organizations', 'singular' => 'Organization', 'model' => Organization::class,
                 'title_column' => 'name', 'eager' => ['region', 'zoneDefinition', 'woreda'], 'search' => ['name', 'zone', 'city_town', 'phone'],
                 'columns' => [
+                    ['label' => 'Organization ID', 'value' => 'import_id'],
+                    ['label' => 'Region ID', 'value' => 'region.import_id'],
+                    ['label' => 'Zone ID', 'value' => 'zoneDefinition.import_id'],
+                    ['label' => 'Woreda ID', 'value' => 'woreda.import_id'],
                     ['label' => 'Name', 'value' => 'name'],
                     ['label' => 'Facility/Organization Category', 'value' => 'category'],
                     ['label' => 'Type', 'value' => 'type'],
@@ -558,5 +564,4 @@ class ResourceRegistry
         return $resources[$resource];
     }
 }
-
 

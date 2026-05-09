@@ -16,6 +16,11 @@ class Zone extends Model
         'description',
     ];
 
+    public function getImportIdAttribute(): string
+    {
+        return (string) ($this->external_id ?: $this->id);
+    }
+
     public function region()
     {
         return $this->belongsTo(Region::class);

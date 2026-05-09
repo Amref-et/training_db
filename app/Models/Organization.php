@@ -23,6 +23,11 @@ class Organization extends Model
         'fax',
     ];
 
+    public function getImportIdAttribute(): string
+    {
+        return (string) ($this->external_id ?: $this->id);
+    }
+
     public function participants()
     {
         return $this->hasMany(Participant::class);

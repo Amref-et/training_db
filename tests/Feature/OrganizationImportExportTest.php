@@ -176,6 +176,77 @@ class OrganizationImportExportTest extends TestCase
         $this->assertSame(self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS, $rows[0]);
     }
 
+    public function test_hierarchy_and_organization_indexes_show_import_ids(): void
+    {
+        $region = Region::query()->create([
+            'external_id' => '1',
+            'name' => 'Addis Ababa',
+        ]);
+        $zone = Zone::query()->create([
+            'external_id' => '212',
+            'region_id' => $region->id,
+            'name' => 'Kolfe',
+        ]);
+        $woreda = Woreda::query()->create([
+            'external_id' => '1401',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'name' => 'Woreda 1',
+        ]);
+        Organization::query()->create([
+            'external_id' => '1000932',
+            'name' => 'Kolfe Specialty Clinic',
+            'category' => 'Private',
+            'type' => 'Hospital',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'zone' => $zone->name,
+            'woreda_id' => $woreda->id,
+        ]);
+
+        $user = $this->adminUser();
+
+        $this
+            ->actingAs($user)
+            ->get(route('admin.regions.index'))
+            ->assertOk()
+            ->assertSee('Region ID')
+            ->assertSee('1');
+
+        $this
+            ->actingAs($user)
+            ->get(route('admin.zones.index'))
+            ->assertOk()
+            ->assertSee('Zone ID')
+            ->assertSee('Region ID')
+            ->assertSee('212')
+            ->assertSee('1');
+
+        $this
+            ->actingAs($user)
+            ->get(route('admin.woredas.index'))
+            ->assertOk()
+            ->assertSee('Woreda ID')
+            ->assertSee('Zone ID')
+            ->assertSee('Region ID')
+            ->assertSee('1401')
+            ->assertSee('212')
+            ->assertSee('1');
+
+        $this
+            ->actingAs($user)
+            ->get(route('admin.organizations.index'))
+            ->assertOk()
+            ->assertSee('Organization ID')
+            ->assertSee('Woreda ID')
+            ->assertSee('Zone ID')
+            ->assertSee('Region ID')
+            ->assertSee('1000932')
+            ->assertSee('1401')
+            ->assertSee('212')
+            ->assertSee('1');
+    }
+
     public function test_organization_import_normalizes_common_mfr_category_and_type_values(): void
     {
         $csv = implode("\n", [

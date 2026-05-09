@@ -11,6 +11,11 @@ class Woreda extends Model
 
     protected $fillable = ['external_id', 'region_id', 'zone_id', 'name', 'description'];
 
+    public function getImportIdAttribute(): string
+    {
+        return (string) ($this->external_id ?: $this->id);
+    }
+
     public function region()
     {
         return $this->belongsTo(Region::class);

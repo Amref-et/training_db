@@ -58,7 +58,7 @@
         <div class="fw-semibold mb-2">Organization import steps</div>
         <ol class="mb-0 small text-secondary">
             <li>Download the template and keep the header unchanged.</li>
-            <li>Fill Region, Zone, Woreda, and Organization IDs/names from the export or MFR file.</li>
+            <li>Fill Region ID, Zone ID, Woreda ID, and Organization ID from the visible ID columns, export, or MFR file.</li>
             <li>Import the CSV; valid rows are created or updated automatically.</li>
             <li>If rows are skipped, download the skipped rows CSV, correct the listed reason, and import again.</li>
         </ol>
