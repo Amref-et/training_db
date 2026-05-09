@@ -30,6 +30,22 @@ class ManagedResourceController extends Controller
 
     private const CSV_ORGANIZATION_DEFAULT_TYPE = 'Other (specify)';
 
+    private const ORGANIZATION_IMPORT_TEMPLATE_HEADERS = [
+        'region_id',
+        'region_name',
+        'zone_id',
+        'zone_name',
+        'woreda_id',
+        'woreda_name',
+        'organization_id',
+        'organization',
+        'category',
+        'type',
+        'city_town',
+        'phone',
+        'fax',
+    ];
+
     public function index(Request $request, string $resource): View
     {
         $config = ResourceRegistry::get($resource);
@@ -616,21 +632,7 @@ class ManagedResourceController extends Controller
                 return;
             }
 
-            fputcsv($handle, [
-                'region_id',
-                'region_name',
-                'zone_id',
-                'zone_name',
-                'woreda_id',
-                'woreda_name',
-                'organization_id',
-                'organization',
-                'category',
-                'type',
-                'city_town',
-                'phone',
-                'fax',
-            ]);
+            fputcsv($handle, self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS);
 
             Organization::query()
                 ->with(['region', 'zoneDefinition', 'woreda'])
@@ -661,6 +663,22 @@ class ManagedResourceController extends Controller
 
             fclose($handle);
         }, $fileName, $headers);
+    }
+
+    public function downloadOrganizationImportTemplate(): StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS);
+            fclose($handle);
+        }, 'organizations-import-template.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function importOrganizations(Request $request): RedirectResponse
@@ -830,17 +848,8 @@ class ManagedResourceController extends Controller
                     : null;
                 $existing ??= $name !== '' ? ($organizationsByName[$organizationKey] ?? null) : null;
 
-                $category = $this->matchChoiceValue($rawCategory, $categoryOptions);
-                if ($rawCategory !== '' && $category === null) {
-                    $rowErrors[] = 'Category is missing or invalid.';
-                }
-                $category = $category ?? ($existing?->category ?: self::CSV_ORGANIZATION_DEFAULT_CATEGORY);
-
-                $type = $this->matchChoiceValue($rawType, $typeOptions);
-                if ($rawType !== '' && $type === null) {
-                    $rowErrors[] = 'Type is missing or invalid.';
-                }
-                $type = $type ?? ($existing?->type ?: self::CSV_ORGANIZATION_DEFAULT_TYPE);
+                $category = $this->normalizeOrganizationCategory($rawCategory, $categoryOptions, $existing);
+                $type = $this->normalizeOrganizationType($rawType, $typeOptions, $existing);
 
                 $regionExternalId = $this->normalizeExternalId($regionIdRaw);
                 $region = $regionExternalId !== '' ? ($regionsByExternalId[$regionExternalId] ?? null) : null;
@@ -2034,6 +2043,146 @@ class ManagedResourceController extends Controller
         }
 
         return $lookup[$normalized] ?? null;
+    }
+
+    private function normalizeOrganizationCategory(string $value, array $lookup, ?Organization $existing = null): string
+    {
+        $matched = $this->matchChoiceValue($value, $lookup);
+        if ($matched !== null) {
+            return $matched;
+        }
+
+        $normalized = $this->normalizeImportToken($value);
+
+        if ($normalized !== '') {
+            if (str_contains($normalized, 'government') || str_contains($normalized, 'public') || str_contains($normalized, 'moh') || str_contains($normalized, 'health bureau') || str_contains($normalized, 'health office')) {
+                return 'Government/Public';
+            }
+
+            if (str_contains($normalized, 'military') || str_contains($normalized, 'police') || str_contains($normalized, 'prison') || str_contains($normalized, 'defense')) {
+                return 'Military/Police/Prison';
+            }
+
+            if (str_contains($normalized, 'ngo') || str_contains($normalized, 'cso') || str_contains($normalized, 'non governmental')) {
+                return 'NGO/CSO';
+            }
+
+            if (str_contains($normalized, 'faith') || str_contains($normalized, 'religious') || str_contains($normalized, 'mission')) {
+                return 'Faith Based Org.';
+            }
+
+            if (str_contains($normalized, 'un agency') || str_contains($normalized, 'united nations')) {
+                return 'UN Agency';
+            }
+
+            if (str_contains($normalized, 'community')) {
+                return 'Community Org.';
+            }
+
+            if (str_contains($normalized, 'private') || str_contains($normalized, 'for profit')) {
+                return 'Private';
+            }
+        }
+
+        return $existing?->category ?: self::CSV_ORGANIZATION_DEFAULT_CATEGORY;
+    }
+
+    private function normalizeOrganizationType(string $value, array $lookup, ?Organization $existing = null): string
+    {
+        $matched = $this->matchChoiceValue($value, $lookup);
+        if ($matched !== null) {
+            return $matched;
+        }
+
+        $normalized = $this->normalizeImportToken($value);
+
+        if ($normalized !== '') {
+            if (str_contains($normalized, 'hospital')) {
+                return 'Hospital';
+            }
+
+            if (str_contains($normalized, 'health post')) {
+                return 'Health Post';
+            }
+
+            if (str_contains($normalized, 'health center') || str_contains($normalized, 'clinic') || str_contains($normalized, 'medical center') || str_contains($normalized, 'division')) {
+                return 'Health Center/Clinic/Division';
+            }
+
+            if (str_contains($normalized, 'laborator')) {
+                return 'Laboratory';
+            }
+
+            if (str_contains($normalized, 'pharmacy') || str_contains($normalized, 'drug shop') || str_contains($normalized, 'drug store') || str_contains($normalized, 'drug vendor')) {
+                return 'Pharmacy';
+            }
+
+            if (str_contains($normalized, 'school') || str_contains($normalized, 'university') || str_contains($normalized, 'college')) {
+                return 'School/University';
+            }
+
+            if (str_contains($normalized, 'research')) {
+                return 'Research Institute';
+            }
+
+            if (str_contains($normalized, 'international') && (str_contains($normalized, 'ngo') || str_contains($normalized, 'cso'))) {
+                return 'International NGO/CSO';
+            }
+
+            if (str_contains($normalized, 'ngo') || str_contains($normalized, 'cso')) {
+                return 'Local NGO/CSO';
+            }
+
+            if (str_contains($normalized, 'faith') || str_contains($normalized, 'religious') || str_contains($normalized, 'mission')) {
+                return 'Faith-based org.';
+            }
+
+            if (str_contains($normalized, 'community')) {
+                return 'Community based org.';
+            }
+
+            if (str_contains($normalized, 'media')) {
+                return 'Media Related';
+            }
+
+            if (str_contains($normalized, 'military') || str_contains($normalized, 'police') || str_contains($normalized, 'prison') || str_contains($normalized, 'defense')) {
+                return 'Defense/Police force/Prison';
+            }
+
+            if (str_contains($normalized, 'moh') || str_contains($normalized, 'rhb') || str_contains($normalized, 'zhd') || str_contains($normalized, 'woreda health office') || str_contains($normalized, 'health bureau')) {
+                return 'MOH/RHB/ZHD/Wor. HO';
+            }
+
+            if (str_contains($normalized, 'government') || str_contains($normalized, 'public') || str_contains($normalized, 'office')) {
+                return 'Other Government org.';
+            }
+
+            if (str_contains($normalized, 'business') || str_contains($normalized, 'commercial')) {
+                return 'Business/Commercial entity';
+            }
+
+            if (str_contains($normalized, 'club') || str_contains($normalized, 'association')) {
+                return 'Club/Association';
+            }
+
+            if (str_contains($normalized, 'un agency') || str_contains($normalized, 'united nations')) {
+                return 'UN agency';
+            }
+
+            if (str_contains($normalized, 'usg') || str_contains($normalized, 'usaid') || str_contains($normalized, 'cdc')) {
+                return 'USG agency';
+            }
+        }
+
+        return $existing?->type ?: self::CSV_ORGANIZATION_DEFAULT_TYPE;
+    }
+
+    private function normalizeImportToken(string $value): string
+    {
+        $normalized = mb_strtolower(trim($value));
+        $normalized = preg_replace('/[^a-z0-9]+/i', ' ', $normalized) ?? $normalized;
+
+        return trim(preg_replace('/\s+/', ' ', $normalized) ?? $normalized);
     }
 
     private function nullableInt(mixed $value): ?int

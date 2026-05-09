@@ -16,6 +16,22 @@ class OrganizationImportExportTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const ORGANIZATION_IMPORT_TEMPLATE_HEADERS = [
+        'region_id',
+        'region_name',
+        'zone_id',
+        'zone_name',
+        'woreda_id',
+        'woreda_name',
+        'organization_id',
+        'organization',
+        'category',
+        'type',
+        'city_town',
+        'phone',
+        'fax',
+    ];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,7 +42,7 @@ class OrganizationImportExportTest extends TestCase
     public function test_mfr_facility_import_uses_external_ids_for_hierarchy_and_organizations(): void
     {
         $csv = implode("\n", [
-            'region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,organization_id,organization,category,type,city_town,phone,fax',
+            implode(',', self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS),
             '1,Addis Ababa City Administration,212,Kolfe Sub city,1401,Woreda 1,1000932,ALERT Comprehensive Specialized Hospital,,Hospital,,,',
             '1,Addis Ababa City Administration,157,Gulele Sub City,1401,Woreda 1,1000942,St. Peter General Hospital,,Hospital,,,',
         ]);
@@ -123,21 +139,7 @@ class OrganizationImportExportTest extends TestCase
             ->map(fn (string $line): array => str_getcsv($line))
             ->values();
 
-        $this->assertSame([
-            'region_id',
-            'region_name',
-            'zone_id',
-            'zone_name',
-            'woreda_id',
-            'woreda_name',
-            'organization_id',
-            'organization',
-            'category',
-            'type',
-            'city_town',
-            'phone',
-            'fax',
-        ], $rows[0]);
+        $this->assertSame(self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS, $rows[0]);
 
         $this->assertSame([
             '1',
@@ -156,12 +158,64 @@ class OrganizationImportExportTest extends TestCase
         ], $rows[1]);
     }
 
+    public function test_organization_import_template_matches_export_header(): void
+    {
+        $response = $this
+            ->actingAs($this->adminUser())
+            ->get(route('admin.organizations.template'));
+
+        $response->assertOk();
+
+        $rows = collect(preg_split('/\r\n|\r|\n/', trim($response->streamedContent())))
+            ->filter()
+            ->map(fn (string $line): array => str_getcsv($line))
+            ->values();
+
+        $this->assertCount(1, $rows);
+        $this->assertSame(self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS, $rows[0]);
+    }
+
+    public function test_organization_import_normalizes_common_mfr_category_and_type_values(): void
+    {
+        $csv = implode("\n", [
+            implode(',', self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS),
+            '1,Addis Ababa,212,Kolfe,1401,Woreda 1,1000932,Kolfe Specialty Clinic,Public Facility,Specialty Clinic,,,',
+            '2,Oromia,300,East Shewa,400,Woreda 2,1000933,Unclassified Facility,Unknown Ownership,Unmapped Facility,,,',
+        ]);
+
+        $response = $this
+            ->actingAs($this->adminUser())
+            ->from(route('admin.organizations.index'))
+            ->post(route('admin.organizations.import'), [
+                'import_file' => UploadedFile::fake()->createWithContent('mfr-facilities.csv', $csv),
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.organizations.index'))
+            ->assertSessionHas('success', 'Organization import completed: 2 created, 0 updated.')
+            ->assertSessionMissing('warning');
+
+        $this->assertDatabaseHas('organizations', [
+            'external_id' => '1000932',
+            'name' => 'Kolfe Specialty Clinic',
+            'category' => 'Government/Public',
+            'type' => 'Health Center/Clinic/Division',
+        ]);
+
+        $this->assertDatabaseHas('organizations', [
+            'external_id' => '1000933',
+            'name' => 'Unclassified Facility',
+            'category' => 'Private',
+            'type' => 'Other (specify)',
+        ]);
+    }
+
     public function test_mfr_facility_reimport_updates_existing_hierarchy_and_organization_by_external_ids(): void
     {
         $user = $this->adminUser();
 
         $initialCsv = implode("\n", [
-            'region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,organization_id,organization,category,type,city_town,phone,fax',
+            implode(',', self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS),
             '1,Old Region,212,Old Zone,1401,Old Woreda,1000932,Old Facility,Private,Hospital,Old City,0111111111,0222222222',
         ]);
 
@@ -175,7 +229,7 @@ class OrganizationImportExportTest extends TestCase
             ->assertSessionHas('success', 'Organization import completed: 1 created, 0 updated.');
 
         $updateCsv = implode("\n", [
-            'region_id,region_name,zone_id,zone_name,woreda_id,woreda_name,organization_id,organization,category,type,city_town,phone,fax',
+            implode(',', self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS),
             '1,Updated Region,212,Updated Zone,1401,Updated Woreda,1000932,Updated Facility,Government/Public,Hospital,New City,0333333333,0444444444',
         ]);
 

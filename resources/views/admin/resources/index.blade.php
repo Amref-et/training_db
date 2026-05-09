@@ -7,6 +7,7 @@
 @section('actions')
 <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
     @if($resource === 'organizations' && auth()->user()->hasPermission('organizations.view'))
+        <a href="{{ route('admin.organizations.template') }}" class="btn btn-outline-secondary">Download Template</a>
         <a href="{{ route('admin.organizations.export') }}" class="btn btn-outline-secondary">Export CSV</a>
     @endif
     @if($resource === 'participants' && auth()->user()->hasPermission('participants.view'))

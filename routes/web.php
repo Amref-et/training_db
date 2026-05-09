@@ -182,6 +182,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
         ->middleware('permission:organizations.view')
         ->name('organizations.export');
 
+    Route::get('organizations/template', [ManagedResourceController::class, 'downloadOrganizationImportTemplate'])
+        ->middleware('permission:organizations.view')
+        ->name('organizations.template');
+
     Route::post('organizations/import', [ManagedResourceController::class, 'importOrganizations'])
         ->middleware('permission:organizations.create')
         ->name('organizations.import');
