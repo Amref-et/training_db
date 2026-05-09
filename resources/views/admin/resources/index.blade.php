@@ -20,10 +20,11 @@
         <a href="{{ route('admin.zones.index') }}" class="btn btn-outline-secondary">Zone List</a>
     @endif
     @if($resource === 'organizations' && auth()->user()->hasPermission('organizations.create'))
-        <form method="POST" action="{{ route('admin.organizations.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+        <form method="POST" action="{{ route('admin.organizations.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center" data-organization-import-form>
             @csrf
+            <input type="hidden" name="import_mode" value="update" data-organization-import-mode-input>
             <input type="file" name="import_file" class="form-control form-control-sm" accept=".csv,.txt" required>
-            <button class="btn btn-outline-dark btn-sm" type="submit">Import CSV</button>
+            <button class="btn btn-outline-dark btn-sm" type="button" data-organization-import-open>Import CSV</button>
         </form>
     @endif
     @if($resource === 'participants' && auth()->user()->hasPermission('participants.create'))
@@ -106,4 +107,73 @@
     </div>
     {{ $records->links() }}
 </div>
+@if($resource === 'organizations' && auth()->user()->hasPermission('organizations.create'))
+    <div class="modal fade" id="organizationImportModeModal" tabindex="-1" aria-labelledby="organizationImportModeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="organizationImportModeModalLabel">Choose import mode</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="vstack gap-3">
+                        <label class="border rounded p-3 d-flex gap-3">
+                            <input class="form-check-input mt-1" type="radio" name="organization_import_mode_choice" value="update" checked>
+                            <span>
+                                <span class="fw-semibold d-block">Update existing records</span>
+                                <span class="small text-secondary">Create missing records and update matching records without clearing existing values when CSV cells are blank.</span>
+                            </span>
+                        </label>
+                        <label class="border rounded p-3 d-flex gap-3">
+                            <input class="form-check-input mt-1" type="radio" name="organization_import_mode_choice" value="overwrite">
+                            <span>
+                                <span class="fw-semibold d-block">Force overwrite existing records</span>
+                                <span class="small text-secondary">Create missing records and replace matching records from the CSV, including blank optional fields.</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-dark" data-organization-import-confirm>Continue Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
+@endsection
+
+@section('scripts')
+@parent
+@if($resource === 'organizations' && auth()->user()->hasPermission('organizations.create'))
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.querySelector('[data-organization-import-form]');
+            const openButton = document.querySelector('[data-organization-import-open]');
+            const confirmButton = document.querySelector('[data-organization-import-confirm]');
+            const modalElement = document.getElementById('organizationImportModeModal');
+            const modeInput = document.querySelector('[data-organization-import-mode-input]');
+
+            if (!(form instanceof HTMLFormElement) || !(openButton instanceof HTMLButtonElement) || !(confirmButton instanceof HTMLButtonElement) || !(modalElement instanceof HTMLElement) || !(modeInput instanceof HTMLInputElement) || typeof bootstrap === 'undefined') {
+                return;
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+            openButton.addEventListener('click', () => {
+                if (! form.reportValidity()) {
+                    return;
+                }
+
+                modal.show();
+            });
+
+            confirmButton.addEventListener('click', () => {
+                const checkedMode = modalElement.querySelector('input[name="organization_import_mode_choice"]:checked');
+                modeInput.value = checkedMode instanceof HTMLInputElement ? checkedMode.value : 'update';
+                form.submit();
+            });
+        });
+    </script>
+@endif
 @endsection

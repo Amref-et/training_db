@@ -48,6 +48,10 @@ class ManagedResourceController extends Controller
 
     private const ORGANIZATION_IMPORT_REPORT_DIRECTORY = 'organization-import-reports';
 
+    private const ORGANIZATION_IMPORT_MODE_UPDATE = 'update';
+
+    private const ORGANIZATION_IMPORT_MODE_OVERWRITE = 'overwrite';
+
     public function index(Request $request, string $resource): View
     {
         $config = ResourceRegistry::get($resource);
@@ -702,7 +706,9 @@ class ManagedResourceController extends Controller
     {
         $validated = $request->validate([
             'import_file' => ['required', 'file', 'mimes:csv,txt', 'max:20480'],
+            'import_mode' => ['nullable', 'in:'.self::ORGANIZATION_IMPORT_MODE_UPDATE.','.self::ORGANIZATION_IMPORT_MODE_OVERWRITE],
         ]);
+        $importMode = $validated['import_mode'] ?? self::ORGANIZATION_IMPORT_MODE_UPDATE;
 
         $config = ResourceRegistry::get('organizations');
         $categoryOptions = $this->choiceLookup($config, 'category');
@@ -710,7 +716,7 @@ class ManagedResourceController extends Controller
 
         $path = $validated['import_file']->getRealPath();
         try {
-            $result = $this->importOrganizationsFromCsv((string) $path, $categoryOptions, $typeOptions);
+            $result = $this->importOrganizationsFromCsv((string) $path, $categoryOptions, $typeOptions, $importMode);
         } catch (\RuntimeException $exception) {
             return back()->with('error', $exception->getMessage());
         }
@@ -727,6 +733,7 @@ class ManagedResourceController extends Controller
                 'updated' => $result['updated'],
                 'skipped' => $result['skipped'],
                 'error_count' => count($result['errors']),
+                'import_mode' => $importMode,
                 'skipped_report_file' => $report['file_name'] ?? null,
             ],
         ]);
@@ -751,10 +758,11 @@ class ManagedResourceController extends Controller
         return $redirect;
     }
 
-    public function importOrganizationsFromCsv(string $path, ?array $categoryOptions = null, ?array $typeOptions = null): array
+    public function importOrganizationsFromCsv(string $path, ?array $categoryOptions = null, ?array $typeOptions = null, string $importMode = self::ORGANIZATION_IMPORT_MODE_UPDATE): array
     {
         $categoryOptions ??= $this->choiceLookup(ResourceRegistry::get('organizations'), 'category');
         $typeOptions ??= $this->choiceLookup(ResourceRegistry::get('organizations'), 'type');
+        $forceOverwrite = $importMode === self::ORGANIZATION_IMPORT_MODE_OVERWRITE;
 
         $handle = $path !== '' ? fopen($path, 'r') : false;
         if ($handle === false) {
@@ -890,8 +898,8 @@ class ManagedResourceController extends Controller
                     : null;
                 $existing ??= $name !== '' ? ($organizationsByName[$organizationKey] ?? null) : null;
 
-                $category = $this->normalizeOrganizationCategory($rawCategory, $categoryOptions, $existing);
-                $type = $this->normalizeOrganizationType($rawType, $typeOptions, $existing);
+                $category = $this->normalizeOrganizationCategory($rawCategory, $categoryOptions, $forceOverwrite ? null : $existing);
+                $type = $this->normalizeOrganizationType($rawType, $typeOptions, $forceOverwrite ? null : $existing);
 
                 $regionExternalId = $this->normalizeExternalId($regionIdRaw);
                 $region = $regionExternalId !== '' ? ($regionsByExternalId[$regionExternalId] ?? null) : null;
@@ -1146,6 +1154,21 @@ class ManagedResourceController extends Controller
                 ];
 
                 if ($existing) {
+                    if (! $forceOverwrite) {
+                        if ($organizationExternalId === '') {
+                            unset($payload['external_id']);
+                        }
+                        if ($cityTown === '') {
+                            unset($payload['city_town']);
+                        }
+                        if ($phone === '') {
+                            unset($payload['phone']);
+                        }
+                        if ($fax === '') {
+                            unset($payload['fax']);
+                        }
+                    }
+
                     $dirty = false;
                     foreach ($payload as $field => $value) {
                         if ($existing->{$field} !== $value) {
@@ -1178,6 +1201,7 @@ class ManagedResourceController extends Controller
                 'skipped' => $skipped,
                 'errors' => $errors,
                 'skipped_rows' => $skippedRows,
+                'import_mode' => $importMode,
             ];
         } finally {
             fclose($handle);

@@ -244,7 +244,10 @@ class OrganizationImportExportTest extends TestCase
             ->assertSee('1000932')
             ->assertSee('1401')
             ->assertSee('212')
-            ->assertSee('1');
+            ->assertSee('1')
+            ->assertSee('Choose import mode')
+            ->assertSee('Update existing records')
+            ->assertSee('Force overwrite existing records');
     }
 
     public function test_organization_import_normalizes_common_mfr_category_and_type_values(): void
@@ -279,6 +282,119 @@ class OrganizationImportExportTest extends TestCase
             'name' => 'Unclassified Facility',
             'category' => 'Private',
             'type' => 'Other (specify)',
+        ]);
+    }
+
+    public function test_organization_update_import_preserves_existing_values_when_csv_cells_are_blank(): void
+    {
+        $region = Region::query()->create([
+            'external_id' => '1',
+            'name' => 'Addis Ababa',
+        ]);
+        $zone = Zone::query()->create([
+            'external_id' => '212',
+            'region_id' => $region->id,
+            'name' => 'Kolfe',
+        ]);
+        $woreda = Woreda::query()->create([
+            'external_id' => '1401',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'name' => 'Woreda 1',
+        ]);
+        Organization::query()->create([
+            'external_id' => '1000932',
+            'name' => 'Kolfe Specialty Clinic',
+            'category' => 'Government/Public',
+            'type' => 'Hospital',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'zone' => $zone->name,
+            'woreda_id' => $woreda->id,
+            'city_town' => 'Old City',
+            'phone' => '0111111111',
+            'fax' => '0222222222',
+        ]);
+
+        $csv = implode("\n", [
+            implode(',', self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS),
+            '1,Addis Ababa,212,Kolfe,1401,Woreda 1,1000932,Kolfe Specialty Clinic,,,,,',
+        ]);
+
+        $this
+            ->actingAs($this->adminUser())
+            ->from(route('admin.organizations.index'))
+            ->post(route('admin.organizations.import'), [
+                'import_file' => UploadedFile::fake()->createWithContent('update-mode.csv', $csv),
+                'import_mode' => 'update',
+            ])
+            ->assertRedirect(route('admin.organizations.index'));
+
+        $this->assertDatabaseHas('organizations', [
+            'external_id' => '1000932',
+            'name' => 'Kolfe Specialty Clinic',
+            'category' => 'Government/Public',
+            'type' => 'Hospital',
+            'city_town' => 'Old City',
+            'phone' => '0111111111',
+            'fax' => '0222222222',
+        ]);
+    }
+
+    public function test_organization_overwrite_import_replaces_existing_values_when_csv_cells_are_blank(): void
+    {
+        $region = Region::query()->create([
+            'external_id' => '1',
+            'name' => 'Addis Ababa',
+        ]);
+        $zone = Zone::query()->create([
+            'external_id' => '212',
+            'region_id' => $region->id,
+            'name' => 'Kolfe',
+        ]);
+        $woreda = Woreda::query()->create([
+            'external_id' => '1401',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'name' => 'Woreda 1',
+        ]);
+        Organization::query()->create([
+            'external_id' => '1000932',
+            'name' => 'Kolfe Specialty Clinic',
+            'category' => 'Government/Public',
+            'type' => 'Hospital',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'zone' => $zone->name,
+            'woreda_id' => $woreda->id,
+            'city_town' => 'Old City',
+            'phone' => '0111111111',
+            'fax' => '0222222222',
+        ]);
+
+        $csv = implode("\n", [
+            implode(',', self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS),
+            '1,Addis Ababa,212,Kolfe,1401,Woreda 1,1000932,Kolfe Specialty Clinic,,,,,',
+        ]);
+
+        $this
+            ->actingAs($this->adminUser())
+            ->from(route('admin.organizations.index'))
+            ->post(route('admin.organizations.import'), [
+                'import_file' => UploadedFile::fake()->createWithContent('overwrite-mode.csv', $csv),
+                'import_mode' => 'overwrite',
+            ])
+            ->assertRedirect(route('admin.organizations.index'))
+            ->assertSessionHas('success', 'Organization import completed: 0 created, 1 updated.');
+
+        $this->assertDatabaseHas('organizations', [
+            'external_id' => '1000932',
+            'name' => 'Kolfe Specialty Clinic',
+            'category' => 'Private',
+            'type' => 'Other (specify)',
+            'city_town' => null,
+            'phone' => null,
+            'fax' => null,
         ]);
     }
 
