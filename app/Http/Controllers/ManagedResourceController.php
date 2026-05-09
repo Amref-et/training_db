@@ -900,10 +900,12 @@ class ManagedResourceController extends Controller
                 }
 
                 $organizationKey = mb_strtolower(trim($name));
-                $existing = $organizationExternalId !== ''
-                    ? ($organizationsByExternalId[$organizationExternalId] ?? null)
-                    : null;
-                $existing ??= $name !== '' ? ($organizationsByName[$organizationKey] ?? null) : null;
+                $existing = null;
+                if ($organizationExternalId !== '') {
+                    $existing = $organizationsByExternalId[$organizationExternalId] ?? null;
+                } elseif ($name !== '') {
+                    $existing = $organizationsByName[$organizationKey] ?? null;
+                }
 
                 $category = $this->normalizeOrganizationCategory($rawCategory, $categoryOptions, $forceOverwrite ? null : $existing);
                 $type = $this->normalizeOrganizationType($rawType, $typeOptions, $forceOverwrite ? null : $existing);
