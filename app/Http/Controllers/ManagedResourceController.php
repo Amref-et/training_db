@@ -704,6 +704,8 @@ class ManagedResourceController extends Controller
 
     public function importOrganizations(Request $request): RedirectResponse
     {
+        set_time_limit(0);
+
         $validated = $request->validate([
             'import_file' => ['required', 'file', 'mimes:csv,txt', 'max:20480'],
             'import_mode' => ['nullable', 'in:'.self::ORGANIZATION_IMPORT_MODE_UPDATE.','.self::ORGANIZATION_IMPORT_MODE_OVERWRITE],
@@ -782,10 +784,6 @@ class ManagedResourceController extends Controller
                 if ($normalized !== '' && ! array_key_exists($normalized, $headerMap)) {
                     $headerMap[$normalized] = $index;
                 }
-            }
-
-            if ($forceOverwrite) {
-                $this->overwriteOrganizationHierarchyFromCsv($path, $headerMap);
             }
 
             $regionsById = [];
