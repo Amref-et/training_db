@@ -1102,12 +1102,19 @@ class ManagedResourceController extends Controller
 
                     if ($woreda->zone_id !== null) {
                         if ($zone !== null && (int) $zone->id !== (int) $woreda->zone_id) {
-                            $rowErrors[] = 'Woreda does not belong to the selected Zone.';
+                            if ($forceOverwrite) {
+                                $woreda->zone_id = (int) $zone->id;
+                                $woreda->save();
+                            } else {
+                                $rowErrors[] = 'Woreda does not belong to the selected Zone.';
+                            }
                         }
 
                         $zone = $zone ?? ($zonesById[(int) $woreda->zone_id] ?? null);
-                    } elseif ($zone === null) {
+                    } elseif ($zone === null && $woreda->zone_id === null) {
                         $rowErrors[] = 'Selected Woreda has no Zone assigned.';
+                    } elseif ($zone === null && $woreda->zone_id !== null) {
+                        $zone = $zonesById[(int) $woreda->zone_id] ?? null;
                     }
                 }
 
@@ -1128,12 +1135,26 @@ class ManagedResourceController extends Controller
                     $region = $regionsById[(int) $woreda->region_id] ?? null;
                 }
 
-                if ($woreda !== null && $region !== null && (int) $woreda->region_id !== (int) $region->id) {
-                    $rowErrors[] = 'Woreda does not belong to the selected Region.';
+                if ($woreda !== null && $region !== null && ($woreda->region_id === null || (int) $woreda->region_id !== (int) $region->id)) {
+                    if ($forceOverwrite) {
+                        if ($woreda->region_id !== $region->id) {
+                            $woreda->region_id = (int) $region->id;
+                            $woreda->save();
+                        }
+                    } else {
+                        $rowErrors[] = 'Woreda does not belong to the selected Region.';
+                    }
                 }
 
-                if ($zone !== null && $region !== null && (int) $zone->region_id !== (int) $region->id) {
-                    $rowErrors[] = 'Zone does not belong to the selected Region.';
+                if ($zone !== null && $region !== null && ($zone->region_id === null || (int) $zone->region_id !== (int) $region->id)) {
+                    if ($forceOverwrite) {
+                        if ($zone->region_id !== $region->id) {
+                            $zone->region_id = (int) $region->id;
+                            $zone->save();
+                        }
+                    } else {
+                        $rowErrors[] = 'Zone does not belong to the selected Region.';
+                    }
                 }
 
                 if ($woreda === null && $zone === null) {
