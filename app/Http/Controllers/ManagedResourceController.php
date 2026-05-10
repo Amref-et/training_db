@@ -17,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
@@ -44,6 +45,31 @@ class ManagedResourceController extends Controller
         'city_town',
         'phone',
         'fax',
+    ];
+
+    private const TRAINING_SUMMARY_IMPORT_TEMPLATE_HEADERS = [
+        'Region',
+        'Training Title',
+        'Training Start Date',
+        'Category',
+        'Training End Date',
+        'Training Organizer',
+        'Participant Name',
+        'Participant ID',
+        'Gender',
+        'Mobile Phone',
+        'Participant Email',
+        'Participant Profession',
+        'Participant Organisation Name',
+        'Participant Organisation Phone',
+        'Participant Organisation Fax',
+        'Participant Organisation Category',
+        'Participant Organisation Type',
+        'Pre-Training Assessment Score',
+        'Mid-Training Assessment Score',
+        'Post-Training Assessment Score',
+        'Trainer/Training organizer Name',
+        'Comments/Evaluation regarding this participant',
     ];
 
     private const ORGANIZATION_IMPORT_REPORT_DIRECTORY = 'organization-import-reports';
@@ -485,6 +511,28 @@ class ManagedResourceController extends Controller
         return $redirect;
     }
 
+    public function importTrainingSummary(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'import_file' => ['required', 'file', 'mimes:csv,txt', 'max:20480'],
+        ]);
+
+        $path = $validated['import_file']->getRealPath();
+        $exitCode = Artisan::call('app:import-training-summary', ['--file' => $path]);
+        $commandOutput = trim(Artisan::output());
+
+        if ($exitCode !== 0) {
+            return back()->with('error', 'Training summary import failed: ' . $commandOutput);
+        }
+
+        $successMessage = 'Training summary import completed.';
+        if ($commandOutput !== '') {
+            $successMessage .= ' ' . preg_replace('/\s+/', ' ', $commandOutput);
+        }
+
+        return back()->with('success', $successMessage);
+    }
+
     public function importTrainingOrganizersFromCsv(string $path): array
     {
         $handle = $path !== '' ? fopen($path, 'r') : false;
@@ -683,6 +731,22 @@ class ManagedResourceController extends Controller
             fputcsv($handle, self::ORGANIZATION_IMPORT_TEMPLATE_HEADERS);
             fclose($handle);
         }, 'organizations-import-template.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function downloadTrainingSummaryTemplate(): StreamedResponse
+    {
+        return response()->streamDownload(function () {
+            $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, self::TRAINING_SUMMARY_IMPORT_TEMPLATE_HEADERS);
+            fclose($handle);
+        }, 'training-summary-import-template.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }

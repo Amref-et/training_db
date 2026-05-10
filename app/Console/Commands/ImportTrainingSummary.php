@@ -20,7 +20,7 @@ class ImportTrainingSummary extends Command
      *
      * @var string
      */
-    protected $signature = 'app:import-training-summary';
+    protected $signature = 'app:import-training-summary {--file= : Path to the CSV file to import}';
 
     /**
      * The console command description.
@@ -34,7 +34,7 @@ class ImportTrainingSummary extends Command
      */
     public function handle()
     {
-        $filePath = 'd:\Training summary_6MAY2025(Sheet1).csv';
+        $filePath = $this->option('file') ?: 'D:/Training summary_6MAY2025(Sheet1).csv';
         if (!file_exists($filePath)) {
             $this->error('CSV file not found at ' . $filePath);
             return;
@@ -66,14 +66,15 @@ class ImportTrainingSummary extends Command
 
     private function processRow($row)
     {
-        // Extract fields
+        // Extract fields based on CSV column positions
         $regionName = trim($row[0] ?? '');
-        $organizerName = trim($row[1] ?? '');
-        $trainingTitle = trim($row[2] ?? '');
+        $trainingTitle = trim($row[1] ?? '');
+        $startDateStr = trim($row[2] ?? '');
         $categoryName = trim($row[3] ?? '');
-        $startDateStr = trim($row[4] ?? '');
-        $endDateStr = trim($row[5] ?? '');
-        $participantName = trim($row[7] ?? '');
+        $endDateStr = trim($row[4] ?? '');
+        $organizerName = trim($row[5] ?? '');
+        $participantName = trim($row[6] ?? '');
+        $participantId = trim($row[7] ?? '');
         $gender = trim($row[8] ?? '');
         $mobile = trim($row[9] ?? '');
         $email = trim($row[10] ?? '');
@@ -96,8 +97,7 @@ class ImportTrainingSummary extends Command
         // Find region
         $region = Region::where('name', $regionName)->first();
         if (!$region) {
-            $this->error("Region not found: $regionName for row");
-            return;
+            throw new \Exception("Region not found: $regionName");
         }
 
         // Find or create training category
@@ -124,9 +124,9 @@ class ImportTrainingSummary extends Command
 
         // Find or create participant organization
         $partOrg = Organization::firstOrCreate(['name' => $partOrgName], [
-            'region_id' => $region ? $region->id : null,
-            'category' => $partOrgCategory,
-            'type' => $partOrgType,
+            'region_id' => $region->id,
+            'category' => $partOrgCategory ?: null,
+            'type' => $partOrgType ?: null,
             'phone' => $partOrgPhone ?: null,
             'fax' => $partOrgFax ?: null,
         ]);
@@ -154,7 +154,7 @@ class ImportTrainingSummary extends Command
                 'gender' => $gender,
                 'mobile_phone' => $mobile ?: null,
                 'email' => $email ?: null,
-                'profession' => $profession,
+                'profession' => $profession ?: null,
                 'organization_id' => $partOrg->id,
                 'region_id' => $region->id,
                 'participant_code' => $this->generateParticipantCode($firstName, $fatherName, $grandfatherName),
