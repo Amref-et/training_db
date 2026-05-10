@@ -962,6 +962,14 @@
                 });
             };
 
+            const clearOrganizationAndHierarchy = () => {
+                regionSelect.value = '';
+                zoneSelect.value = '';
+                woredaSelect.value = '';
+                filterHierarchy();
+                clearOrganizationSelection();
+            };
+
             const filterHierarchy = (targetZoneId = null, targetWoredaId = null) => {
                 const regionId = regionSelect.value || '';
                 const currentZone = targetZoneId === null ? (zoneSelect.value || '') : String(targetZoneId);
@@ -1120,6 +1128,7 @@
                 },
                 onChange(value) {
                     if (!value) {
+                        clearOrganizationAndHierarchy();
                         return;
                     }
 
