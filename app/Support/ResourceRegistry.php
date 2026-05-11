@@ -94,7 +94,7 @@ class ResourceRegistry
         'HSS',
         'WASH',
         'Youth development',
-        'RMNCATH-N',
+        'RMNCAYH-N',
     ];
 
     public static function staticResources(): array
