@@ -277,7 +277,7 @@ class ResourceRegistry
                     ['name' => 'project_name', 'label' => 'Project Name', 'type' => 'text', 'required' => true],
                     ['name' => 'project_long_name', 'label' => 'Project Long Name', 'type' => 'text'],
                     ['name' => 'donor', 'label' => 'Donor', 'type' => 'text'],
-                    ['name' => 'program', 'label' => 'Program', 'type' => 'select', 'choices' => self::PROGRAMS, 'allow_custom' => true],
+                    ['name' => 'program', 'label' => 'Program', 'type' => 'select', 'options' => ['model' => TrainingOrganizer::class, 'value' => 'program', 'label' => 'program', 'distinct' => true, 'predefined' => self::PROGRAMS], 'allow_custom' => true],
                     ['name' => 'is_active', 'label' => 'Status', 'type' => 'checkbox', 'checkbox_label' => 'Active', 'default' => true],
                     ['name' => 'subawardees', 'label' => 'Subawardees', 'type' => 'repeater', 'relation' => 'subawardees', 'column' => 'subawardee_name', 'item_label' => 'Subawardee', 'add_button' => 'Add Subawardee'],
                 ],

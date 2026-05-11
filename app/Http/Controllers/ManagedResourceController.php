@@ -1791,6 +1791,14 @@ class ManagedResourceController extends Controller
                 $table = $modelClass::make()->getTable();
                 $query = $modelClass::query();
 
+                if (! empty($optionConfig['distinct'])) {
+                    $existingPrograms = $query->select($value)->distinct()->whereNotNull($value)->where($value, '!=', '')->pluck($value)->toArray();
+                    $predefinedPrograms = $optionConfig['predefined'] ?? [];
+                    $allPrograms = array_unique(array_merge($existingPrograms, $predefinedPrograms));
+                    sort($allPrograms);
+                    return [$field['name'] => collect($allPrograms)->map(fn ($program) => ['value' => $program, 'label' => $program])->all()];
+                }
+
                 if (($field['name'] ?? null) === 'organization_id') {
                     $selectedValue = old($field['name']);
                     if ($selectedValue === null && $record) {
