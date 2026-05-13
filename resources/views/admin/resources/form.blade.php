@@ -862,6 +862,7 @@
             const zoneSelect = form.querySelector('select[name="zone_id"]');
             const woredaSelect = form.querySelector('select[name="woreda_id"]');
             const organizationSelect = form.querySelector('select[name="organization_id"]');
+            const strictParticipantHierarchy = @json($resource === 'participants');
 
             const captureOptions = (select) => select ? Array.from(select.options).map((option) => ({
                 value: option.value,
@@ -908,6 +909,22 @@
 
             const selectedValue = (select) => select ? (select.value || '') : '';
 
+            const setSelectDisabled = (select, disabled) => {
+                if (!select) {
+                    return;
+                }
+
+                select.disabled = disabled;
+
+                if (select.tomselect) {
+                    if (disabled) {
+                        select.tomselect.disable();
+                    } else {
+                        select.tomselect.enable();
+                    }
+                }
+            };
+
             const selectedMeta = (select) => {
                 const value = selectedValue(select);
                 if (!select || !value) {
@@ -939,9 +956,20 @@
                 }
 
                 const currentValue = preserveSelection ? selectedValue(organizationSelect) : '';
+                const requireWoredaForOrganizations = strictParticipantHierarchy;
+                const hasWoredaFilter = Boolean(selectedValue(woredaSelect));
+                const disableOrganization = requireWoredaForOrganizations && !hasWoredaFilter && !(preserveSelection && currentValue);
+
+                setSelectDisabled(organizationSelect, disableOrganization);
 
                 // For remote searchable selects, trigger a reload instead of managing options locally
                 if (organizationSelect.classList.contains('js-remote-searchable-select') && organizationSelect.tomselect) {
+                    if (disableOrganization) {
+                        organizationSelect.tomselect.clear(true);
+                        organizationSelect.tomselect.clearOptions();
+                        return;
+                    }
+
                     if (!preserveSelection) {
                         organizationSelect.tomselect.clear(true);
                     }
@@ -995,6 +1023,9 @@
                     if (option.value === '') {
                         return true;
                     }
+                    if (strictParticipantHierarchy && !regionId) {
+                        return false;
+                    }
                     if (!regionId) {
                         return true;
                     }
@@ -1003,6 +1034,7 @@
 
                 const isCurrentAvailable = filtered.some((option) => String(option.value) === String(current));
                 rebuildOptions(zoneSelect, filtered, isCurrentAvailable ? current : '');
+                setSelectDisabled(zoneSelect, strictParticipantHierarchy && !selectedValue(regionSelect));
             };
 
             const filterWoredas = () => {
@@ -1019,6 +1051,10 @@
                         return true;
                     }
 
+                    if (strictParticipantHierarchy && !zoneId) {
+                        return false;
+                    }
+
                     if (zoneId) {
                         return option.zoneId === '' || String(option.zoneId) === String(zoneId);
                     }
@@ -1032,6 +1068,7 @@
 
                 const isCurrentAvailable = filtered.some((option) => String(option.value) === String(current));
                 rebuildOptions(woredaSelect, filtered, isCurrentAvailable ? current : '');
+                setSelectDisabled(woredaSelect, strictParticipantHierarchy && !selectedValue(zoneSelect));
             };
 
             let organizationDrivenSync = false;
