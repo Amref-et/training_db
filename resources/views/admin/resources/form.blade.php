@@ -940,6 +940,18 @@
 
                 const currentValue = preserveSelection ? selectedValue(organizationSelect) : '';
 
+                // For remote searchable selects, trigger a reload instead of managing options locally
+                if (organizationSelect.classList.contains('js-remote-searchable-select') && organizationSelect.tomselect) {
+                    if (!preserveSelection) {
+                        organizationSelect.tomselect.clear(true);
+                    }
+                    organizationSelect.tomselect.clearOptions();
+                    // Trigger reload by calling load with empty query to get filtered results
+                    organizationSelect.tomselect.load('');
+                    return;
+                }
+
+                // Fallback for non-remote selects
                 Array.from(organizationSelect.options).forEach((option) => {
                     if (option.value !== '' && String(option.value) !== String(currentValue)) {
                         option.remove();
