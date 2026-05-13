@@ -45,6 +45,7 @@ class ParticipantRegistrationService
 
         $organization = Organization::query()
             ->select(['id', 'name', 'region_id', 'zone_id', 'woreda_id'])
+            ->with(['region'])
             ->find($organizationId);
 
         if (! $organization) {
@@ -62,7 +63,9 @@ class ParticipantRegistrationService
         $zoneId = $this->nullableInt($zoneId);
         $woredaId = $this->nullableInt($woredaId);
 
-        $query = Organization::query()->select(['id', 'name', 'region_id', 'zone_id', 'woreda_id']);
+        $query = Organization::query()
+            ->select(['id', 'name', 'region_id', 'zone_id', 'woreda_id'])
+            ->with(['region']);
 
         if ($regionId !== null) {
             $query->where('region_id', $regionId);
@@ -90,6 +93,7 @@ class ParticipantRegistrationService
         if ($selectedId !== null && ! $options->contains('id', $selectedId)) {
             $selected = Organization::query()
                 ->select(['id', 'name', 'region_id', 'zone_id', 'woreda_id'])
+                ->with(['region'])
                 ->find($selectedId);
 
             if ($selected) {
@@ -215,9 +219,17 @@ class ParticipantRegistrationService
 
     private function formatOrganizationOption(Organization $organization): array
     {
+        $orgName = $organization->name ?? '';
+        $regionName = $organization->region?->name ?? '';
+        $displayLabel = $orgName;
+
+        if ($orgName && $regionName) {
+            $displayLabel = $orgName.' - '.$regionName.' region';
+        }
+
         return [
             'value' => $organization->id,
-            'label' => (string) $organization->name,
+            'label' => $displayLabel,
             'region_id' => $organization->region_id,
             'zone_id' => $organization->zone_id,
             'woreda_id' => $organization->woreda_id,
