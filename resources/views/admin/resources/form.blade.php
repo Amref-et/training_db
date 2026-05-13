@@ -203,17 +203,32 @@
                                         <div class="form-text mt-2">Current file: <a href="{{ route('admin.'.$config['path'].'.file', ['record' => $record->getKey(), 'field' => $name]) }}">{{ basename((string) data_get($record, $name)) }}</a></div>
                                     @endif
                                 @else
-                                    <input
-                                        type="{{ $type }}"
-                                        name="{{ $name }}"
-                                        value="{{ $value }}"
-                                        class="form-control"
-                                        @required($isRequired)
-                                        aria-required="{{ $isRequired ? 'true' : 'false' }}"
-                                        @if($name === 'age') min="0" max="120" step="1" inputmode="numeric" pattern="[0-9]*" title="Enter a whole number between 0 and 120." @endif
-                                        @if($name === 'date_of_birth') max="{{ now()->toDateString() }}" @endif
-                                        @if(in_array($name, ['home_phone', 'mobile_phone'], true)) inputmode="tel" maxlength="30" pattern="(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d" title="Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed." @endif
-                                    >
+                                    @if($name === 'search_existing_participant')
+                                        <input type="hidden" id="existing-participant-id" name="existing_participant_id" value="">
+                                        <input
+                                            type="text"
+                                            id="participant-search-input"
+                                            value="{{ $value }}"
+                                            class="form-control"
+                                            placeholder="{{ $field['placeholder'] ?? 'Search...' }}"
+                                            autocomplete="off"
+                                            data-search-url="{{ route('admin.participants.search-options') }}"
+                                        >
+                                        <div id="participant-search-results" class="participant-search-results list-group mt-2" role="listbox" style="max-height: 300px; overflow-y: auto; display: none;"></div>
+                                        <div class="form-text">Start typing a participant name or phone number to search existing participants. If found, you can select to pre-fill the form or edit directly.</div>
+                                    @else
+                                        <input
+                                            type="{{ $type }}"
+                                            name="{{ $name }}"
+                                            value="{{ $value }}"
+                                            class="form-control"
+                                            @required($isRequired)
+                                            aria-required="{{ $isRequired ? 'true' : 'false' }}"
+                                            @if($name === 'age') min="0" max="120" step="1" inputmode="numeric" pattern="[0-9]*" title="Enter a whole number between 0 and 120." @endif
+                                            @if($name === 'date_of_birth') max="{{ now()->toDateString() }}" @endif
+                                            @if(in_array($name, ['home_phone', 'mobile_phone'], true)) inputmode="tel" maxlength="30" pattern="(?=(?:\D*\d){7,15}\D*$)\+?\d[\d\s().-]*\d" title="Use 7 to 15 digits; spaces, dashes, parentheses, dots, and a leading + are allowed." @endif
+                                        >
+                                    @endif
                                 @endif
                                 @if($name === 'date_of_birth')
                                     <div class="form-text">Age is calculated as of July 1st of the current year.</div>
@@ -1072,6 +1087,93 @@
             filterZones();
             filterWoredas();
             resetOrganizationSelect(true);
+        })();
+    </script>
+    @endif
+    @if($resource === 'participants')
+    <script>
+        (() => {
+            const searchInput = document.getElementById('participant-search-input');
+            const resultsContainer = document.getElementById('participant-search-results');
+            const searchUrl = searchInput?.dataset.searchUrl;
+            if (!searchInput || !searchUrl) {
+                return;
+            }
+
+            let searchTimeout;
+
+            const displayResults = (options) => {
+                resultsContainer.innerHTML = '';
+                if (options.length === 0) {
+                    resultsContainer.innerHTML = '<div class="list-group-item text-muted">No participants found</div>';
+                    resultsContainer.style.display = 'block';
+                    return;
+                }
+
+                options.forEach((option) => {
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'list-group-item list-group-item-action text-start';
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${option.label}</strong><br>
+                                <small class="text-muted">${option.hint}</small>
+                            </div>
+                            <span class="badge bg-secondary">#${option.value}</span>
+                        </div>
+                    `;
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        selectParticipant(option);
+                    });
+                    resultsContainer.appendChild(item);
+                });
+
+                resultsContainer.style.display = 'block';
+            };
+
+            const selectParticipant = (option) => {
+                // Navigate to edit the selected participant
+                window.location.href = `/admin/participants/${option.value}/edit`;
+            };
+
+            const performSearch = async (query) => {
+                if (query.length < 2) {
+                    resultsContainer.style.display = 'none';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${searchUrl}?q=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+                    displayResults(data.options || []);
+                } catch (error) {
+                    console.error('Search error:', error);
+                    resultsContainer.innerHTML = '<div class="list-group-item text-danger">Search error</div>';
+                    resultsContainer.style.display = 'block';
+                }
+            };
+
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const query = e.target.value.trim();
+                searchTimeout = setTimeout(() => {
+                    performSearch(query);
+                }, 300);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#participant-search-input') && !e.target.closest('#participant-search-results')) {
+                    resultsContainer.style.display = 'none';
+                }
+            });
+
+            searchInput.addEventListener('focus', () => {
+                if (resultsContainer.innerHTML) {
+                    resultsContainer.style.display = 'block';
+                }
+            });
         })();
     </script>
     @endif

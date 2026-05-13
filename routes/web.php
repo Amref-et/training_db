@@ -210,8 +210,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
         ->middleware('permission:training_organizers.create')
         ->name('training-organizers.import');
 
+    Route::post('training-summaries/import', [ManagedResourceController::class, 'importTrainingSummary'])
+        ->middleware('permission:training_organizers.create')
+        ->name('training-summaries.import');
+
+    Route::get('training-summaries/template', [ManagedResourceController::class, 'downloadTrainingSummaryTemplate'])
+        ->middleware('permission:training_organizers.view')
+        ->name('training-summaries.template');
+
     Route::get('participants/organization-options', [ManagedResourceController::class, 'participantOrganizationOptions'])
         ->name('participants.organization-options');
+
+    Route::get('participants/search-options', [ManagedResourceController::class, 'participantSearchOptions'])
+        ->name('participants.search-options');
 
     Route::post('training-workflow/events/{trainingEvent}/workshop-count', [TrainingWorkflowController::class, 'storeWorkshopCount'])
         ->middleware('permission:training_events.update')

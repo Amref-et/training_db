@@ -35,10 +35,11 @@
         </form>
     @endif
     @if($resource === 'training_organizers' && auth()->user()->hasPermission('training_organizers.create'))
-        <form method="POST" action="{{ route('admin.training-organizers.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+        <a href="{{ route('admin.training-summaries.template') }}" class="btn btn-outline-secondary">Download Training Summary Template</a>
+        <form method="POST" action="{{ route('admin.training-summaries.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
             @csrf
             <input type="file" name="import_file" class="form-control form-control-sm" accept=".csv,.txt" required>
-            <button class="btn btn-outline-dark btn-sm" type="submit">Import CSV</button>
+            <button class="btn btn-outline-dark btn-sm" type="submit">Import Training Summary</button>
         </form>
     @endif
     @if(auth()->user()->hasPermission($config['permission'].'.create'))

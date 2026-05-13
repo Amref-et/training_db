@@ -360,6 +360,78 @@ class ManagedResourceController extends Controller
         ]);
     }
 
+    public function participantSearchOptions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless(
+            $user && (
+                $user->hasPermission('participants.view')
+                || $user->hasPermission('participants.create')
+                || $user->hasPermission('participants.update')
+            ),
+            403
+        );
+
+        $search = trim((string) $request->query('q', ''));
+
+        if (mb_strlen($search) < 2) {
+            return response()->json(['options' => []]);
+        }
+
+        $participants = Participant::query()
+            ->select(['id', 'name', 'first_name', 'father_name', 'grandfather_name', 'mobile_phone'])
+            ->where(function ($query) use ($search): void {
+                $like = '%'.$search.'%';
+
+                $query
+                    ->where('name', 'like', $like)
+                    ->orWhere('first_name', 'like', $like)
+                    ->orWhere('father_name', 'like', $like)
+                    ->orWhere('grandfather_name', 'like', $like);
+            })
+            ->orderBy('name')
+            ->limit(20)
+            ->get();
+
+        return response()->json([
+            'options' => $participants
+                ->map(fn (Participant $participant): array => [
+                    'value' => $participant->id,
+                    'label' => $this->participantDisplayLabel($participant),
+                    'hint' => $this->phoneHint($participant->mobile_phone),
+                    'mobile_phone' => (string) $participant->mobile_phone,
+                ])
+                ->values()
+                ->all(),
+        ]);
+    }
+
+    private function participantDisplayLabel(Participant $participant): string
+    {
+        $name = trim((string) $participant->name);
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        $nameParts = array_filter([
+            $participant->first_name,
+            $participant->father_name,
+            $participant->grandfather_name,
+        ]);
+
+        return trim(implode(' ', $nameParts)) ?: 'Participant #'.$participant->id;
+    }
+
+    private function phoneHint(mixed $value): string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
+
+        return $digits === ''
+            ? 'Registered phone unavailable'
+            : 'Registered phone ending '.substr($digits, -4);
+    }
+
     public function update(Request $request, string $resource, string $record): RedirectResponse
     {
         $config = ResourceRegistry::get($resource);
@@ -1799,6 +1871,10 @@ class ManagedResourceController extends Controller
                     return [$field['name'] => collect($allPrograms)->map(fn ($program) => ['value' => $program, 'label' => $program])->all()];
                 }
 
+                if (! empty($optionConfig['with']) && is_array($optionConfig['with'])) {
+                    $query->with($optionConfig['with']);
+                }
+
                 if (($field['name'] ?? null) === 'organization_id') {
                     $selectedValue = old($field['name']);
                     if ($selectedValue === null && $record) {
@@ -1811,7 +1887,7 @@ class ManagedResourceController extends Controller
 
                     $selected = $query->whereKey($selectedValue)->first();
 
-                    return [$field['name'] => $selected ? [$this->formatSelectOption($selected, $label, $value)] : []];
+                    return [$field['name'] => $selected ? [$this->formatSelectOption($selected, $label, $value, $optionConfig)] : []];
                 }
 
                 if (! empty($optionConfig['with']) && is_array($optionConfig['with'])) {
@@ -1828,20 +1904,32 @@ class ManagedResourceController extends Controller
                     $query->orderBy($value);
                 }
 
-                return [$field['name'] => $query->get()->map(fn ($item) => $this->formatSelectOption($item, $label, $value))->all()];
+                return [$field['name'] => $query->get()->map(fn ($item) => $this->formatSelectOption($item, $label, $value, $optionConfig))->all()];
             })
             ->all();
     }
 
-    private function formatSelectOption(Model $item, string $label, string $value): array
+    private function formatSelectOption(Model $item, string $label, string $value, array $optionConfig = []): array
     {
         $resolvedLabel = data_get($item, $label);
+        $displayLabel = $resolvedLabel !== null && $resolvedLabel !== ''
+            ? (string) $resolvedLabel
+            : (string) $item->{$value};
+
+        // Special formatting for organization_id: concatenate name with region
+        if (!empty($optionConfig['format_label']) && $optionConfig['format_label'] === 'organization_with_region') {
+            $orgName = $item->name ?? '';
+            $regionName = $item->region?->name ?? '';
+            if ($orgName && $regionName) {
+                $displayLabel = $orgName.' - '.$regionName.' region';
+            } elseif ($orgName) {
+                $displayLabel = $orgName;
+            }
+        }
 
         return [
             'value' => $item->{$value},
-            'label' => $resolvedLabel !== null && $resolvedLabel !== ''
-                ? (string) $resolvedLabel
-                : (string) $item->{$value},
+            'label' => $displayLabel,
             'region_id' => data_get($item, 'region_id'),
             'zone_id' => data_get($item, 'zone_id'),
             'woreda_id' => data_get($item, 'woreda_id'),

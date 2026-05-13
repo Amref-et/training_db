@@ -53,7 +53,7 @@ class ResourceRegistry
         'School/University',
         'UN agency',
         'USG agency',
-        'Other (specify)',
+        'Other',
     ];
 
     private const PROFESSIONS = [
@@ -86,7 +86,7 @@ class ResourceRegistry
         'Religious Leader',
         'Environmental health related',
         'Mentor Mother',
-        'Other (specify)',
+        'Other',
     ];
 
     private const PROGRAMS = [
@@ -204,6 +204,7 @@ class ResourceRegistry
                     ['label' => 'Profession', 'value' => 'professionDefinition.name'],
                 ],
                 'fields' => [
+                    ['name' => 'search_existing_participant', 'label' => 'Search Existing Participant', 'type' => 'text', 'required' => false, 'placeholder' => 'Search by name or phone to find existing participant'],
                     ['name' => 'first_name', 'label' => 'First Name', 'type' => 'text', 'required' => true],
                     ['name' => 'father_name', 'label' => "Father's Name", 'type' => 'text', 'required' => true],
                     ['name' => 'grandfather_name', 'label' => "Grandfather's Name", 'type' => 'text', 'required' => true],
@@ -212,7 +213,7 @@ class ResourceRegistry
                     ['name' => 'region_id', 'label' => 'Region', 'type' => 'select', 'required' => true, 'options' => ['model' => Region::class, 'value' => 'id', 'label' => 'name']],
                     ['name' => 'zone_id', 'label' => 'Zone', 'type' => 'select', 'required' => true, 'options' => ['model' => Zone::class, 'value' => 'id', 'label' => 'name']],
                     ['name' => 'woreda_id', 'label' => 'Woreda', 'type' => 'select', 'required' => true, 'options' => ['model' => Woreda::class, 'value' => 'id', 'label' => 'name']],
-                    ['name' => 'organization_id', 'label' => 'Organization', 'type' => 'select', 'required' => true, 'options' => ['model' => Organization::class, 'value' => 'id', 'label' => 'name']],
+                    ['name' => 'organization_id', 'label' => 'Organization', 'type' => 'select', 'required' => true, 'options' => ['model' => Organization::class, 'value' => 'id', 'label' => 'name', 'with' => ['region'], 'format_label' => 'organization_with_region']],
                     ['name' => 'gender', 'label' => 'Gender', 'type' => 'select', 'required' => true, 'choices' => ['male', 'female']],
                     ['name' => 'home_phone', 'label' => 'Home Phone', 'type' => 'tel'],
                     ['name' => 'mobile_phone', 'label' => 'Mobile Phone', 'type' => 'tel', 'required' => true],
