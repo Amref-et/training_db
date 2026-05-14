@@ -63,7 +63,7 @@ class TrainingEventParticipant extends Model
 
     public function refreshFinalScore(): void
     {
-        $requiredWorkshopCount = max(1, (int) ($this->trainingEvent?->workshop_count ?? 4));
+        $requiredWorkshopCount = max(1, (int) ($this->trainingEvent?->workshop_count ?? 1));
 
         $aggregate = $this->workshopScores()
             ->where('workshop_number', '<=', $requiredWorkshopCount)
@@ -92,7 +92,7 @@ class TrainingEventParticipant extends Model
             return;
         }
 
-        $requiredWorkshopCount = max(1, (int) ($event->workshop_count ?? 4));
+        $requiredWorkshopCount = max(1, (int) ($event->workshop_count ?? 1));
 
         $avgPre = TrainingEventWorkshopScore::query()
             ->where('workshop_number', '<=', $requiredWorkshopCount)

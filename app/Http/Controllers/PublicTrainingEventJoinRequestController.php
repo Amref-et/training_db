@@ -189,7 +189,7 @@ class PublicTrainingEventJoinRequestController extends Controller
     private function requestableEventsQuery()
     {
         return TrainingEvent::query()
-            ->whereIn('status', ['Pending', 'Ongoing'])
+            ->whereIn('status', TrainingEvent::REQUESTABLE_STATUSES)
             ->whereDate('end_date', '>=', now()->toDateString());
     }
 

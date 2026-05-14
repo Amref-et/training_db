@@ -1787,7 +1787,7 @@ class ManagedResourceController extends Controller
                         $training = $trainingEvent?->training;
                         $trainingCategory = $training?->trainingCategory;
                         $organizer = $trainingEvent?->trainingOrganizer;
-                        $eventWorkshopCount = max(1, (int) ($trainingEvent?->workshop_count ?? 4));
+                        $eventWorkshopCount = max(1, (int) ($trainingEvent?->workshop_count ?? 1));
 
                         $workshopScores = $enrollment->workshopScores->keyBy('workshop_number');
                         $configuredWorkshopScores = $enrollment->workshopScores

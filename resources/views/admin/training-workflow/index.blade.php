@@ -115,6 +115,7 @@
             <label class="form-label">Status</label>
             <select name="status" class="form-select" required>
                 <option value="Pending">Pending</option>
+                <option value="Up coming">Up coming</option>
                 <option value="Ongoing">Ongoing</option>
                 <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
@@ -294,7 +295,7 @@
             @csrf
             <div class="col-md-4">
                 <label class="form-label">Number of Workshops</label>
-                <input type="number" name="workshop_count" class="form-control" min="1" max="20" value="{{ old('workshop_count', $workshopCount ?: 4) }}" required>
+                <input type="number" name="workshop_count" class="form-control" min="1" max="20" value="{{ old('workshop_count', $workshopCount ?: 1) }}" required>
                 <div class="form-text">Set total workshops, then the score structure and report are built from this number.</div>
             </div>
             <div class="col-md-3">
@@ -356,7 +357,7 @@
                         type="date"
                         name="workshop_start_date"
                         class="form-control"
-                        value="{{ old('workshop_start_date', $selectedWorkshopDetail?->start_date?->format('Y-m-d')) }}"
+                        value="{{ old('workshop_start_date', $selectedWorkshopDetail?->start_date?->format('Y-m-d') ?? ($selectedWorkshopDateDefaults['start_date'] ?? '')) }}"
                     >
                 </div>
                 <div class="col-md-4">
@@ -365,12 +366,12 @@
                         type="date"
                         name="workshop_end_date"
                         class="form-control"
-                        value="{{ old('workshop_end_date', $selectedWorkshopDetail?->end_date?->format('Y-m-d')) }}"
+                        value="{{ old('workshop_end_date', $selectedWorkshopDetail?->end_date?->format('Y-m-d') ?? ($selectedWorkshopDateDefaults['end_date'] ?? '')) }}"
                     >
                 </div>
                 <div class="col-md-4">
                     <div class="form-text pt-md-4 mt-md-2">
-                        These dates are stored once for this workshop and reused in CSV export/import and reporting.
+                        Workshop 1 defaults to the training event dates. These dates can be changed and are reused in CSV export/import and reporting.
                     </div>
                 </div>
             </div>

@@ -9,6 +9,13 @@ class TrainingEvent extends Model
 {
     use HasFactory;
 
+    public const STATUSES = ['Pending', 'Up coming', 'Ongoing', 'Completed', 'Cancelled'];
+    public const REQUESTABLE_STATUSES = ['Pending', 'Up coming', 'Ongoing'];
+
+    protected $attributes = [
+        'workshop_count' => 1,
+    ];
+
     protected $fillable = [
         'event_name',
         'training_id', 'training_organizer_id', 'organizer_type', 'project_subawardee_id', 'training_region_id', 'participant_id',

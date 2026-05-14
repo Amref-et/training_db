@@ -95,7 +95,7 @@ class TrainingEventsController extends ApiController
             'workshop_count' => 'nullable|integer|min:1|max:20',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => 'required|in:Pending,Ongoing,Completed,Cancelled',
+            'status' => 'required|in:'.implode(',', TrainingEvent::STATUSES),
         ]);
 
         if (($data['organizer_type'] ?? null) !== 'Subawardee') {

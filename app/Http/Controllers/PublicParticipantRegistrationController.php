@@ -100,7 +100,7 @@ class PublicParticipantRegistrationController extends Controller
         }
 
         $event = TrainingEvent::query()
-            ->whereIn('status', ['Pending', 'Ongoing'])
+            ->whereIn('status', TrainingEvent::REQUESTABLE_STATUSES)
             ->whereDate('end_date', '>=', now()->toDateString())
             ->find((int) $pendingJoinRequest['training_event_id']);
 

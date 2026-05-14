@@ -13,6 +13,7 @@ use App\Models\TrainingEventWorkshopScore;
 use App\Models\TrainingOrganizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\View\View;
 
@@ -38,6 +39,10 @@ class TrainingWorkflowController extends Controller
         $reportParticipantScores = collect();
         $workshopCount = 0;
         $selectedWorkshop = 1;
+        $selectedWorkshopDateDefaults = [
+            'start_date' => null,
+            'end_date' => null,
+        ];
         $reportSummary = [
             'participants_count' => 0,
             'with_final_scores' => 0,
@@ -61,8 +66,9 @@ class TrainingWorkflowController extends Controller
         }
 
         if ($selectedEvent) {
-            $workshopCount = max(1, (int) ($selectedEvent->workshop_count ?? 4));
+            $workshopCount = max(1, (int) ($selectedEvent->workshop_count ?? 1));
             $selectedWorkshop = min($requestedWorkshop, $workshopCount);
+            $selectedWorkshopDateDefaults = $this->defaultWorkshopDates($selectedEvent, $selectedWorkshop);
             $workshopDetails = $selectedEvent->workshops->keyBy('workshop_number');
 
             $enrollments = $selectedEvent->enrollments
@@ -106,14 +112,15 @@ class TrainingWorkflowController extends Controller
                 ->keyBy(fn ($row) => (int) $row->workshop_number);
 
             $reportWorkshopAverages = collect(range(1, $workshopCount))
-                ->map(function (int $workshopNumber) use ($workshopAverageRows, $workshopDetails) {
+                ->map(function (int $workshopNumber) use ($selectedEvent, $workshopAverageRows, $workshopDetails) {
                     $averageRow = $workshopAverageRows->get($workshopNumber);
                     $workshop = $workshopDetails->get($workshopNumber);
+                    $defaultDates = $this->defaultWorkshopDates($selectedEvent, $workshopNumber);
 
                     return [
                         'workshop_number' => $workshopNumber,
-                        'start_date' => $workshop?->start_date,
-                        'end_date' => $workshop?->end_date,
+                        'start_date' => $workshop?->start_date ?? $defaultDates['start_date'],
+                        'end_date' => $workshop?->end_date ?? $defaultDates['end_date'],
                         'avg_pre_score' => $averageRow?->avg_pre_score !== null ? round((float) $averageRow->avg_pre_score, 2) : null,
                         'avg_post_score' => $averageRow?->avg_post_score !== null ? round((float) $averageRow->avg_post_score, 2) : null,
                     ];
@@ -189,6 +196,7 @@ class TrainingWorkflowController extends Controller
             'selectedWorkshop' => $selectedWorkshop,
             'workshopCount' => $workshopCount,
             'selectedWorkshopDetail' => $workshopDetails->get($selectedWorkshop),
+            'selectedWorkshopDateDefaults' => $selectedWorkshopDateDefaults,
             'stepStatus' => $stepStatus,
             'enrollments' => $enrollments,
             'joinRequests' => $joinRequests,
@@ -214,7 +222,7 @@ class TrainingWorkflowController extends Controller
             'course_venue' => 'nullable|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => 'required|string|max:255',
+            'status' => 'required|in:'.implode(',', TrainingEvent::STATUSES),
         ]);
 
         $event = TrainingEvent::query()->create($data);
@@ -424,7 +432,7 @@ class TrainingWorkflowController extends Controller
 
     public function saveWorkshopScores(Request $request, TrainingEvent $trainingEvent): RedirectResponse
     {
-        $maxWorkshop = max(1, (int) ($trainingEvent->workshop_count ?? 4));
+        $maxWorkshop = max(1, (int) ($trainingEvent->workshop_count ?? 1));
 
         $data = $request->validate([
             'workshop_number' => 'required|integer|min:1|max:'.$maxWorkshop,
@@ -511,7 +519,7 @@ class TrainingWorkflowController extends Controller
 
     public function exportWorkshopScores(Request $request, TrainingEvent $trainingEvent): StreamedResponse
     {
-        $maxWorkshop = max(1, (int) ($trainingEvent->workshop_count ?? 4));
+        $maxWorkshop = max(1, (int) ($trainingEvent->workshop_count ?? 1));
 
         $data = $request->validate([
             'workshop' => 'required|integer|min:1|max:'.$maxWorkshop,
@@ -521,6 +529,9 @@ class TrainingWorkflowController extends Controller
         $workshop = $trainingEvent->workshops()
             ->where('workshop_number', $workshopNumber)
             ->first();
+        $workshopDateDefaults = $this->defaultWorkshopDates($trainingEvent, $workshopNumber);
+        $workshopStartDate = $workshop?->start_date?->toDateString() ?? $workshopDateDefaults['start_date'];
+        $workshopEndDate = $workshop?->end_date?->toDateString() ?? $workshopDateDefaults['end_date'];
 
         $enrollments = TrainingEventParticipant::query()
             ->with([
@@ -544,7 +555,7 @@ class TrainingWorkflowController extends Controller
             ],
         ]);
 
-        return response()->streamDownload(function () use ($enrollments, $trainingEvent, $workshopNumber, $workshop): void {
+        return response()->streamDownload(function () use ($enrollments, $trainingEvent, $workshopNumber, $workshopStartDate, $workshopEndDate): void {
             $handle = fopen('php://output', 'w');
             if ($handle === false) {
                 return;
@@ -569,8 +580,8 @@ class TrainingWorkflowController extends Controller
                 fputcsv($handle, [
                     $trainingEvent->id,
                     $workshopNumber,
-                    $workshop?->start_date?->toDateString(),
-                    $workshop?->end_date?->toDateString(),
+                    $workshopStartDate,
+                    $workshopEndDate,
                     $enrollment->participant_id,
                     (string) ($enrollment->participant?->participant_code ?? ''),
                     (string) ($enrollment->participant?->name ?? 'Participant #'.$enrollment->participant_id),
@@ -588,7 +599,7 @@ class TrainingWorkflowController extends Controller
 
     public function importWorkshopScores(Request $request, TrainingEvent $trainingEvent): RedirectResponse
     {
-        $maxWorkshop = max(1, (int) ($trainingEvent->workshop_count ?? 4));
+        $maxWorkshop = max(1, (int) ($trainingEvent->workshop_count ?? 1));
 
         $data = $request->validate([
             'workshop_number' => 'required|integer|min:1|max:'.$maxWorkshop,
@@ -666,8 +677,9 @@ class TrainingWorkflowController extends Controller
         $skipped = 0;
         $hasWorkshopStartDateColumn = array_key_exists('workshop_start_date', $headerMap);
         $hasWorkshopEndDateColumn = array_key_exists('workshop_end_date', $headerMap);
-        $workshopStartDate = $workshop?->start_date?->toDateString();
-        $workshopEndDate = $workshop?->end_date?->toDateString();
+        $workshopDateDefaults = $this->defaultWorkshopDates($trainingEvent, $workshopNumber);
+        $workshopStartDate = $workshop?->start_date?->toDateString() ?? $workshopDateDefaults['start_date'];
+        $workshopEndDate = $workshop?->end_date?->toDateString() ?? $workshopDateDefaults['end_date'];
 
         while (($row = fgetcsv($handle)) !== false) {
             if (! is_array($row) || $this->rowIsEmpty($row)) {
@@ -791,7 +803,7 @@ class TrainingWorkflowController extends Controller
 
     public function exportReport(TrainingEvent $trainingEvent): StreamedResponse
     {
-        $workshopCount = max(1, (int) ($trainingEvent->workshop_count ?? 4));
+        $workshopCount = max(1, (int) ($trainingEvent->workshop_count ?? 1));
 
         $event = TrainingEvent::query()
             ->with(['training', 'trainingOrganizer', 'trainingRegion'])
@@ -951,14 +963,16 @@ class TrainingWorkflowController extends Controller
         $workshopCount = max(1, $workshopCount);
 
         foreach (range(1, $workshopCount) as $workshopNumber) {
+            $defaultDates = $this->defaultWorkshopDates($trainingEvent, $workshopNumber);
+
             TrainingEventWorkshop::query()->firstOrCreate(
                 [
                     'training_event_id' => $trainingEvent->id,
                     'workshop_number' => $workshopNumber,
                 ],
                 [
-                    'start_date' => $trainingEvent->start_date,
-                    'end_date' => $trainingEvent->end_date,
+                    'start_date' => $defaultDates['start_date'],
+                    'end_date' => $defaultDates['end_date'],
                 ]
             );
         }
@@ -1004,14 +1018,16 @@ class TrainingWorkflowController extends Controller
         ?string $startDate,
         ?string $endDate
     ): TrainingEventWorkshop {
+        $defaultDates = $this->defaultWorkshopDates($trainingEvent, $workshopNumber);
+
         $workshop = TrainingEventWorkshop::query()->firstOrCreate(
             [
                 'training_event_id' => $trainingEvent->id,
                 'workshop_number' => $workshopNumber,
             ],
             [
-                'start_date' => $trainingEvent->start_date,
-                'end_date' => $trainingEvent->end_date,
+                'start_date' => $defaultDates['start_date'],
+                'end_date' => $defaultDates['end_date'],
             ]
         );
 
@@ -1021,6 +1037,38 @@ class TrainingWorkflowController extends Controller
         ]);
 
         return $workshop->fresh();
+    }
+
+    private function defaultWorkshopDates(TrainingEvent $trainingEvent, int $workshopNumber): array
+    {
+        if ($workshopNumber !== 1) {
+            return [
+                'start_date' => null,
+                'end_date' => null,
+            ];
+        }
+
+        return [
+            'start_date' => $this->formatDateForInput($trainingEvent->start_date),
+            'end_date' => $this->formatDateForInput($trainingEvent->end_date),
+        ];
+    }
+
+    private function formatDateForInput(mixed $date): ?string
+    {
+        if ($date === null || $date === '') {
+            return null;
+        }
+
+        if ($date instanceof \DateTimeInterface) {
+            return Carbon::instance($date)->toDateString();
+        }
+
+        try {
+            return Carbon::parse((string) $date)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function toNullableFloat(mixed $value): ?float

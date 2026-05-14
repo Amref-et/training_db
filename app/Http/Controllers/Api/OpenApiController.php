@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\TrainingEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -90,7 +91,7 @@ class OpenApiController extends Controller
                     'TrainingCategoryIdFilter' => $this->queryParameter('training_category_id', 'integer', 'Filter by training category ID.', false),
                     'GenderFilter' => $this->queryParameter('gender', 'string', 'Filter by gender.', false, ['enum' => ['male', 'female']]),
                     'OrganizerTypeFilter' => $this->queryParameter('organizer_type', 'string', 'Filter by organizer type.', false, ['enum' => ['The project', 'Subawardee']]),
-                    'StatusFilter' => $this->queryParameter('status', 'string', 'Filter by training event status.', false, ['enum' => ['Pending', 'Ongoing', 'Completed', 'Cancelled']]),
+                    'StatusFilter' => $this->queryParameter('status', 'string', 'Filter by training event status.', false, ['enum' => TrainingEvent::STATUSES]),
                     'StartDateFromFilter' => $this->queryParameter('start_date_from', 'string', 'Filter training events starting on or after this date.', false, ['format' => 'date']),
                     'StartDateToFilter' => $this->queryParameter('start_date_to', 'string', 'Filter training events starting on or before this date.', false, ['format' => 'date']),
                     'RoundNumberFilter' => $this->queryParameter('round_number', 'integer', 'Filter by round number.', false),
@@ -842,7 +843,7 @@ class OpenApiController extends Controller
                     'workshop_count' => ['type' => 'integer', 'nullable' => true],
                     'start_date' => ['type' => 'string', 'format' => 'date'],
                     'end_date' => ['type' => 'string', 'format' => 'date'],
-                    'status' => ['type' => 'string', 'enum' => ['Pending', 'Ongoing', 'Completed', 'Cancelled']],
+                    'status' => ['type' => 'string', 'enum' => TrainingEvent::STATUSES],
                     'training' => [
                         'type' => 'object',
                         'nullable' => true,
@@ -889,7 +890,7 @@ class OpenApiController extends Controller
                     'workshop_count' => ['type' => 'integer', 'nullable' => true, 'minimum' => 1, 'maximum' => 20],
                     'start_date' => ['type' => 'string', 'format' => 'date'],
                     'end_date' => ['type' => 'string', 'format' => 'date'],
-                    'status' => ['type' => 'string', 'enum' => ['Pending', 'Ongoing', 'Completed', 'Cancelled']],
+                    'status' => ['type' => 'string', 'enum' => TrainingEvent::STATUSES],
                 ],
             ],
             'TrainingRound' => [

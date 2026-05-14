@@ -15,7 +15,7 @@ return new class extends Migration
 
         if (! Schema::hasColumn('training_events', 'workshop_count')) {
             Schema::table('training_events', function (Blueprint $table) {
-                $table->unsignedTinyInteger('workshop_count')->default(4)->after('course_venue');
+                $table->unsignedTinyInteger('workshop_count')->default(1)->after('course_venue');
             });
         }
 
@@ -51,4 +51,3 @@ return new class extends Migration
         });
     }
 };
-

@@ -35,7 +35,7 @@ class TrainingEventGroupedViewController extends Controller
                     'status' => $event->status ?: '-',
                     'start_date' => $event->start_date,
                     'end_date' => $event->end_date,
-                    'workshop_count' => max(1, (int) ($event->workshop_count ?? 4)),
+                    'workshop_count' => max(1, (int) ($event->workshop_count ?? 1)),
                     'participant_count' => $participants->count(),
                     'average_final_score' => $avgFinalScore !== null ? round((float) $avgFinalScore, 2) : null,
                     'participants' => $participants,
@@ -48,4 +48,3 @@ class TrainingEventGroupedViewController extends Controller
         ]);
     }
 }
-

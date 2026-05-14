@@ -461,10 +461,10 @@ class ResourceRegistry
                     ['name' => 'training_region_id', 'label' => 'Training Region', 'type' => 'select', 'options' => ['model' => Region::class, 'value' => 'id', 'label' => 'name']],
                     ['name' => 'training_city', 'label' => 'Training City/Town', 'type' => 'text'],
                     ['name' => 'course_venue', 'label' => 'Course Venue', 'type' => 'text'],
-                    ['name' => 'workshop_count', 'label' => 'Number of Workshops', 'type' => 'number'],
+                    ['name' => 'workshop_count', 'label' => 'Number of Workshops', 'type' => 'number', 'default' => 1],
                     ['name' => 'start_date', 'label' => 'Start Date', 'type' => 'date', 'required' => true],
                     ['name' => 'end_date', 'label' => 'End Date', 'type' => 'date', 'required' => true],
-                    ['name' => 'status', 'label' => 'Status', 'type' => 'select', 'required' => true, 'choices' => ['Pending', 'Ongoing', 'Completed', 'Cancelled']],
+                    ['name' => 'status', 'label' => 'Status', 'type' => 'select', 'required' => true, 'choices' => ['Pending', 'Up coming', 'Ongoing', 'Completed', 'Cancelled']],
                 ],
                 'rules' => [
                     'event_name' => 'required|string|max:255',
