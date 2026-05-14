@@ -317,7 +317,9 @@ class ManagedResourceController extends Controller
         $zoneId = $this->nullableInt($request->input('zone_id'));
         $woredaId = $this->nullableInt($request->input('woreda_id'));
 
-        $query = Organization::query()->select(['id', 'name', 'region_id', 'zone_id', 'woreda_id']);
+        $query = Organization::query()
+            ->select(['id', 'name', 'region_id', 'zone_id', 'woreda_id'])
+            ->with('region:id,name');
 
         if ($regionId !== null) {
             $query->where('region_id', $regionId);
@@ -344,6 +346,7 @@ class ManagedResourceController extends Controller
         if ($selectedId !== null && ! $options->contains('id', $selectedId)) {
             $selected = Organization::query()
                 ->select(['id', 'name', 'region_id', 'zone_id', 'woreda_id'])
+                ->with('region:id,name')
                 ->find($selectedId);
 
             if ($selected) {
@@ -355,7 +358,9 @@ class ManagedResourceController extends Controller
             'options' => $options
                 ->unique('id')
                 ->values()
-                ->map(fn (Organization $organization) => $this->formatSelectOption($organization, 'name', 'id'))
+                ->map(fn (Organization $organization) => $this->formatSelectOption($organization, 'name', 'id', [
+                    'format_label' => 'organization_with_region',
+                ]))
                 ->all(),
         ]);
     }

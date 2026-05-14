@@ -184,11 +184,11 @@ class ParticipantFormHierarchyTest extends TestCase
             ->assertOk()
             ->assertJsonFragment([
                 'value' => $includedOrganization->id,
-                'label' => $includedOrganization->name,
+                'label' => $includedOrganization->name.' - '.$region->name.' region',
             ])
             ->assertJsonMissing([
                 'value' => $excludedOrganization->id,
-                'label' => $excludedOrganization->name,
+                'label' => $excludedOrganization->name.' - '.$region->name.' region',
             ]);
     }
 
