@@ -30,11 +30,19 @@ class DashboardController extends Controller
         $filterDefinitions = $this->metrics->filterDefinitions();
         $filters = $this->metrics->resolveFilters($request->all(), $filterDefinitions);
         $isEditing = $request->boolean('edit');
+        $canShareDashboardTabs = $user->hasRole('Admin');
 
-        $tabs = $user->dashboardTabs()->with('widgets')->get();
+        $tabs = DashboardTab::query()
+            ->visibleTo($user)
+            ->with(['widgets', 'user'])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
         $activeTab = $tabs->firstWhere('id', (int) $request->integer('tab_id'))
+            ?? $tabs->first(fn (DashboardTab $tab) => $tab->isOwnedBy($user) && $tab->is_default)
             ?? $tabs->firstWhere('is_default', true)
             ?? $tabs->first();
+        $canManageActiveTab = $activeTab?->isOwnedBy($user) ?? false;
 
         $activeWidgets = $activeTab
             ? $activeTab->widgets->where('is_active', true)->sortBy('sort_order')->values()
@@ -69,6 +77,8 @@ class DashboardController extends Controller
             'widthModes' => DashboardWidget::WIDTH_MODES,
             'colorSchemes' => DashboardWidget::COLOR_SCHEMES,
             'publicHomeTabId' => (int) (WebsiteSetting::current()->public_home_dashboard_tab_id ?? 0),
+            'canManageActiveTab' => $canManageActiveTab,
+            'canShareDashboardTabs' => $canShareDashboardTabs,
             'widgetWidthStyles' => $activeWidgets->mapWithKeys(fn (DashboardWidget $widget) => [
                 $widget->id => $this->layoutService->widthStyle($widget),
             ])->all(),
@@ -79,10 +89,16 @@ class DashboardController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'is_shared' => ['nullable', 'boolean'],
         ]);
 
         try {
-            $tab = $this->layoutService->createTab($request->user(), (string) $request->string('name'));
+            $tab = $this->layoutService->createTab(
+                $request->user(),
+                (string) $request->string('name'),
+                false,
+                $request->user()->hasRole('Admin') && $request->boolean('is_shared')
+            );
         } catch (Throwable $e) {
             throw ValidationException::withMessages(['name' => $e->getMessage()]);
         }
@@ -102,6 +118,7 @@ class DashboardController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'is_default' => ['nullable', 'boolean'],
+            'is_shared' => ['nullable', 'boolean'],
             'is_public_homepage' => ['nullable', 'boolean'],
         ]);
 
@@ -111,6 +128,9 @@ class DashboardController extends Controller
             ];
             if ($request->boolean('is_default')) {
                 $payload['is_default'] = true;
+            }
+            if ($request->user()->hasRole('Admin')) {
+                $payload['is_shared'] = $request->boolean('is_shared');
             }
 
             $this->layoutService->updateTab($tab, $payload);
@@ -222,7 +242,7 @@ class DashboardController extends Controller
 
     public function widgetData(Request $request, DashboardWidget $widget): JsonResponse
     {
-        $this->authorizeWidget($request, $widget);
+        $this->authorizeWidgetView($request, $widget);
         $filters = $this->metrics->resolveFilters($request->all());
 
         try {
@@ -312,13 +332,23 @@ class DashboardController extends Controller
 
     private function authorizeTab(Request $request, DashboardTab $tab): void
     {
-        abort_unless($tab->user_id === $request->user()->id, 403);
+        abort_unless($tab->isOwnedBy($request->user()), 403);
     }
 
     private function authorizeWidget(Request $request, DashboardWidget $widget): void
     {
         $widget->loadMissing('tab');
-        abort_unless($widget->tab && $widget->tab->user_id === $request->user()->id, 403);
+        abort_unless($widget->tab && $widget->tab->isOwnedBy($request->user()), 403);
+    }
+
+    private function authorizeWidgetView(Request $request, DashboardWidget $widget): void
+    {
+        $widget->loadMissing('tab');
+        abort_unless(
+            $widget->tab
+            && ($widget->tab->isOwnedBy($request->user()) || $widget->tab->is_shared),
+            403
+        );
     }
 
     private function dashboardQueryParams(Request $request, ?int $tabId = null): array

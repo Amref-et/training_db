@@ -41,7 +41,7 @@
         <button class="btn btn-dark" type="button" data-bs-toggle="modal" data-bs-target="#createTabModal">Add Tab</button>
         <button class="btn btn-outline-dark" type="button" data-bs-toggle="modal" data-bs-target="#importLayoutModal">Import Layout</button>
         <a class="btn btn-outline-dark" href="{{ route('admin.dashboard.layout.export') }}">Export Layout</a>
-        @if($activeTab)
+        @if($activeTab && $canManageActiveTab)
             <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#createWidgetModal">Add Widget</button>
         @endif
     @else
@@ -80,13 +80,16 @@
                             @if((int) ($publicHomeTabId ?? 0) === (int) $tab->id)
                                 <span class="badge text-bg-warning ms-1">Public Home</span>
                             @endif
+                            @if($tab->is_shared)
+                                <span class="badge text-bg-info ms-1">Shared</span>
+                            @endif
                         </a>
                     </li>
                 @empty
                     <li class="text-secondary">No tabs found.</li>
                 @endforelse
             </ul>
-            @if($activeTab && $isEditing)
+            @if($activeTab && $isEditing && $canManageActiveTab)
                 <div class="d-flex gap-2">
                     @if((int) ($publicHomeTabId ?? 0) === (int) $activeTab->id)
                         <a class="btn btn-outline-dark btn-sm" href="{{ route('home') }}" target="_blank" rel="noopener noreferrer">Open Public Home</a>
@@ -154,7 +157,13 @@
     @if(! $activeTab)
         <div class="widget-empty">No dashboard tab is available yet.</div>
     @else
-        <div class="text-secondary small mb-3">{{ $isEditing ? 'Layout saves automatically when widgets are reordered or edited.' : '' }}</div>
+        <div class="text-secondary small mb-3">
+            @if($isEditing && $canManageActiveTab)
+                Layout saves automatically when widgets are reordered or edited.
+            @elseif($isEditing && ! $canManageActiveTab && $activeTab->is_shared)
+                This shared dashboard is read-only for your account.
+            @endif
+        </div>
 
         <div
             id="dashboardGrid"
@@ -177,13 +186,13 @@
                     data-widget-text-color="{{ $widgetTextColor }}"
                     data-widget-refresh="{{ (int) ($widget->refresh_interval_seconds ?? 0) }}"
                     data-widget-data-url="{{ route('admin.dashboard.widgets.data', $widget) }}{{ $widgetDataQueryString !== '' ? '?'.$widgetDataQueryString : '' }}"
-                    draggable="{{ $isEditing ? 'true' : 'false' }}"
+                    draggable="{{ $isEditing && $canManageActiveTab ? 'true' : 'false' }}"
                 >
                     <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                         <div>
                             <h2 class="h6 mb-1">{{ $widget->title }}</h2>
                         </div>
-                        @if($isEditing)
+                        @if($isEditing && $canManageActiveTab)
                             <div class="d-flex align-items-center gap-1">
                                 <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#widget-settings-{{ $widget->id }}" aria-expanded="false" aria-controls="widget-settings-{{ $widget->id }}">
                                     <i class="bi bi-gear"></i>
@@ -195,7 +204,7 @@
                         @endif
                     </div>
 
-                    @if($isEditing)
+                    @if($isEditing && $canManageActiveTab)
                         <div class="collapse mb-3" id="widget-settings-{{ $widget->id }}">
                             <div class="widget-settings-card p-3">
                                 <form method="POST" action="{{ route('admin.dashboard.widgets.update', $widget) }}" class="row g-2">
@@ -365,6 +374,14 @@
                     <div class="modal-body">
                         <label class="form-label">Tab Name</label>
                         <input type="text" class="form-control" name="name" placeholder="Training Dashboard" required>
+                        @if($canShareDashboardTabs)
+                            <input type="hidden" name="is_shared" value="0">
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" value="1" id="new-tab-shared-checkbox" name="is_shared">
+                                <label class="form-check-label" for="new-tab-shared-checkbox">Visible to other users</label>
+                            </div>
+                            <div class="form-text">Users with dashboard access can view shared tabs, but only the tab owner can edit widgets or layout.</div>
+                        @endif
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -376,7 +393,7 @@
     </div>
 @endif
 
-@if($activeTab && $isEditing)
+@if($activeTab && $isEditing && $canManageActiveTab)
 <div class="modal fade" id="editTabModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -398,6 +415,14 @@
                         <input class="form-check-input" type="checkbox" value="1" id="tab-default-checkbox" name="is_default" @checked($activeTab->is_default)>
                         <label class="form-check-label" for="tab-default-checkbox">Set as default tab</label>
                     </div>
+                    @if($canShareDashboardTabs)
+                        <input type="hidden" name="is_shared" value="0">
+                        <div class="form-check mt-3">
+                            <input class="form-check-input" type="checkbox" value="1" id="tab-shared-checkbox" name="is_shared" @checked($activeTab->is_shared)>
+                            <label class="form-check-label" for="tab-shared-checkbox">Visible to other users</label>
+                        </div>
+                        <div class="form-text">Users with dashboard access can view shared tabs, but only you can edit widgets or layout.</div>
+                    @endif
                     <input type="hidden" name="is_public_homepage" value="0">
                     <div class="form-check mt-3">
                         <input class="form-check-input" type="checkbox" value="1" id="tab-public-home-checkbox" name="is_public_homepage" @checked((int) ($publicHomeTabId ?? 0) === (int) $activeTab->id)>
@@ -415,7 +440,7 @@
 </div>
 @endif
 
-@if($activeTab && $isEditing)
+@if($activeTab && $isEditing && $canManageActiveTab)
 <div class="modal fade" id="createWidgetModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -631,7 +656,7 @@ function initializeDashboardAsyncFilters() {
     });
 }
 
-const dashboardEditingEnabled = @json((bool) $isEditing);
+const dashboardEditingEnabled = @json((bool) $isEditing && (bool) $canManageActiveTab);
 const widgetPayloads = @json($widgetPayloads);
 const chartPalette = {
     teal_amber: ['#0f766e', '#f59e0b', '#2563eb', '#16a34a', '#dc2626', '#7c3aed'],

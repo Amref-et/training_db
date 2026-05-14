@@ -18,7 +18,7 @@ class DashboardLayoutService
         }
 
         $trainingTab = $this->createTab($user, 'Training Dashboard', true);
-        $reportsTab = $this->createTab($user, 'Reports Dashboard', false);
+        $reportsTab = $this->createTab($user, 'Reports Dashboard', false, $user->hasRole('Admin'));
 
         $this->createWidget($trainingTab, [
             'title' => 'Male vs Female Participants',
@@ -306,7 +306,7 @@ LIMIT 10",
         ]);
     }
 
-    public function createTab(User $user, string $name, bool $isDefault = false): DashboardTab
+    public function createTab(User $user, string $name, bool $isDefault = false, bool $isShared = false): DashboardTab
     {
         $name = trim($name);
         if ($name === '') {
@@ -325,6 +325,7 @@ LIMIT 10",
             'slug' => $this->nextUniqueSlug($user, $name),
             'sort_order' => $maxOrder + 1,
             'is_default' => $isDefault || ! $user->dashboardTabs()->exists(),
+            'is_shared' => $isShared,
         ]);
     }
 
@@ -347,6 +348,7 @@ LIMIT 10",
             'name' => $name,
             'slug' => $this->nextUniqueSlug($tab->user, $name, $tab->id),
             'is_default' => $isDefault || ($tab->is_default && ! isset($payload['is_default'])),
+            'is_shared' => array_key_exists('is_shared', $payload) ? (bool) $payload['is_shared'] : $tab->is_shared,
         ]);
         $tab->save();
 
@@ -437,6 +439,7 @@ LIMIT 10",
                     'slug' => $tab->slug,
                     'sort_order' => $tab->sort_order,
                     'is_default' => $tab->is_default,
+                    'is_shared' => $tab->is_shared,
                     'widgets' => $tab->widgets
                         ->sortBy('sort_order')
                         ->values()
@@ -475,7 +478,7 @@ LIMIT 10",
 
             foreach ($tabs as $index => $tabPayload) {
                 $tabName = trim((string) ($tabPayload['name'] ?? 'Imported Dashboard'));
-                $tab = $this->createTab($user, $tabName === '' ? 'Imported Dashboard' : $tabName, $index === 0);
+                $tab = $this->createTab($user, $tabName === '' ? 'Imported Dashboard' : $tabName, $index === 0, (bool) ($tabPayload['is_shared'] ?? false));
                 $tab->update(['sort_order' => $index + 1]);
                 $createdTabs++;
 
