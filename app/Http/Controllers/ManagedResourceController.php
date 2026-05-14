@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\Participant;
 use App\Models\Profession;
 use App\Models\Region;
+use App\Models\TrainingEventParticipant;
 use App\Models\TrainingOrganizer;
 use App\Models\Woreda;
 use App\Models\Zone;
@@ -1668,6 +1669,163 @@ class ManagedResourceController extends Controller
                             (string) data_get($participant, 'woreda.name', ''),
                             $participant->organization_id,
                             (string) data_get($participant, 'organization.name', ''),
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function exportParticipantTrainingParticipation(): StreamedResponse
+    {
+        $fileName = 'participant-training-participation-export-'.now()->format('Ymd-His').'.csv';
+        $this->audit()->logCustom('Participant training participation exported', 'participants.training_participation.export', [
+            'auditable_type' => TrainingEventParticipant::class,
+            'metadata' => [
+                'file_name' => $fileName,
+            ],
+        ]);
+
+        return response()->streamDownload(function () {
+            $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                return;
+            }
+
+            // Write BOM for UTF-8
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            // CSV headers
+            fputcsv($handle, [
+                'participant_id',
+                'participant_code',
+                'first_name',
+                'father_name',
+                'grandfather_name',
+                'participant_name',
+                'gender',
+                'date_of_birth',
+                'age',
+                'mobile_phone',
+                'email',
+                'profession',
+                'participant_region',
+                'participant_zone',
+                'participant_woreda',
+                'organization_name',
+                'organization_region',
+                'training_event_id',
+                'event_name',
+                'training_title',
+                'training_category',
+                'event_start_date',
+                'event_end_date',
+                'event_status',
+                'event_city',
+                'event_venue',
+                'organizer_name',
+                'final_score',
+                'mid_test_score',
+                'avg_pre_score',
+                'avg_post_score',
+                'workshop_count',
+                'completed_workshops',
+                'workshop_1_pre',
+                'workshop_1_mid',
+                'workshop_1_post',
+                'workshop_2_pre',
+                'workshop_2_mid',
+                'workshop_2_post',
+                'workshop_3_pre',
+                'workshop_3_mid',
+                'workshop_3_post',
+                'workshop_4_pre',
+                'workshop_4_mid',
+                'workshop_4_post',
+                'workshop_5_pre',
+                'workshop_5_mid',
+                'workshop_5_post',
+                'workshop_6_pre',
+                'workshop_6_mid',
+                'workshop_6_post',
+            ]);
+
+            // Query all training event participants with related data
+            TrainingEventParticipant::query()
+                ->with([
+                    'participant.region',
+                    'participant.zone',
+                    'participant.woreda',
+                    'participant.organization.region',
+                    'trainingEvent.training.trainingCategory',
+                    'trainingEvent.trainingOrganizer',
+                    'workshopScores' => fn ($query) => $query->orderBy('workshop_number'),
+                ])
+                ->orderBy('participant_id')
+                ->orderBy('training_event_id')
+                ->chunkById(200, function ($enrollments) use ($handle) {
+                    foreach ($enrollments as $enrollment) {
+                        $participant = $enrollment->participant;
+                        $trainingEvent = $enrollment->trainingEvent;
+                        $organization = $participant?->organization;
+                        $training = $trainingEvent?->training;
+                        $trainingCategory = $training?->trainingCategory;
+                        $organizer = $trainingEvent?->trainingOrganizer;
+
+                        // Calculate workshop statistics
+                        $workshopScores = $enrollment->workshopScores->keyBy('workshop_number');
+                        $completedWorkshops = $enrollment->workshopScores->whereNotNull('post_test_score')->count();
+                        $avgPreScore = $enrollment->workshopScores->whereNotNull('pre_test_score')->avg('pre_test_score');
+                        $avgPostScore = $enrollment->workshopScores->whereNotNull('post_test_score')->avg('post_test_score');
+
+                        // Build workshop score columns (up to 6 workshops)
+                        $workshopColumns = [];
+                        for ($i = 1; $i <= 6; $i++) {
+                            $score = $workshopScores->get($i);
+                            $workshopColumns[] = $score?->pre_test_score;
+                            $workshopColumns[] = $score?->mid_test_score;
+                            $workshopColumns[] = $score?->post_test_score;
+                        }
+
+                        fputcsv($handle, [
+                            $participant?->id,
+                            (string) ($participant?->participant_code ?? ''),
+                            (string) ($participant?->first_name ?? ''),
+                            (string) ($participant?->father_name ?? ''),
+                            (string) ($participant?->grandfather_name ?? ''),
+                            (string) ($participant?->name ?? ''),
+                            (string) ($participant?->gender ?? ''),
+                            $participant?->date_of_birth?->toDateString() ?? '',
+                            $participant?->age,
+                            (string) ($participant?->mobile_phone ?? ''),
+                            (string) ($participant?->email ?? ''),
+                            (string) ($participant?->profession ?? ''),
+                            (string) ($participant?->region?->name ?? ''),
+                            (string) ($participant?->zone?->name ?? ''),
+                            (string) ($participant?->woreda?->name ?? ''),
+                            (string) ($organization?->name ?? ''),
+                            (string) ($organization?->region?->name ?? ''),
+                            $trainingEvent?->id,
+                            (string) ($trainingEvent?->event_name ?? ''),
+                            (string) ($training?->title ?? ''),
+                            (string) ($trainingCategory?->name ?? ''),
+                            $trainingEvent?->start_date?->toDateString() ?? '',
+                            $trainingEvent?->end_date?->toDateString() ?? '',
+                            (string) ($trainingEvent?->status ?? ''),
+                            (string) ($trainingEvent?->training_city ?? ''),
+                            (string) ($trainingEvent?->course_venue ?? ''),
+                            (string) ($organizer?->title ?? ''),
+                            $enrollment->final_score !== null ? round((float) $enrollment->final_score, 2) : null,
+                            $enrollment->mid_test_score !== null ? round((float) $enrollment->mid_test_score, 2) : null,
+                            $avgPreScore !== null ? round((float) $avgPreScore, 2) : null,
+                            $avgPostScore !== null ? round((float) $avgPostScore, 2) : null,
+                            $trainingEvent?->workshop_count ?? 4,
+                            $completedWorkshops,
+                            ...$workshopColumns,
                         ]);
                     }
                 });

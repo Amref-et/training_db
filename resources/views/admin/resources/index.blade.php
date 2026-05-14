@@ -12,6 +12,7 @@
     @endif
     @if($resource === 'participants' && auth()->user()->hasPermission('participants.view'))
         <a href="{{ route('admin.participants.export') }}" class="btn btn-outline-secondary">Export CSV</a>
+        <a href="{{ route('admin.participants.training-participation.export') }}" class="btn btn-outline-secondary">Export Training Participation</a>
     @endif
     @if($resource === 'training_organizers' && auth()->user()->hasPermission('training_organizers.view'))
         <a href="{{ route('admin.training-organizers.export') }}" class="btn btn-outline-secondary">Export CSV</a>

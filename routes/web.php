@@ -198,6 +198,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
         ->middleware('permission:participants.view')
         ->name('participants.export');
 
+    Route::get('participants/training-participation/export', [ManagedResourceController::class, 'exportParticipantTrainingParticipation'])
+        ->middleware('permission:participants.view')
+        ->name('participants.training-participation.export');
+
     Route::post('participants/import', [ManagedResourceController::class, 'importParticipants'])
         ->middleware('permission:participants.create')
         ->name('participants.import');
