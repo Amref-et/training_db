@@ -11,7 +11,7 @@
 @php($hasMultiSelectField = collect($config['fields'])->contains(fn ($field) => ($field['type'] ?? 'text') === 'multiselect'))
 @php($hasRepeaterField = collect($config['fields'])->contains(fn ($field) => ($field['type'] ?? 'text') === 'repeater'))
 @php($hasHierarchySelectors = collect($config['fields'])->pluck('name')->intersect(['region_id', 'zone_id', 'woreda_id'])->isNotEmpty())
-@php($searchableSelectNames = ['region_id', 'zone_id', 'woreda_id', 'organization_id', 'project_subawardee_id'])
+@php($searchableSelectNames = $resource === 'participants' ? ['organization_id', 'project_subawardee_id'] : ['region_id', 'zone_id', 'woreda_id', 'organization_id', 'project_subawardee_id'])
 @php($hasSearchableSelect = collect($config['fields'])->contains(fn ($field) => ($field['type'] ?? 'text') === 'select' && (in_array($field['name'] ?? '', $searchableSelectNames, true) || !empty($field['allow_custom']))))
 @php($hasTrainingEventOrganizerFields = collect($config['fields'])->pluck('name')->intersect(['training_organizer_id', 'organizer_type', 'project_subawardee_id'])->count() === 3)
 @php($fieldGroups = collect($config['fields'])->groupBy(fn ($field) => $field['tab'] ?? 'General'))
@@ -108,7 +108,11 @@
                             @if($value instanceof \Illuminate\Support\Carbon)
                                 @php($value = $type === 'date' ? $value->format('Y-m-d') : $value->toDateTimeString())
                             @endif
-                            <div class="{{ in_array($type, ['textarea', 'tinymce'], true) ? 'col-12' : 'col-md-6' }}">
+                            @php($fieldColumnClass = in_array($type, ['textarea', 'tinymce'], true) ? 'col-12' : 'col-md-6')
+                            @if($resource === 'participants' && $name === 'organization_id')
+                                @php($fieldColumnClass = 'col-12')
+                            @endif
+                            <div class="{{ $fieldColumnClass }}">
                                 <label class="form-label">
                                     {{ $field['label'] }}
                                     @if($isRequired)<span class="required-mark" aria-hidden="true">*</span>@endif
@@ -171,6 +175,7 @@
                                     @php($allowsCustomSelect = (bool) ($field['allow_custom'] ?? false))
                                     @php($isSearchableSelect = $allowsCustomSelect || in_array($name, $searchableSelectNames, true))
                                     @php($isRemoteSearchableSelect = $resource === 'participants' && $name === 'organization_id')
+                                    @php($remoteOptionsUrl = $isRemoteSearchableSelect ? route('admin.participants.organization-options') : ($resource === 'participants' && $name === 'zone_id' ? route('admin.participants.zone-options') : ($resource === 'participants' && $name === 'woreda_id' ? route('admin.participants.woreda-options') : null)))
                                     @php($hasSelectedCustomOption = $allowsCustomSelect && $value !== '' && !collect($fieldOptions[$name] ?? [])->contains(fn ($option) => (string) $option['value'] === (string) $value))
                                     <select
                                         id="{{ $selectId }}"
@@ -178,7 +183,7 @@
                                         class="form-select {{ $isSearchableSelect ? 'js-searchable-select' : '' }} {{ $allowsCustomSelect ? 'js-creatable-select' : '' }} {{ $isRemoteSearchableSelect ? 'js-remote-searchable-select' : '' }}"
                                         @required($isRequired)
                                         aria-required="{{ $isRequired ? 'true' : 'false' }}"
-                                        @if($isRemoteSearchableSelect) data-remote-url="{{ route('admin.participants.organization-options') }}" @endif
+                                        @if($remoteOptionsUrl) data-remote-url="{{ $remoteOptionsUrl }}" @endif
                                     >
                                         <option value="">Select {{ strtolower($field['label']) }}</option>
                                         @foreach($fieldOptions[$name] ?? [] as $option)
@@ -197,6 +202,9 @@
                                             <option value="{{ $value }}" selected>{{ $value }}</option>
                                         @endif
                                     </select>
+                                    @if($resource === 'participants' && $name === 'organization_id')
+                                        <div class="form-text">Type at least 2 characters to search. Selecting an organization fills Region, Zone, and Woreda when available.</div>
+                                    @endif
                                 @elseif($type === 'file')
                                     <input type="file" name="{{ $name }}" class="form-control" @required($isRequired) aria-required="{{ $isRequired ? 'true' : 'false' }}" @if(!empty($field['accept'])) accept="{{ $field['accept'] }}" @endif>
                                     @if($record && data_get($record, $name))
@@ -876,6 +884,20 @@
             const originalZoneOptions = captureOptions(zoneSelect);
             const originalWoredaOptions = captureOptions(woredaSelect);
 
+            [regionSelect, zoneSelect, woredaSelect, organizationSelect].forEach((select) => {
+                if (select && !select.dataset.placeholderLabel) {
+                    select.dataset.placeholderLabel = select.options[0]?.textContent?.trim() || 'Select';
+                }
+            });
+
+            const blankOption = (select) => ({
+                value: '',
+                label: select?.dataset?.placeholderLabel || 'Select',
+                regionId: '',
+                zoneId: '',
+                woredaId: '',
+            });
+
             const rebuildOptions = (select, options, selectedValue) => {
                 if (!select) {
                     return;
@@ -884,17 +906,20 @@
                 select.innerHTML = '';
 
                 options.forEach((item) => {
+                    const regionId = item.regionId ?? item.region_id ?? '';
+                    const zoneId = item.zoneId ?? item.zone_id ?? '';
+                    const woredaId = item.woredaId ?? item.woreda_id ?? '';
                     const option = document.createElement('option');
                     option.value = item.value;
                     option.textContent = item.label;
-                    if (item.regionId) {
-                        option.dataset.regionId = item.regionId;
+                    if (regionId) {
+                        option.dataset.regionId = regionId;
                     }
-                    if (item.zoneId) {
-                        option.dataset.zoneId = item.zoneId;
+                    if (zoneId) {
+                        option.dataset.zoneId = zoneId;
                     }
-                    if (item.woredaId) {
-                        option.dataset.woredaId = item.woredaId;
+                    if (woredaId) {
+                        option.dataset.woredaId = woredaId;
                     }
                     if (selectedValue !== null && selectedValue !== undefined && String(selectedValue) === String(item.value)) {
                         option.selected = true;
@@ -907,7 +932,40 @@
                 }
             };
 
-            const selectedValue = (select) => select ? (select.value || '') : '';
+            const selectedValue = (select) => {
+                if (!select) {
+                    return '';
+                }
+
+                if (select.tomselect) {
+                    return String(select.tomselect.getValue() || '');
+                }
+
+                return select.value || '';
+            };
+
+            const setSelectValue = (select, value, silent = true) => {
+                if (!select) {
+                    return;
+                }
+
+                const nextValue = value ? String(value) : '';
+
+                if (select.tomselect) {
+                    select.tomselect.setValue(nextValue, silent);
+                    return;
+                }
+
+                select.value = nextValue;
+            };
+
+            const optionExists = (select, value) => {
+                if (!select || value === null || value === undefined || value === '') {
+                    return false;
+                }
+
+                return Array.from(select.options).some((option) => String(option.value) === String(value));
+            };
 
             const setSelectDisabled = (select, disabled) => {
                 if (!select) {
@@ -956,26 +1014,21 @@
                 }
 
                 const currentValue = preserveSelection ? selectedValue(organizationSelect) : '';
-                const requireWoredaForOrganizations = strictParticipantHierarchy;
-                const hasWoredaFilter = Boolean(selectedValue(woredaSelect));
-                const disableOrganization = requireWoredaForOrganizations && !hasWoredaFilter && !(preserveSelection && currentValue);
+                setSelectDisabled(organizationSelect, false);
 
-                setSelectDisabled(organizationSelect, disableOrganization);
-
-                // For remote searchable selects, trigger a reload instead of managing options locally
                 if (organizationSelect.classList.contains('js-remote-searchable-select') && organizationSelect.tomselect) {
-                    if (disableOrganization) {
-                        organizationSelect.tomselect.clear(true);
-                        organizationSelect.tomselect.clearOptions();
-                        return;
-                    }
+                    const currentOption = currentValue && organizationSelect.tomselect.options[currentValue]
+                        ? { ...organizationSelect.tomselect.options[currentValue] }
+                        : null;
 
                     if (!preserveSelection) {
                         organizationSelect.tomselect.clear(true);
                     }
                     organizationSelect.tomselect.clearOptions();
-                    // Trigger reload by calling load with empty query to get filtered results
-                    organizationSelect.tomselect.load('');
+                    if (currentOption) {
+                        organizationSelect.tomselect.addOption(currentOption);
+                        organizationSelect.tomselect.setValue(currentValue, true);
+                    }
                     return;
                 }
 
@@ -1012,13 +1065,78 @@
                 }
             };
 
-            const filterZones = () => {
+            const loadRemoteOptions = async (select, params, selectedOptionValue = '') => {
+                if (!select?.dataset?.remoteUrl) {
+                    return false;
+                }
+
+                const url = new URL(select.dataset.remoteUrl, window.location.origin);
+                Object.entries(params).forEach(([key, value]) => {
+                    if (value !== null && value !== undefined && value !== '') {
+                        url.searchParams.set(key, value);
+                    }
+                });
+
+                if (selectedOptionValue) {
+                    url.searchParams.set('selected_id', selectedOptionValue);
+                }
+
+                setSelectDisabled(select, true);
+
+                try {
+                    const response = await fetch(url.toString(), {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to load options');
+                    }
+
+                    const payload = await response.json();
+                    const options = Array.isArray(payload.options) ? payload.options : [];
+                    const normalized = [
+                        blankOption(select),
+                        ...options.map((option) => ({
+                            value: option.value,
+                            label: option.label,
+                            regionId: option.region_id ?? option.regionId ?? '',
+                            zoneId: option.zone_id ?? option.zoneId ?? '',
+                            woredaId: option.woreda_id ?? option.woredaId ?? '',
+                        })),
+                    ];
+                    const isSelectedAvailable = normalized.some((option) => String(option.value) === String(selectedOptionValue));
+
+                    rebuildOptions(select, normalized, isSelectedAvailable ? selectedOptionValue : '');
+                } catch (error) {
+                    rebuildOptions(select, [blankOption(select)], '');
+                }
+
+                return true;
+            };
+
+            const filterZones = async (targetZoneId = null) => {
                 if (!zoneSelect) {
                     return;
                 }
 
                 const regionId = selectedValue(regionSelect);
-                const current = selectedValue(zoneSelect);
+                const current = targetZoneId === null ? selectedValue(zoneSelect) : String(targetZoneId);
+
+                if (strictParticipantHierarchy && zoneSelect.dataset.remoteUrl) {
+                    if (!regionId) {
+                        rebuildOptions(zoneSelect, [blankOption(zoneSelect)], '');
+                        setSelectDisabled(zoneSelect, true);
+                        return;
+                    }
+
+                    await loadRemoteOptions(zoneSelect, { region_id: regionId }, current);
+                    setSelectDisabled(zoneSelect, false);
+                    return;
+                }
+
                 const filtered = originalZoneOptions.filter((option) => {
                     if (option.value === '') {
                         return true;
@@ -1037,14 +1155,26 @@
                 setSelectDisabled(zoneSelect, strictParticipantHierarchy && !selectedValue(regionSelect));
             };
 
-            const filterWoredas = () => {
+            const filterWoredas = async (targetWoredaId = null) => {
                 if (!woredaSelect) {
                     return;
                 }
 
                 const zoneId = selectedValue(zoneSelect);
                 const regionId = selectedValue(regionSelect);
-                const current = selectedValue(woredaSelect);
+                const current = targetWoredaId === null ? selectedValue(woredaSelect) : String(targetWoredaId);
+
+                if (strictParticipantHierarchy && woredaSelect.dataset.remoteUrl) {
+                    if (!zoneId) {
+                        rebuildOptions(woredaSelect, [blankOption(woredaSelect)], '');
+                        setSelectDisabled(woredaSelect, true);
+                        return;
+                    }
+
+                    await loadRemoteOptions(woredaSelect, { region_id: regionId, zone_id: zoneId }, current);
+                    setSelectDisabled(woredaSelect, false);
+                    return;
+                }
 
                 const filtered = originalWoredaOptions.filter((option) => {
                     if (option.value === '') {
@@ -1074,68 +1204,92 @@
             let organizationDrivenSync = false;
 
             if (regionSelect) {
-                regionSelect.addEventListener('change', () => {
-                    filterZones();
-                    filterWoredas();
+                regionSelect.addEventListener('change', async () => {
+                    await filterZones();
+                    await filterWoredas();
                     resetOrganizationSelect(organizationDrivenSync);
                 });
             }
 
             if (zoneSelect) {
-                zoneSelect.addEventListener('change', () => {
+                zoneSelect.addEventListener('change', async () => {
                     const selected = zoneSelect.options[zoneSelect.selectedIndex];
                     const regionId = selected?.dataset?.regionId || '';
                     if (regionSelect && regionId) {
-                        regionSelect.value = regionId;
+                        setSelectValue(regionSelect, regionId);
                     }
-                    filterWoredas();
+                    await filterWoredas();
                     resetOrganizationSelect(organizationDrivenSync);
                 });
             }
 
             if (woredaSelect) {
-                woredaSelect.addEventListener('change', () => {
+                woredaSelect.addEventListener('change', async () => {
                     const selected = woredaSelect.options[woredaSelect.selectedIndex];
                     const zoneId = selected?.dataset?.zoneId || '';
                     const regionId = selected?.dataset?.regionId || '';
                     if (zoneSelect && zoneId) {
-                        zoneSelect.value = zoneId;
+                        setSelectValue(zoneSelect, zoneId);
                     }
                     if (regionSelect && regionId) {
-                        regionSelect.value = regionId;
+                        setSelectValue(regionSelect, regionId);
                     }
-                    filterZones();
-                    filterWoredas();
+                    await filterZones(zoneId || null);
+                    await filterWoredas(selectedValue(woredaSelect) || null);
                     resetOrganizationSelect(organizationDrivenSync);
                 });
             }
 
             if (organizationSelect) {
-                organizationSelect.addEventListener('change', () => {
+                organizationSelect.addEventListener('change', async () => {
+                    if (strictParticipantHierarchy && !selectedValue(organizationSelect)) {
+                        organizationDrivenSync = true;
+
+                        if (regionSelect) {
+                            setSelectValue(regionSelect, '');
+                        }
+                        if (zoneSelect) {
+                            setSelectValue(zoneSelect, '');
+                        }
+                        if (woredaSelect) {
+                            setSelectValue(woredaSelect, '');
+                        }
+
+                        await filterZones();
+                        await filterWoredas();
+                        resetOrganizationSelect(true);
+                        organizationDrivenSync = false;
+                        return;
+                    }
+
                     const { regionId, zoneId, woredaId } = selectedMeta(organizationSelect);
 
                     organizationDrivenSync = true;
 
                     if (regionSelect && regionId) {
-                        regionSelect.value = regionId;
-                    }
-                    if (zoneSelect && zoneId) {
-                        zoneSelect.value = zoneId;
-                    }
-                    if (woredaSelect && woredaId) {
-                        woredaSelect.value = woredaId;
+                        setSelectValue(regionSelect, regionId);
                     }
 
-                    filterZones();
-                    filterWoredas();
+                    await filterZones(zoneId || null);
+                    if (zoneSelect && zoneId && optionExists(zoneSelect, zoneId)) {
+                        setSelectValue(zoneSelect, zoneId);
+                    }
+
+                    await filterWoredas(woredaId || null);
+                    if (woredaSelect && woredaId && optionExists(woredaSelect, woredaId)) {
+                        setSelectValue(woredaSelect, woredaId);
+                    }
+
                     resetOrganizationSelect(true);
                     organizationDrivenSync = false;
                 });
             }
 
-            filterZones();
-            filterWoredas();
-            resetOrganizationSelect(true);
+            void (async () => {
+                await filterZones(selectedValue(zoneSelect) || null);
+                await filterWoredas(selectedValue(woredaSelect) || null);
+                resetOrganizationSelect(true);
+            })();
         })();
     </script>
     @endif

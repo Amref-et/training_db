@@ -39,15 +39,101 @@ class ParticipantFormHierarchyTest extends TestCase
             ->actingAs($this->adminUser())
             ->get(route('admin.participants.create'));
 
+        $html = $response->getContent();
+
         $response
             ->assertOk()
             ->assertSee('const strictParticipantHierarchy = true;', false)
             ->assertSee('strictParticipantHierarchy && !regionId', false)
             ->assertSee('strictParticipantHierarchy && !zoneId', false)
-            ->assertSee('requireWoredaForOrganizations = strictParticipantHierarchy', false)
-            ->assertSee('data-region-id="'.$region->id.'"', false)
-            ->assertSee('data-zone-id="'.$zone->id.'"', false)
-            ->assertSee(route('admin.participants.organization-options'), false);
+            ->assertSee('Selecting an organization fills Region, Zone, and Woreda when available.', false)
+            ->assertSee('setSelectValue(regionSelect, regionId);', false)
+            ->assertSee('await filterZones(zoneId || null);', false)
+            ->assertSee('await filterWoredas(woredaId || null);', false)
+            ->assertSee(route('admin.participants.organization-options'), false)
+            ->assertSee(route('admin.participants.zone-options'), false)
+            ->assertSee(route('admin.participants.woreda-options'), false);
+
+        $this->assertLessThan(
+            strpos($html, 'id="select-region-id"'),
+            strpos($html, 'id="select-organization-id"')
+        );
+        $this->assertStringNotContainsString('requireWoredaForOrganizations = strictParticipantHierarchy', $html);
+        $this->assertStringNotContainsString('Kolfe</option>', $html);
+        $this->assertStringNotContainsString('Woreda 1</option>', $html);
+        $this->assertStringNotContainsString('organizationSelect.tomselect.load', $html);
+    }
+
+    public function test_participant_zone_options_filter_to_selected_region(): void
+    {
+        $selectedRegion = Region::query()->create(['name' => 'Addis Ababa']);
+        $otherRegion = Region::query()->create(['name' => 'Oromia']);
+        $includedZone = Zone::query()->create([
+            'region_id' => $selectedRegion->id,
+            'name' => 'Kolfe',
+        ]);
+        $excludedZone = Zone::query()->create([
+            'region_id' => $otherRegion->id,
+            'name' => 'Adama',
+        ]);
+
+        $response = $this
+            ->actingAs($this->adminUser())
+            ->getJson(route('admin.participants.zone-options', [
+                'region_id' => $selectedRegion->id,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonFragment([
+                'value' => $includedZone->id,
+                'label' => $includedZone->name,
+            ])
+            ->assertJsonMissing([
+                'value' => $excludedZone->id,
+                'label' => $excludedZone->name,
+            ]);
+    }
+
+    public function test_participant_woreda_options_filter_to_selected_zone(): void
+    {
+        $region = Region::query()->create(['name' => 'Addis Ababa']);
+        $selectedZone = Zone::query()->create([
+            'region_id' => $region->id,
+            'name' => 'Kolfe',
+        ]);
+        $otherZone = Zone::query()->create([
+            'region_id' => $region->id,
+            'name' => 'Bole',
+        ]);
+        $includedWoreda = Woreda::query()->create([
+            'region_id' => $region->id,
+            'zone_id' => $selectedZone->id,
+            'name' => 'Woreda 1',
+        ]);
+        $excludedWoreda = Woreda::query()->create([
+            'region_id' => $region->id,
+            'zone_id' => $otherZone->id,
+            'name' => 'Woreda 2',
+        ]);
+
+        $response = $this
+            ->actingAs($this->adminUser())
+            ->getJson(route('admin.participants.woreda-options', [
+                'region_id' => $region->id,
+                'zone_id' => $selectedZone->id,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonFragment([
+                'value' => $includedWoreda->id,
+                'label' => $includedWoreda->name,
+            ])
+            ->assertJsonMissing([
+                'value' => $excludedWoreda->id,
+                'label' => $excludedWoreda->name,
+            ]);
     }
 
     public function test_participant_organization_options_filter_to_selected_woreda(): void

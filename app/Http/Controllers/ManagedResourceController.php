@@ -360,6 +360,123 @@ class ManagedResourceController extends Controller
         ]);
     }
 
+    public function participantZoneOptions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless(
+            $user && (
+                $user->hasPermission('participants.view')
+                || $user->hasPermission('participants.create')
+                || $user->hasPermission('participants.update')
+            ),
+            403
+        );
+
+        $queryTerm = trim($request->string('q')->toString());
+        $selectedId = $this->nullableInt($request->input('selected_id'));
+        $regionId = $this->nullableInt($request->input('region_id'));
+
+        if ($regionId === null && $selectedId === null) {
+            return response()->json(['options' => []]);
+        }
+
+        $query = Zone::query()->select(['id', 'name', 'region_id']);
+
+        if ($regionId !== null) {
+            $query->where('region_id', $regionId);
+        }
+
+        if ($queryTerm !== '') {
+            $query->where('name', 'like', '%'.$queryTerm.'%');
+        }
+
+        $options = $query
+            ->orderBy('name')
+            ->limit(50)
+            ->get();
+
+        if ($selectedId !== null && ! $options->contains('id', $selectedId)) {
+            $selected = Zone::query()
+                ->select(['id', 'name', 'region_id'])
+                ->find($selectedId);
+
+            if ($selected && ($regionId === null || (int) $selected->region_id === $regionId)) {
+                $options->prepend($selected);
+            }
+        }
+
+        return response()->json([
+            'options' => $options
+                ->unique('id')
+                ->values()
+                ->map(fn (Zone $zone) => $this->formatSelectOption($zone, 'name', 'id'))
+                ->all(),
+        ]);
+    }
+
+    public function participantWoredaOptions(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless(
+            $user && (
+                $user->hasPermission('participants.view')
+                || $user->hasPermission('participants.create')
+                || $user->hasPermission('participants.update')
+            ),
+            403
+        );
+
+        $queryTerm = trim($request->string('q')->toString());
+        $selectedId = $this->nullableInt($request->input('selected_id'));
+        $regionId = $this->nullableInt($request->input('region_id'));
+        $zoneId = $this->nullableInt($request->input('zone_id'));
+
+        if ($zoneId === null && $selectedId === null) {
+            return response()->json(['options' => []]);
+        }
+
+        $query = Woreda::query()->select(['id', 'name', 'region_id', 'zone_id']);
+
+        if ($regionId !== null) {
+            $query->where('region_id', $regionId);
+        }
+
+        if ($zoneId !== null) {
+            $query->where('zone_id', $zoneId);
+        }
+
+        if ($queryTerm !== '') {
+            $query->where('name', 'like', '%'.$queryTerm.'%');
+        }
+
+        $options = $query
+            ->orderBy('name')
+            ->limit(50)
+            ->get();
+
+        if ($selectedId !== null && ! $options->contains('id', $selectedId)) {
+            $selected = Woreda::query()
+                ->select(['id', 'name', 'region_id', 'zone_id'])
+                ->find($selectedId);
+
+            if (
+                $selected
+                && ($regionId === null || (int) $selected->region_id === $regionId)
+                && ($zoneId === null || (int) $selected->zone_id === $zoneId)
+            ) {
+                $options->prepend($selected);
+            }
+        }
+
+        return response()->json([
+            'options' => $options
+                ->unique('id')
+                ->values()
+                ->map(fn (Woreda $woreda) => $this->formatSelectOption($woreda, 'name', 'id'))
+                ->all(),
+        ]);
+    }
+
     public function participantSearchOptions(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -1847,7 +1964,7 @@ class ManagedResourceController extends Controller
     {
         return collect($config['fields'])
             ->filter(fn (array $field) => in_array(($field['type'] ?? null), ['select', 'multiselect'], true))
-            ->mapWithKeys(function (array $field) use ($record) {
+            ->mapWithKeys(function (array $field) use ($config, $record) {
                 if (isset($field['choices'])) {
                     return [$field['name'] => collect($field['choices'])->map(function ($choice) {
                         return is_array($choice)
@@ -1875,7 +1992,24 @@ class ManagedResourceController extends Controller
                     $query->with($optionConfig['with']);
                 }
 
-                if (($field['name'] ?? null) === 'organization_id') {
+                $fieldName = $field['name'] ?? null;
+
+                if ($fieldName === 'organization_id') {
+                    $selectedValue = old($field['name']);
+                    if ($selectedValue === null && $record) {
+                        $selectedValue = data_get($record, $field['name']);
+                    }
+
+                    if ($selectedValue === null || $selectedValue === '') {
+                        return [$field['name'] => []];
+                    }
+
+                    $selected = $query->whereKey($selectedValue)->first();
+
+                    return [$field['name'] => $selected ? [$this->formatSelectOption($selected, $label, $value, $optionConfig)] : []];
+                }
+
+                if (($config['path'] ?? null) === 'participants' && in_array($fieldName, ['zone_id', 'woreda_id'], true)) {
                     $selectedValue = old($field['name']);
                     if ($selectedValue === null && $record) {
                         $selectedValue = data_get($record, $field['name']);

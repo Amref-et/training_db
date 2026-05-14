@@ -221,6 +221,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
     Route::get('participants/organization-options', [ManagedResourceController::class, 'participantOrganizationOptions'])
         ->name('participants.organization-options');
 
+    Route::get('participants/zone-options', [ManagedResourceController::class, 'participantZoneOptions'])
+        ->name('participants.zone-options');
+
+    Route::get('participants/woreda-options', [ManagedResourceController::class, 'participantWoredaOptions'])
+        ->name('participants.woreda-options');
+
     Route::get('participants/search-options', [ManagedResourceController::class, 'participantSearchOptions'])
         ->name('participants.search-options');
 
@@ -272,4 +278,3 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
             ->name($config['path'].'.destroy');
     }
 });
-

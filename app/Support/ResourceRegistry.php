@@ -210,10 +210,10 @@ class ResourceRegistry
                     ['name' => 'grandfather_name', 'label' => "Grandfather's Name", 'type' => 'text', 'required' => true],
                     ['name' => 'date_of_birth', 'label' => 'Date of Birth', 'type' => 'date'],
                     ['name' => 'age', 'label' => 'Age', 'type' => 'number'],
+                    ['name' => 'organization_id', 'label' => 'Organization', 'type' => 'select', 'required' => true, 'options' => ['model' => Organization::class, 'value' => 'id', 'label' => 'name', 'with' => ['region'], 'format_label' => 'organization_with_region']],
                     ['name' => 'region_id', 'label' => 'Region', 'type' => 'select', 'required' => true, 'options' => ['model' => Region::class, 'value' => 'id', 'label' => 'name']],
                     ['name' => 'zone_id', 'label' => 'Zone', 'type' => 'select', 'required' => true, 'options' => ['model' => Zone::class, 'value' => 'id', 'label' => 'name']],
                     ['name' => 'woreda_id', 'label' => 'Woreda', 'type' => 'select', 'required' => true, 'options' => ['model' => Woreda::class, 'value' => 'id', 'label' => 'name']],
-                    ['name' => 'organization_id', 'label' => 'Organization', 'type' => 'select', 'required' => true, 'options' => ['model' => Organization::class, 'value' => 'id', 'label' => 'name', 'with' => ['region'], 'format_label' => 'organization_with_region']],
                     ['name' => 'gender', 'label' => 'Gender', 'type' => 'select', 'required' => true, 'choices' => ['male', 'female']],
                     ['name' => 'home_phone', 'label' => 'Home Phone', 'type' => 'tel'],
                     ['name' => 'mobile_phone', 'label' => 'Mobile Phone', 'type' => 'tel', 'required' => true],
@@ -565,4 +565,3 @@ class ResourceRegistry
         return $resources[$resource];
     }
 }
-
