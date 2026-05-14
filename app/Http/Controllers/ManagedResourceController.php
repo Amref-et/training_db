@@ -7,6 +7,7 @@ use App\Models\Participant;
 use App\Models\Profession;
 use App\Models\Region;
 use App\Models\TrainingEventParticipant;
+use App\Models\TrainingEventWorkshopScore;
 use App\Models\TrainingOrganizer;
 use App\Models\Woreda;
 use App\Models\Zone;
@@ -1682,25 +1683,25 @@ class ManagedResourceController extends Controller
     public function exportParticipantTrainingParticipation(): StreamedResponse
     {
         $fileName = 'participant-training-participation-export-'.now()->format('Ymd-His').'.csv';
+        $workshopColumnCount = $this->participantTrainingParticipationWorkshopColumnCount();
         $this->audit()->logCustom('Participant training participation exported', 'participants.training_participation.export', [
             'auditable_type' => TrainingEventParticipant::class,
             'metadata' => [
                 'file_name' => $fileName,
+                'workshop_columns' => $workshopColumnCount,
             ],
         ]);
 
-        return response()->streamDownload(function () {
+        return response()->streamDownload(function () use ($workshopColumnCount) {
             $handle = fopen('php://output', 'w');
 
             if ($handle === false) {
                 return;
             }
 
-            // Write BOM for UTF-8
             fwrite($handle, "\xEF\xBB\xBF");
 
-            // CSV headers
-            fputcsv($handle, [
+            $headers = [
                 'participant_id',
                 'participant_code',
                 'first_name',
@@ -1710,6 +1711,7 @@ class ManagedResourceController extends Controller
                 'gender',
                 'date_of_birth',
                 'age',
+                'home_phone',
                 'mobile_phone',
                 'email',
                 'profession',
@@ -1717,57 +1719,67 @@ class ManagedResourceController extends Controller
                 'participant_zone',
                 'participant_woreda',
                 'organization_name',
+                'organization_category',
+                'organization_type',
                 'organization_region',
+                'organization_zone',
+                'organization_woreda',
                 'training_event_id',
                 'event_name',
                 'training_title',
                 'training_category',
+                'training_modality',
+                'training_type',
                 'event_start_date',
                 'event_end_date',
                 'event_status',
+                'event_region',
                 'event_city',
                 'event_venue',
+                'event_organizer_type',
+                'project_subawardee',
                 'organizer_name',
+                'organizer_project_code',
+                'organizer_project_name',
+                'organizer_project_long_name',
+                'organizer_donor',
+                'organizer_program',
+                'participation_status',
+                'is_trainer',
+                'trainer_name',
+                'trainer_comments',
                 'final_score',
                 'mid_test_score',
                 'avg_pre_score',
                 'avg_post_score',
                 'workshop_count',
                 'completed_workshops',
-                'workshop_1_pre',
-                'workshop_1_mid',
-                'workshop_1_post',
-                'workshop_2_pre',
-                'workshop_2_mid',
-                'workshop_2_post',
-                'workshop_3_pre',
-                'workshop_3_mid',
-                'workshop_3_post',
-                'workshop_4_pre',
-                'workshop_4_mid',
-                'workshop_4_post',
-                'workshop_5_pre',
-                'workshop_5_mid',
-                'workshop_5_post',
-                'workshop_6_pre',
-                'workshop_6_mid',
-                'workshop_6_post',
-            ]);
+            ];
 
-            // Query all training event participants with related data
+            foreach (range(1, $workshopColumnCount) as $workshopNumber) {
+                $headers[] = 'workshop_'.$workshopNumber.'_pre';
+                $headers[] = 'workshop_'.$workshopNumber.'_mid';
+                $headers[] = 'workshop_'.$workshopNumber.'_post';
+            }
+
+            fputcsv($handle, $headers);
+
             TrainingEventParticipant::query()
                 ->with([
                     'participant.region',
                     'participant.zone',
                     'participant.woreda',
                     'participant.organization.region',
+                    'participant.organization.woreda',
                     'trainingEvent.training.trainingCategory',
                     'trainingEvent.trainingOrganizer',
+                    'trainingEvent.trainingRegion',
+                    'trainingEvent.projectSubawardee',
                     'workshopScores' => fn ($query) => $query->orderBy('workshop_number'),
                 ])
                 ->orderBy('participant_id')
                 ->orderBy('training_event_id')
-                ->chunkById(200, function ($enrollments) use ($handle) {
+                ->chunkById(200, function ($enrollments) use ($handle, $workshopColumnCount) {
                     foreach ($enrollments as $enrollment) {
                         $participant = $enrollment->participant;
                         $trainingEvent = $enrollment->trainingEvent;
@@ -1775,16 +1787,17 @@ class ManagedResourceController extends Controller
                         $training = $trainingEvent?->training;
                         $trainingCategory = $training?->trainingCategory;
                         $organizer = $trainingEvent?->trainingOrganizer;
+                        $eventWorkshopCount = max(1, (int) ($trainingEvent?->workshop_count ?? 4));
 
-                        // Calculate workshop statistics
                         $workshopScores = $enrollment->workshopScores->keyBy('workshop_number');
-                        $completedWorkshops = $enrollment->workshopScores->whereNotNull('post_test_score')->count();
-                        $avgPreScore = $enrollment->workshopScores->whereNotNull('pre_test_score')->avg('pre_test_score');
-                        $avgPostScore = $enrollment->workshopScores->whereNotNull('post_test_score')->avg('post_test_score');
+                        $configuredWorkshopScores = $enrollment->workshopScores
+                            ->filter(fn (TrainingEventWorkshopScore $score) => (int) $score->workshop_number <= $eventWorkshopCount);
+                        $completedWorkshops = $configuredWorkshopScores->whereNotNull('post_test_score')->count();
+                        $avgPreScore = $configuredWorkshopScores->whereNotNull('pre_test_score')->avg('pre_test_score');
+                        $avgPostScore = $configuredWorkshopScores->whereNotNull('post_test_score')->avg('post_test_score');
 
-                        // Build workshop score columns (up to 6 workshops)
                         $workshopColumns = [];
-                        for ($i = 1; $i <= 6; $i++) {
+                        for ($i = 1; $i <= $workshopColumnCount; $i++) {
                             $score = $workshopScores->get($i);
                             $workshopColumns[] = $score?->pre_test_score;
                             $workshopColumns[] = $score?->mid_test_score;
@@ -1799,8 +1812,9 @@ class ManagedResourceController extends Controller
                             (string) ($participant?->grandfather_name ?? ''),
                             (string) ($participant?->name ?? ''),
                             (string) ($participant?->gender ?? ''),
-                            $participant?->date_of_birth?->toDateString() ?? '',
+                            $this->formatCsvDate($participant?->date_of_birth),
                             $participant?->age,
+                            (string) ($participant?->home_phone ?? ''),
                             (string) ($participant?->mobile_phone ?? ''),
                             (string) ($participant?->email ?? ''),
                             (string) ($participant?->profession ?? ''),
@@ -1808,22 +1822,40 @@ class ManagedResourceController extends Controller
                             (string) ($participant?->zone?->name ?? ''),
                             (string) ($participant?->woreda?->name ?? ''),
                             (string) ($organization?->name ?? ''),
+                            (string) ($organization?->category ?? ''),
+                            (string) ($organization?->type ?? ''),
                             (string) ($organization?->region?->name ?? ''),
+                            (string) ($organization?->zone ?? ''),
+                            (string) ($organization?->woreda?->name ?? ''),
                             $trainingEvent?->id,
                             (string) ($trainingEvent?->event_name ?? ''),
                             (string) ($training?->title ?? ''),
                             (string) ($trainingCategory?->name ?? ''),
-                            $trainingEvent?->start_date?->toDateString() ?? '',
-                            $trainingEvent?->end_date?->toDateString() ?? '',
+                            (string) ($training?->modality ?? ''),
+                            (string) ($training?->type ?? ''),
+                            $this->formatCsvDate($trainingEvent?->start_date),
+                            $this->formatCsvDate($trainingEvent?->end_date),
                             (string) ($trainingEvent?->status ?? ''),
+                            (string) ($trainingEvent?->trainingRegion?->name ?? ''),
                             (string) ($trainingEvent?->training_city ?? ''),
                             (string) ($trainingEvent?->course_venue ?? ''),
+                            (string) ($trainingEvent?->organizer_type ?? ''),
+                            (string) ($trainingEvent?->projectSubawardee?->subawardee_name ?? ''),
                             (string) ($organizer?->title ?? ''),
+                            (string) ($organizer?->project_code ?? ''),
+                            (string) ($organizer?->project_name ?? ''),
+                            (string) ($organizer?->project_long_name ?? ''),
+                            (string) ($organizer?->donor ?? ''),
+                            (string) ($organizer?->program ?? ''),
+                            (string) ($enrollment->activity_completion_status ?? ''),
+                            $enrollment->is_trainer ? 'yes' : 'no',
+                            (string) ($enrollment->trainer_name ?? ''),
+                            (string) ($enrollment->trainer_comments ?? ''),
                             $enrollment->final_score !== null ? round((float) $enrollment->final_score, 2) : null,
                             $enrollment->mid_test_score !== null ? round((float) $enrollment->mid_test_score, 2) : null,
                             $avgPreScore !== null ? round((float) $avgPreScore, 2) : null,
                             $avgPostScore !== null ? round((float) $avgPostScore, 2) : null,
-                            $trainingEvent?->workshop_count ?? 4,
+                            $eventWorkshopCount,
                             $completedWorkshops,
                             ...$workshopColumns,
                         ]);
@@ -1834,6 +1866,36 @@ class ManagedResourceController extends Controller
         }, $fileName, [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    private function participantTrainingParticipationWorkshopColumnCount(): int
+    {
+        $configuredMax = (int) TrainingEventParticipant::query()
+            ->join('training_events', 'training_events.id', '=', 'training_event_participants.training_event_id')
+            ->max('training_events.workshop_count');
+
+        $scoredMax = (int) TrainingEventWorkshopScore::query()
+            ->whereHas('trainingEventParticipant')
+            ->max('workshop_number');
+
+        return max(4, $configuredMax, $scoredMax);
+    }
+
+    private function formatCsvDate(mixed $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value)->toDateString();
+        }
+
+        try {
+            return Carbon::parse((string) $value)->toDateString();
+        } catch (\Throwable) {
+            return (string) $value;
+        }
     }
 
     public function importParticipants(Request $request): RedirectResponse
