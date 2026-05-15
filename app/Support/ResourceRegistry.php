@@ -121,7 +121,7 @@ class ResourceRegistry
             ],
             'zones' => [
                 'path' => 'zones', 'permission' => 'zones', 'label' => 'Zones', 'singular' => 'Zone', 'model' => Zone::class,
-                'title_column' => 'name', 'eager' => ['region'], 'search' => ['name', 'description'],
+                'title_column' => 'name', 'eager' => ['region'], 'search' => ['external_id', 'name', 'description'],
                 'columns' => [
                     ['label' => 'Zone ID', 'value' => 'import_id'],
                     ['label' => 'Region ID', 'value' => 'region.import_id'],
@@ -132,12 +132,14 @@ class ResourceRegistry
                 ],
                 'fields' => [
                     ['name' => 'region_id', 'label' => 'Region', 'type' => 'select', 'required' => true, 'options' => ['model' => Region::class, 'value' => 'id', 'label' => 'name']],
+                    ['name' => 'external_id', 'label' => 'Zone ID', 'type' => 'text', 'required' => true],
                     ['name' => 'name', 'label' => 'Zone Name', 'type' => 'text', 'required' => true],
                     ['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
                 ],
                 'rules' => [
                     'region_id' => 'required|exists:regions,id',
-                    'name' => 'required|string|max:255|unique:zones,name,{{id}},id',
+                    'external_id' => 'required|string|max:255|unique:zones,external_id,{{id}},id',
+                    'name' => 'required|string|max:255',
                     'description' => 'nullable|string',
                 ],
                 'order_by' => 'name',
