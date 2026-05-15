@@ -192,16 +192,21 @@
                         <div>
                             <h2 class="h6 mb-1">{{ $widget->title }}</h2>
                         </div>
-                        @if($isEditing && $canManageActiveTab)
-                            <div class="d-flex align-items-center gap-1">
+                        <div class="d-flex align-items-center gap-1">
+                            @if(($payload['type'] ?? '') === 'table')
+                                <button class="btn btn-sm btn-outline-secondary export-csv-btn" type="button" data-widget-export="{{ $widget->id }}" title="Export to CSV">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                            @endif
+                            @if($isEditing && $canManageActiveTab)
                                 <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#widget-settings-{{ $widget->id }}" aria-expanded="false" aria-controls="widget-settings-{{ $widget->id }}">
                                     <i class="bi bi-gear"></i>
                                 </button>
                                 <span class="btn btn-sm btn-outline-secondary widget-drag-handle" title="Drag to reorder">
                                     <i class="bi bi-arrows-move"></i>
                                 </span>
-                            </div>
-                        @endif
+                            @endif
+                        </div>
                     </div>
 
                     @if($isEditing && $canManageActiveTab)
@@ -730,6 +735,50 @@ function buildChartDatasets(widgetType, datasets, scheme) {
     });
 }
 
+function escapeCsvValue(value) {
+    const stringValue = value === null || value === undefined ? '' : String(value);
+    const needsQuotes = /[",\n\r,]/.test(stringValue);
+    const escaped = stringValue.replace(/"/g, '""');
+    return needsQuotes ? `"${escaped}"` : escaped;
+}
+
+function widgetTablePayloadToCsv(payload) {
+    const columns = Array.isArray(payload.columns) ? payload.columns : [];
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    const header = columns.map(escapeCsvValue).join(',');
+    const lines = [header];
+
+    rows.forEach((row) => {
+        const rowLine = columns.map((column) => escapeCsvValue(row[column] ?? '')).join(',');
+        lines.push(rowLine);
+    });
+
+    return lines.join('\r\n');
+}
+
+function downloadCsv(filename, content) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function exportTableWidgetCsv(widgetId) {
+    const payload = widgetPayloads[widgetId];
+    if (!payload || payload.type !== 'table') {
+        return;
+    }
+
+    const filename = `dashboard-widget-${widgetId}.csv`;
+    const csv = widgetTablePayloadToCsv(payload);
+    downloadCsv(filename, csv);
+}
+
 function renderWidgetChart(widgetId, widgetElement, payload) {
     const chartType = widgetElement.dataset.widgetChartType;
     const scheme = widgetElement.dataset.widgetColor;
@@ -918,10 +967,24 @@ function initializeWidgetForms() {
     });
 }
 
+function initializeWidgetCsvExports() {
+    document.querySelectorAll('.export-csv-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            const widgetId = button.dataset.widgetExport;
+            if (!widgetId) {
+                return;
+            }
+
+            exportTableWidgetCsv(widgetId);
+        });
+    });
+}
+
 initializeDashboardAsyncFilters();
 initializeCharts();
 initializeRefreshIntervals();
 initializeDragDrop();
 initializeWidgetForms();
+initializeWidgetCsvExports();
 </script>
 @endsection

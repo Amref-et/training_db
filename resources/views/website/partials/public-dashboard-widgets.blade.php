@@ -114,10 +114,13 @@
                         <div>
                             <h3 class="h6 mb-1">{{ $widget->title }}</h3>
                         </div>
-                    </div>
-
-                    @if(($payload['type'] ?? '') === 'error')
-                        <div class="alert alert-danger mb-0">{{ $payload['message'] ?? 'Unable to render widget.' }}</div>
+            @if(($payload['type'] ?? '') === 'table')
+                <div class="d-flex align-items-center gap-1">
+                    <button class="btn btn-sm btn-outline-secondary export-csv-btn" type="button" data-widget-export="{{ $widget->id }}" title="Export to CSV">
+                        <i class="bi bi-download"></i>
+                    </button>
+                </div>
+            @endif
                     @elseif(($payload['type'] ?? '') === 'stat')
                         <div class="metric-card p-4 d-flex flex-column justify-content-center" style="height: {{ (int) $widget->height_px }}px;">
                             <div class="widget-subtle text-uppercase small mb-2">{{ $payload['label'] ?? 'Metric' }}</div>

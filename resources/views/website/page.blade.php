@@ -1039,6 +1039,55 @@
                 const payloads = chartConfig?.payloads || {};
                 const blockId = chartConfig?.block_id || 'dashboard';
 
+                const escapeCsvValue = (value) => {
+                    const stringValue = value === null || value === undefined ? '' : String(value);
+                    const needsQuotes = /[",\n\r,]/.test(stringValue);
+                    const escaped = stringValue.replace(/"/g, '""');
+                    return needsQuotes ? `"${escaped}"` : escaped;
+                };
+
+                const widgetTablePayloadToCsv = (payload) => {
+                    const columns = Array.isArray(payload.columns) ? payload.columns : [];
+                    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+                    const lines = [columns.map(escapeCsvValue).join(',')];
+
+                    rows.forEach((row) => {
+                        const rowLine = columns.map((column) => escapeCsvValue(row[column] ?? '')).join(',');
+                        lines.push(rowLine);
+                    });
+
+                    return lines.join('\r\n');
+                };
+
+                const downloadCsv = (filename, content) => {
+                    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = filename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                };
+
+                const initializePublicTableExports = () => {
+                    document.querySelectorAll('.export-csv-btn').forEach((button) => {
+                        button.addEventListener('click', () => {
+                            const widgetId = button.dataset.widgetExport;
+                            const payload = payloads[widgetId];
+                            if (!payload || payload.type !== 'table') {
+                                return;
+                            }
+
+                            const csv = widgetTablePayloadToCsv(payload);
+                            downloadCsv(`dashboard-widget-${widgetId}.csv`, csv);
+                        });
+                    });
+                };
+
+                initializePublicTableExports();
+
                 Object.entries(payloads).forEach(([widgetId, payload]) => {
                     if (!payload || payload.type !== 'chart') {
                         return;
