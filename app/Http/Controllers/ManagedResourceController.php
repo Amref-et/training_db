@@ -503,15 +503,18 @@ class ManagedResourceController extends Controller
         }
 
         $participants = Participant::query()
-            ->select(['id', 'name', 'first_name', 'father_name', 'grandfather_name', 'mobile_phone'])
+            ->select(['id', 'participant_code', 'name', 'first_name', 'father_name', 'grandfather_name', 'home_phone', 'mobile_phone'])
             ->where(function ($query) use ($search): void {
                 $like = '%'.$search.'%';
 
                 $query
-                    ->where('name', 'like', $like)
+                    ->where('participant_code', 'like', $like)
+                    ->orWhere('name', 'like', $like)
                     ->orWhere('first_name', 'like', $like)
                     ->orWhere('father_name', 'like', $like)
-                    ->orWhere('grandfather_name', 'like', $like);
+                    ->orWhere('grandfather_name', 'like', $like)
+                    ->orWhere('mobile_phone', 'like', $like)
+                    ->orWhere('home_phone', 'like', $like);
             })
             ->orderBy('name')
             ->limit(20)
@@ -522,7 +525,8 @@ class ManagedResourceController extends Controller
                 ->map(fn (Participant $participant): array => [
                     'value' => $participant->id,
                     'label' => $this->participantDisplayLabel($participant),
-                    'hint' => $this->phoneHint($participant->mobile_phone),
+                    'hint' => $this->participantSearchHint($participant),
+                    'participant_code' => (string) $participant->participant_code,
                     'mobile_phone' => (string) $participant->mobile_phone,
                 ])
                 ->values()
@@ -545,6 +549,16 @@ class ManagedResourceController extends Controller
         ]);
 
         return trim(implode(' ', $nameParts)) ?: 'Participant #'.$participant->id;
+    }
+
+    private function participantSearchHint(Participant $participant): string
+    {
+        $parts = array_values(array_filter([
+            $participant->participant_code ? 'ID '.$participant->participant_code : null,
+            $this->phoneHint($participant->mobile_phone),
+        ]));
+
+        return implode(' | ', $parts);
     }
 
     private function phoneHint(mixed $value): string

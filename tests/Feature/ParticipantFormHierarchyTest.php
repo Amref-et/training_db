@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Organization;
+use App\Models\Participant;
 use App\Models\Region;
 use App\Models\User;
 use App\Models\Woreda;
@@ -52,7 +53,9 @@ class ParticipantFormHierarchyTest extends TestCase
             ->assertSee('await filterWoredas(woredaId || null);', false)
             ->assertSee(route('admin.participants.organization-options'), false)
             ->assertSee(route('admin.participants.zone-options'), false)
-            ->assertSee(route('admin.participants.woreda-options'), false);
+            ->assertSee(route('admin.participants.woreda-options'), false)
+            ->assertSee(route('admin.participants.search-options'), false)
+            ->assertSee(route('admin.participants.edit', ['record' => '__PARTICIPANT_ID__']), false);
 
         $this->assertLessThan(
             strpos($html, 'id="select-region-id"'),
@@ -62,6 +65,63 @@ class ParticipantFormHierarchyTest extends TestCase
         $this->assertStringNotContainsString('Kolfe</option>', $html);
         $this->assertStringNotContainsString('Woreda 1</option>', $html);
         $this->assertStringNotContainsString('organizationSelect.tomselect.load', $html);
+    }
+
+    public function test_participant_search_options_support_name_phone_and_code(): void
+    {
+        $region = Region::query()->create(['name' => 'Addis Ababa']);
+        $zone = Zone::query()->create([
+            'region_id' => $region->id,
+            'name' => 'Kolfe',
+        ]);
+        $woreda = Woreda::query()->create([
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'name' => 'Woreda 1',
+        ]);
+        $organization = Organization::query()->create([
+            'name' => 'Woreda 1 Health Center',
+            'category' => 'Government/Public',
+            'type' => 'Health Center/Clinic/Division',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'zone' => $zone->name,
+            'woreda_id' => $woreda->id,
+        ]);
+        $participant = Participant::query()->create([
+            'first_name' => 'Amina',
+            'father_name' => 'Bekele',
+            'grandfather_name' => 'Chala',
+            'date_of_birth' => '1998-02-10',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'woreda_id' => $woreda->id,
+            'organization_id' => $organization->id,
+            'gender' => 'female',
+            'home_phone' => '0111223344',
+            'mobile_phone' => '0911223344',
+            'profession' => 'Nurse',
+        ]);
+
+        $this
+            ->actingAs($this->adminUser())
+            ->getJson(route('admin.participants.search-options', ['q' => '223344']))
+            ->assertOk()
+            ->assertJsonFragment([
+                'value' => $participant->id,
+                'label' => 'Amina Bekele Chala',
+                'participant_code' => $participant->participant_code,
+            ]);
+
+        $this
+            ->actingAs($this->adminUser())
+            ->getJson(route('admin.participants.search-options', ['q' => $participant->participant_code]))
+            ->assertOk()
+            ->assertJsonFragment([
+                'value' => $participant->id,
+                'label' => 'Amina Bekele Chala',
+                'participant_code' => $participant->participant_code,
+            ]);
     }
 
     public function test_participant_zone_options_filter_to_selected_region(): void

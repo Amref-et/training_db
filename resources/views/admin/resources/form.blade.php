@@ -221,6 +221,7 @@
                                             placeholder="{{ $field['placeholder'] ?? 'Search...' }}"
                                             autocomplete="off"
                                             data-search-url="{{ route('admin.participants.search-options') }}"
+                                            data-edit-url-template="{{ route('admin.participants.edit', ['record' => '__PARTICIPANT_ID__']) }}"
                                         >
                                         <div id="participant-search-results" class="participant-search-results list-group mt-2" role="listbox" style="max-height: 300px; overflow-y: auto; display: none;"></div>
                                         <div class="form-text">Start typing a participant name or phone number to search existing participants. If found, you can select to pre-fill the form or edit directly.</div>
@@ -1299,7 +1300,8 @@
             const searchInput = document.getElementById('participant-search-input');
             const resultsContainer = document.getElementById('participant-search-results');
             const searchUrl = searchInput?.dataset.searchUrl;
-            if (!searchInput || !searchUrl) {
+            const editUrlTemplate = searchInput?.dataset.editUrlTemplate;
+            if (!searchInput || !searchUrl || !editUrlTemplate) {
                 return;
             }
 
@@ -1338,7 +1340,7 @@
 
             const selectParticipant = (option) => {
                 // Navigate to edit the selected participant
-                window.location.href = `/admin/participants/${option.value}/edit`;
+                window.location.href = editUrlTemplate.replace('__PARTICIPANT_ID__', encodeURIComponent(option.value));
             };
 
             const performSearch = async (query) => {
