@@ -30,7 +30,7 @@ class ParticipantTrainingParticipationExportTest extends TestCase
         $this->seed(RolesAndPermissionsSeeder::class);
     }
 
-    public function test_training_participation_export_includes_dynamic_workshops_and_safe_dates(): void
+    public function test_training_participation_export_matches_participation_query_csv(): void
     {
         $region = Region::query()->create(['name' => 'Addis Ababa']);
         $zone = Zone::query()->create([
@@ -50,6 +50,19 @@ class ParticipantTrainingParticipationExportTest extends TestCase
             'zone_id' => $zone->id,
             'zone' => $zone->name,
             'woreda_id' => $woreda->id,
+        ]);
+        Participant::query()->create([
+            'first_name' => 'Unused',
+            'father_name' => 'Participant',
+            'grandfather_name' => 'Record',
+            'date_of_birth' => '1980-01-01',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'woreda_id' => $woreda->id,
+            'organization_id' => $organization->id,
+            'gender' => 'male',
+            'mobile_phone' => '+251900000000',
+            'profession' => 'Doctor',
         ]);
         $participant = Participant::query()->create([
             'first_name' => 'Sara',
@@ -136,27 +149,102 @@ class ParticipantTrainingParticipationExportTest extends TestCase
 
         [$header, $row] = $this->firstCsvRow($response->streamedContent());
 
-        $this->assertContains('event_start_date', $header);
-        $this->assertContains('participation_status', $header);
-        $this->assertContains('is_trainer', $header);
-        $this->assertContains('trainer_comments', $header);
-        $this->assertContains('workshop_8_post', $header);
-        $this->assertNotContains('workshop_9_pre', $header);
+        $this->assertSame([
+            'participant_id',
+            'participant_code',
+            'first_name',
+            'father_name',
+            'grandfather_name',
+            'participant_name',
+            'gender',
+            'date_of_birth',
+            'age',
+            'home_phone',
+            'mobile_phone',
+            'email',
+            'profession',
+            'participant_region',
+            'participant_zone',
+            'participant_woreda',
+            'organization_name',
+            'organization_category',
+            'organization_type',
+            'organization_region',
+            'organization_zone',
+            'organization_woreda',
+            'training_event_id',
+            'event_name',
+            'training_title',
+            'training_category',
+            'training_modality',
+            'training_type',
+            'event_start_date',
+            'event_end_date',
+            'event_status',
+            'event_region',
+            'event_city',
+            'event_venue',
+            'event_organizer_type',
+            'project_subawardee',
+            'organizer_name',
+            'project_code',
+            'project_name',
+            'project_long_name',
+            'donor',
+            'program',
+            'participation_status',
+            'is_trainer',
+            'trainer_name',
+            'trainer_comments',
+            'final_score',
+            'mid_test_score',
+            'avg_pre_score',
+            'avg_post_score',
+            'workshop_count',
+            'completed_workshops',
+        ], $header);
 
+        $this->assertSame((string) $enrollment->id, $row['participant_id']);
         $this->assertSame('Sara Bekele Alemu', $row['participant_name']);
+        $this->assertSame('female', $row['gender']);
+        $this->assertSame('Addis Ababa', $row['participant_region']);
+        $this->assertSame('Kolfe', $row['participant_zone']);
+        $this->assertSame('Woreda 1', $row['participant_woreda']);
+        $this->assertSame('Kolfe Health Center', $row['organization_name']);
+        $this->assertSame('Government/Public', $row['organization_category']);
+        $this->assertSame('Health Center/Clinic/Division', $row['organization_type']);
+        $this->assertSame('Addis Ababa', $row['organization_region']);
+        $this->assertSame('Kolfe', $row['organization_zone']);
+        $this->assertSame('Woreda 1', $row['organization_woreda']);
         $this->assertSame('Clinical Mentorship', $row['training_title']);
+        $this->assertSame('Clinical', $row['training_category']);
+        $this->assertSame('Blended', $row['training_modality']);
+        $this->assertSame('ToT', $row['training_type']);
         $this->assertSame('Clinical Mentorship Round 1', $row['event_name']);
         $this->assertSame('2026-01-05', $row['event_start_date']);
         $this->assertSame('2026-01-12', $row['event_end_date']);
+        $this->assertSame('Completed', $row['event_status']);
+        $this->assertSame('Addis Ababa', $row['event_region']);
+        $this->assertSame('Addis Ababa', $row['event_city']);
+        $this->assertSame('Training Hall', $row['event_venue']);
         $this->assertSame('Subawardee', $row['event_organizer_type']);
         $this->assertSame('Regional Partner', $row['project_subawardee']);
+        $this->assertSame('Health Systems', $row['organizer_name']);
+        $this->assertSame('HSS-001', $row['project_code']);
+        $this->assertSame('Health Systems', $row['project_name']);
+        $this->assertSame('Health Systems Strengthening Project', $row['project_long_name']);
+        $this->assertSame('USAID', $row['donor']);
+        $this->assertSame('HSS', $row['program']);
         $this->assertSame('Completed', $row['participation_status']);
         $this->assertSame('yes', $row['is_trainer']);
         $this->assertSame('Lead Trainer', $row['trainer_name']);
         $this->assertSame('Strong participation', $row['trainer_comments']);
+        $this->assertEqualsWithDelta(88.5, (float) $row['final_score'], 0.01);
+        $this->assertEqualsWithDelta(55.0, (float) $row['mid_test_score'], 0.01);
+        $this->assertEqualsWithDelta(40.0, (float) $row['avg_pre_score'], 0.01);
+        $this->assertEqualsWithDelta(60.0, (float) $row['avg_post_score'], 0.01);
         $this->assertSame('8', $row['workshop_count']);
-        $this->assertSame('30.00', $row['workshop_1_post']);
-        $this->assertSame('90.00', $row['workshop_8_post']);
+        $this->assertSame('2', $row['completed_workshops']);
     }
 
     private function firstCsvRow(string $content): array

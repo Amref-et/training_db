@@ -7,13 +7,13 @@ use App\Models\Participant;
 use App\Models\Profession;
 use App\Models\Region;
 use App\Models\TrainingEventParticipant;
-use App\Models\TrainingEventWorkshopScore;
 use App\Models\TrainingOrganizer;
 use App\Models\Woreda;
 use App\Models\Zone;
 use App\Support\ResourceRegistry;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -1683,16 +1683,17 @@ class ManagedResourceController extends Controller
     public function exportParticipantTrainingParticipation(): StreamedResponse
     {
         $fileName = 'participant-training-participation-export-'.now()->format('Ymd-His').'.csv';
-        $workshopColumnCount = $this->participantTrainingParticipationWorkshopColumnCount();
+        $headers = $this->participantTrainingParticipationExportHeaders();
+
         $this->audit()->logCustom('Participant training participation exported', 'participants.training_participation.export', [
             'auditable_type' => TrainingEventParticipant::class,
             'metadata' => [
                 'file_name' => $fileName,
-                'workshop_columns' => $workshopColumnCount,
+                'exported_records' => TrainingEventParticipant::query()->count(),
             ],
         ]);
 
-        return response()->streamDownload(function () use ($workshopColumnCount) {
+        return response()->streamDownload(function () use ($headers) {
             $handle = fopen('php://output', 'w');
 
             if ($handle === false) {
@@ -1701,166 +1702,14 @@ class ManagedResourceController extends Controller
 
             fwrite($handle, "\xEF\xBB\xBF");
 
-            $headers = [
-                'participant_id',
-                'participant_code',
-                'first_name',
-                'father_name',
-                'grandfather_name',
-                'participant_name',
-                'gender',
-                'date_of_birth',
-                'age',
-                'home_phone',
-                'mobile_phone',
-                'email',
-                'profession',
-                'participant_region',
-                'participant_zone',
-                'participant_woreda',
-                'organization_name',
-                'organization_category',
-                'organization_type',
-                'organization_region',
-                'organization_zone',
-                'organization_woreda',
-                'training_event_id',
-                'event_name',
-                'training_title',
-                'training_category',
-                'training_modality',
-                'training_type',
-                'event_start_date',
-                'event_end_date',
-                'event_status',
-                'event_region',
-                'event_city',
-                'event_venue',
-                'event_organizer_type',
-                'project_subawardee',
-                'organizer_name',
-                'organizer_project_code',
-                'organizer_project_name',
-                'organizer_project_long_name',
-                'organizer_donor',
-                'organizer_program',
-                'participation_status',
-                'is_trainer',
-                'trainer_name',
-                'trainer_comments',
-                'final_score',
-                'mid_test_score',
-                'avg_pre_score',
-                'avg_post_score',
-                'workshop_count',
-                'completed_workshops',
-            ];
-
-            foreach (range(1, $workshopColumnCount) as $workshopNumber) {
-                $headers[] = 'workshop_'.$workshopNumber.'_pre';
-                $headers[] = 'workshop_'.$workshopNumber.'_mid';
-                $headers[] = 'workshop_'.$workshopNumber.'_post';
-            }
-
             fputcsv($handle, $headers);
 
-            TrainingEventParticipant::query()
-                ->with([
-                    'participant.region',
-                    'participant.zone',
-                    'participant.woreda',
-                    'participant.organization.region',
-                    'participant.organization.woreda',
-                    'trainingEvent.training.trainingCategory',
-                    'trainingEvent.trainingOrganizer',
-                    'trainingEvent.trainingRegion',
-                    'trainingEvent.projectSubawardee',
-                    'workshopScores' => fn ($query) => $query->orderBy('workshop_number'),
-                ])
-                ->orderBy('participant_id')
-                ->orderBy('training_event_id')
-                ->chunkById(200, function ($enrollments) use ($handle, $workshopColumnCount) {
-                    foreach ($enrollments as $enrollment) {
-                        $participant = $enrollment->participant;
-                        $trainingEvent = $enrollment->trainingEvent;
-                        $organization = $participant?->organization;
-                        $training = $trainingEvent?->training;
-                        $trainingCategory = $training?->trainingCategory;
-                        $organizer = $trainingEvent?->trainingOrganizer;
-                        $eventWorkshopCount = max(1, (int) ($trainingEvent?->workshop_count ?? 1));
-
-                        $workshopScores = $enrollment->workshopScores->keyBy('workshop_number');
-                        $configuredWorkshopScores = $enrollment->workshopScores
-                            ->filter(fn (TrainingEventWorkshopScore $score) => (int) $score->workshop_number <= $eventWorkshopCount);
-                        $completedWorkshops = $configuredWorkshopScores->whereNotNull('post_test_score')->count();
-                        $avgPreScore = $configuredWorkshopScores->whereNotNull('pre_test_score')->avg('pre_test_score');
-                        $avgPostScore = $configuredWorkshopScores->whereNotNull('post_test_score')->avg('post_test_score');
-
-                        $workshopColumns = [];
-                        for ($i = 1; $i <= $workshopColumnCount; $i++) {
-                            $score = $workshopScores->get($i);
-                            $workshopColumns[] = $score?->pre_test_score;
-                            $workshopColumns[] = $score?->mid_test_score;
-                            $workshopColumns[] = $score?->post_test_score;
-                        }
-
-                        fputcsv($handle, [
-                            $participant?->id,
-                            (string) ($participant?->participant_code ?? ''),
-                            (string) ($participant?->first_name ?? ''),
-                            (string) ($participant?->father_name ?? ''),
-                            (string) ($participant?->grandfather_name ?? ''),
-                            (string) ($participant?->name ?? ''),
-                            (string) ($participant?->gender ?? ''),
-                            $this->formatCsvDate($participant?->date_of_birth),
-                            $participant?->age,
-                            (string) ($participant?->home_phone ?? ''),
-                            (string) ($participant?->mobile_phone ?? ''),
-                            (string) ($participant?->email ?? ''),
-                            (string) ($participant?->profession ?? ''),
-                            (string) ($participant?->region?->name ?? ''),
-                            (string) ($participant?->zone?->name ?? ''),
-                            (string) ($participant?->woreda?->name ?? ''),
-                            (string) ($organization?->name ?? ''),
-                            (string) ($organization?->category ?? ''),
-                            (string) ($organization?->type ?? ''),
-                            (string) ($organization?->region?->name ?? ''),
-                            (string) ($organization?->zone ?? ''),
-                            (string) ($organization?->woreda?->name ?? ''),
-                            $trainingEvent?->id,
-                            (string) ($trainingEvent?->event_name ?? ''),
-                            (string) ($training?->title ?? ''),
-                            (string) ($trainingCategory?->name ?? ''),
-                            (string) ($training?->modality ?? ''),
-                            (string) ($training?->type ?? ''),
-                            $this->formatCsvDate($trainingEvent?->start_date),
-                            $this->formatCsvDate($trainingEvent?->end_date),
-                            (string) ($trainingEvent?->status ?? ''),
-                            (string) ($trainingEvent?->trainingRegion?->name ?? ''),
-                            (string) ($trainingEvent?->training_city ?? ''),
-                            (string) ($trainingEvent?->course_venue ?? ''),
-                            (string) ($trainingEvent?->organizer_type ?? ''),
-                            (string) ($trainingEvent?->projectSubawardee?->subawardee_name ?? ''),
-                            (string) ($organizer?->title ?? ''),
-                            (string) ($organizer?->project_code ?? ''),
-                            (string) ($organizer?->project_name ?? ''),
-                            (string) ($organizer?->project_long_name ?? ''),
-                            (string) ($organizer?->donor ?? ''),
-                            (string) ($organizer?->program ?? ''),
-                            (string) ($enrollment->activity_completion_status ?? ''),
-                            $enrollment->is_trainer ? 'yes' : 'no',
-                            (string) ($enrollment->trainer_name ?? ''),
-                            (string) ($enrollment->trainer_comments ?? ''),
-                            $enrollment->final_score !== null ? round((float) $enrollment->final_score, 2) : null,
-                            $enrollment->mid_test_score !== null ? round((float) $enrollment->mid_test_score, 2) : null,
-                            $avgPreScore !== null ? round((float) $avgPreScore, 2) : null,
-                            $avgPostScore !== null ? round((float) $avgPostScore, 2) : null,
-                            $eventWorkshopCount,
-                            $completedWorkshops,
-                            ...$workshopColumns,
-                        ]);
-                    }
-                });
+            foreach ($this->participantTrainingParticipationExportQuery()->cursor() as $row) {
+                fputcsv($handle, array_map(
+                    fn (string $header) => $row->{$header} ?? null,
+                    $headers
+                ));
+            }
 
             fclose($handle);
         }, $fileName, [
@@ -1868,34 +1717,138 @@ class ManagedResourceController extends Controller
         ]);
     }
 
-    private function participantTrainingParticipationWorkshopColumnCount(): int
+    private function participantTrainingParticipationExportQuery(): QueryBuilder
     {
-        $configuredMax = (int) TrainingEventParticipant::query()
-            ->join('training_events', 'training_events.id', '=', 'training_event_participants.training_event_id')
-            ->max('training_events.workshop_count');
-
-        $scoredMax = (int) TrainingEventWorkshopScore::query()
-            ->whereHas('trainingEventParticipant')
-            ->max('workshop_number');
-
-        return max(4, $configuredMax, $scoredMax);
+        return DB::table('training_event_participants as tep')
+            ->leftJoin('participants as p', 'tep.participant_id', '=', 'p.id')
+            ->leftJoin('regions as r', 'p.region_id', '=', 'r.id')
+            ->leftJoin('zones as z', 'p.zone_id', '=', 'z.id')
+            ->leftJoin('woredas as w', 'p.woreda_id', '=', 'w.id')
+            ->leftJoin('organizations as o', 'p.organization_id', '=', 'o.id')
+            ->leftJoin('regions as orr', 'o.region_id', '=', 'orr.id')
+            ->leftJoin('woredas as ow', 'o.woreda_id', '=', 'ow.id')
+            ->leftJoin('training_events as te', 'tep.training_event_id', '=', 'te.id')
+            ->leftJoin('trainings as t', 'te.training_id', '=', 't.id')
+            ->leftJoin('training_categories as tc', 't.training_category_id', '=', 'tc.id')
+            ->leftJoin('training_organizers as toz', 'te.training_organizer_id', '=', 'toz.id')
+            ->leftJoin('regions as tr', 'te.training_region_id', '=', 'tr.id')
+            ->leftJoin('project_subawardees as ps', 'te.project_subawardee_id', '=', 'ps.id')
+            ->leftJoin('training_event_workshop_scores as ws', 'ws.training_event_participant_id', '=', 'tep.id')
+            ->selectRaw("
+                tep.id AS participant_id,
+                p.participant_code,
+                p.first_name,
+                p.father_name,
+                p.grandfather_name,
+                p.name AS participant_name,
+                p.gender,
+                p.date_of_birth,
+                p.age,
+                p.home_phone,
+                p.mobile_phone,
+                p.email,
+                p.profession,
+                r.name AS participant_region,
+                z.name AS participant_zone,
+                w.name AS participant_woreda,
+                o.name AS organization_name,
+                o.category AS organization_category,
+                o.type AS organization_type,
+                orr.name AS organization_region,
+                o.zone AS organization_zone,
+                ow.name AS organization_woreda,
+                te.id AS training_event_id,
+                te.event_name,
+                t.title AS training_title,
+                tc.name AS training_category,
+                t.modality AS training_modality,
+                t.type AS training_type,
+                te.start_date AS event_start_date,
+                te.end_date AS event_end_date,
+                te.status AS event_status,
+                tr.name AS event_region,
+                te.training_city AS event_city,
+                te.course_venue AS event_venue,
+                te.organizer_type AS event_organizer_type,
+                ps.subawardee_name AS project_subawardee,
+                toz.title AS organizer_name,
+                toz.project_code,
+                toz.project_name,
+                toz.project_long_name,
+                toz.donor,
+                toz.program,
+                tep.activity_completion_status AS participation_status,
+                CASE WHEN tep.is_trainer = 1 THEN 'yes' ELSE 'no' END AS is_trainer,
+                tep.trainer_name,
+                tep.trainer_comments,
+                ROUND(tep.final_score, 2) AS final_score,
+                ROUND(tep.mid_test_score, 2) AS mid_test_score,
+                ROUND(AVG(ws.pre_test_score), 2) AS avg_pre_score,
+                ROUND(AVG(ws.post_test_score), 2) AS avg_post_score,
+                COALESCE(te.workshop_count, 1) AS workshop_count,
+                SUM(CASE WHEN ws.post_test_score IS NOT NULL THEN 1 ELSE 0 END) AS completed_workshops
+            ")
+            ->groupBy('tep.id', 'te.id')
+            ->orderBy('tep.participant_id')
+            ->orderBy('tep.training_event_id');
     }
 
-    private function formatCsvDate(mixed $value): string
+    private function participantTrainingParticipationExportHeaders(): array
     {
-        if ($value === null || $value === '') {
-            return '';
-        }
-
-        if ($value instanceof \DateTimeInterface) {
-            return Carbon::instance($value)->toDateString();
-        }
-
-        try {
-            return Carbon::parse((string) $value)->toDateString();
-        } catch (\Throwable) {
-            return (string) $value;
-        }
+        return [
+            'participant_id',
+            'participant_code',
+            'first_name',
+            'father_name',
+            'grandfather_name',
+            'participant_name',
+            'gender',
+            'date_of_birth',
+            'age',
+            'home_phone',
+            'mobile_phone',
+            'email',
+            'profession',
+            'participant_region',
+            'participant_zone',
+            'participant_woreda',
+            'organization_name',
+            'organization_category',
+            'organization_type',
+            'organization_region',
+            'organization_zone',
+            'organization_woreda',
+            'training_event_id',
+            'event_name',
+            'training_title',
+            'training_category',
+            'training_modality',
+            'training_type',
+            'event_start_date',
+            'event_end_date',
+            'event_status',
+            'event_region',
+            'event_city',
+            'event_venue',
+            'event_organizer_type',
+            'project_subawardee',
+            'organizer_name',
+            'project_code',
+            'project_name',
+            'project_long_name',
+            'donor',
+            'program',
+            'participation_status',
+            'is_trainer',
+            'trainer_name',
+            'trainer_comments',
+            'final_score',
+            'mid_test_score',
+            'avg_pre_score',
+            'avg_post_score',
+            'workshop_count',
+            'completed_workshops',
+        ];
     }
 
     public function importParticipants(Request $request): RedirectResponse
