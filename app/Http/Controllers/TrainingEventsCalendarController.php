@@ -28,9 +28,9 @@ class TrainingEventsCalendarController extends Controller
     {
         $today = now();
         $viewMode = $this->viewMode($request);
-        $monthInput = trim((string) $request->query('month', $today->format('Y-m')));
-        $weekInput = trim((string) $request->query('week', $today->format('o-\WW')));
-        $yearInput = trim((string) $request->query('year', $today->format('Y')));
+        $monthInput = $this->periodInput($request, 'month', $today->format('Y-m'));
+        $weekInput = $this->periodInput($request, 'week', $today->format('o-\WW'));
+        $yearInput = $this->periodInput($request, 'year', $today->format('Y'));
 
         [
             'anchorDate' => $anchorDate,
@@ -123,6 +123,13 @@ class TrainingEventsCalendarController extends Controller
         $viewMode = strtolower(trim((string) $request->query('view', 'month')));
 
         return in_array($viewMode, ['week', 'month', 'year'], true) ? $viewMode : 'month';
+    }
+
+    private function periodInput(Request $request, string $key, string $default): string
+    {
+        $value = trim((string) $request->query($key, ''));
+
+        return $value === '' ? $default : $value;
     }
 
     private function periodConfig(string $viewMode, string $monthInput, string $weekInput, string $yearInput): array
