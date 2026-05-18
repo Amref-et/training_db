@@ -72,6 +72,106 @@ class PublicParticipantRegistrationTest extends TestCase
         $this->assertDatabaseCount('participants', 0);
     }
 
+    public function test_public_participant_registration_loads_existing_record_for_duplicate_generated_id(): void
+    {
+        [$region, $zone, $woreda, $organization, $profession] = $this->participantDependencies();
+        $otherProfession = Profession::query()->firstOrCreate(
+            ['name' => 'Doctor'],
+            ['description' => null, 'sort_order' => 2, 'is_active' => true]
+        );
+
+        $existing = Participant::query()->create([
+            'first_name' => 'Amina',
+            'father_name' => 'Bekele',
+            'grandfather_name' => 'Chala',
+            'date_of_birth' => '1998-02-10',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'woreda_id' => $woreda->id,
+            'organization_id' => $organization->id,
+            'gender' => 'female',
+            'home_phone' => '0111223344',
+            'mobile_phone' => '0911223344',
+            'email' => 'amina@example.test',
+            'profession' => $profession->name,
+        ]);
+
+        $response = $this
+            ->from('/participant-registration')
+            ->post('/participant-registration', [
+                'first_name' => 'Amina',
+                'father_name' => 'Bekele',
+                'grandfather_name' => 'Chala',
+                'date_of_birth' => '1998-02-10',
+                'region_id' => $region->id,
+                'zone_id' => $zone->id,
+                'woreda_id' => $woreda->id,
+                'organization_id' => $organization->id,
+                'gender' => 'female',
+                'home_phone' => '0111223344',
+                'mobile_phone' => '0911223344',
+                'email' => 'amina@example.test',
+                'profession' => $otherProfession->name,
+            ]);
+
+        $response
+            ->assertRedirect(route('participant-registration.create'))
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('warning')
+            ->assertSessionHas('participant_registration')
+            ->assertSessionHasInput('profession', $profession->name)
+            ->assertSessionHasInput('email', 'amina@example.test');
+
+        $this->assertDatabaseCount('participants', 1);
+        $this->assertSame($existing->id, Participant::query()->firstOrFail()->id);
+        $this->assertDatabaseMissing('participants', [
+            'participant_code' => $existing->participant_code.'01',
+        ]);
+    }
+
+    public function test_public_participant_registration_still_rejects_duplicate_email_for_new_generated_id(): void
+    {
+        [$region, $zone, $woreda, $organization, $profession] = $this->participantDependencies();
+
+        Participant::query()->create([
+            'first_name' => 'Amina',
+            'father_name' => 'Bekele',
+            'grandfather_name' => 'Chala',
+            'date_of_birth' => '1998-02-10',
+            'region_id' => $region->id,
+            'zone_id' => $zone->id,
+            'woreda_id' => $woreda->id,
+            'organization_id' => $organization->id,
+            'gender' => 'female',
+            'mobile_phone' => '0911223344',
+            'email' => 'shared@example.test',
+            'profession' => $profession->name,
+        ]);
+
+        $response = $this
+            ->from('/participant-registration')
+            ->post('/participant-registration', [
+                'first_name' => 'Selam',
+                'father_name' => 'Tadesse',
+                'grandfather_name' => 'Mulu',
+                'date_of_birth' => '1999-03-15',
+                'region_id' => $region->id,
+                'zone_id' => $zone->id,
+                'woreda_id' => $woreda->id,
+                'organization_id' => $organization->id,
+                'gender' => 'female',
+                'mobile_phone' => '0922334455',
+                'email' => 'shared@example.test',
+                'profession' => $profession->name,
+            ]);
+
+        $response
+            ->assertRedirect('/participant-registration')
+            ->assertSessionHasErrors(['email']);
+
+        $this->assertDatabaseCount('participants', 1);
+    }
+
     public function test_organization_search_options_include_hierarchy_for_autofill(): void
     {
         [$region, $zone, $woreda, $organization] = $this->participantDependencies();

@@ -108,9 +108,9 @@ class ParticipantRegistrationService
             ->all();
     }
 
-    public function validateAndPrepare(array $input, ?Participant $participant = null): array
+    public function validateAndPrepare(array $input, ?Participant $participant = null, bool $enforceUniqueEmail = true): array
     {
-        $data = Validator::make($input, $this->validationRules($participant), $this->validationMessages())->validate();
+        $data = Validator::make($input, $this->validationRules($participant, $enforceUniqueEmail), $this->validationMessages())->validate();
 
         $email = mb_strtolower(trim((string) ($data['email'] ?? '')));
         $data['email'] = $email === '' ? null : $email;
@@ -131,16 +131,74 @@ class ParticipantRegistrationService
 
     public function create(array $data): Participant
     {
+        $data['participant_code'] = Participant::generatedParticipantCode($data);
+
         return Participant::query()->create($data);
     }
 
-    private function validationRules(?Participant $participant = null): array
+    public function existingParticipantForGeneratedCode(array $data): ?Participant
+    {
+        return Participant::query()
+            ->where('participant_code', Participant::generatedParticipantCode($data))
+            ->first();
+    }
+
+    public function ensureEmailIsAvailable(mixed $email, ?Participant $participant = null): void
+    {
+        $email = mb_strtolower(trim((string) $email));
+
+        if ($email === '') {
+            return;
+        }
+
+        $exists = Participant::query()
+            ->where('email', $email)
+            ->when($participant, fn ($query) => $query->whereKeyNot($participant->getKey()))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'email' => 'The email has already been taken.',
+            ]);
+        }
+    }
+
+    public function formInput(Participant $participant): array
+    {
+        return [
+            'first_name' => $participant->first_name,
+            'father_name' => $participant->father_name,
+            'grandfather_name' => $participant->grandfather_name,
+            'date_of_birth' => $participant->date_of_birth?->toDateString(),
+            'age' => $participant->age,
+            'region_id' => $participant->region_id,
+            'zone_id' => $participant->zone_id,
+            'woreda_id' => $participant->woreda_id,
+            'organization_id' => $participant->organization_id,
+            'gender' => $participant->gender,
+            'home_phone' => $participant->home_phone,
+            'mobile_phone' => $participant->mobile_phone,
+            'email' => $participant->email,
+            'profession' => $participant->profession,
+        ];
+    }
+
+    private function validationRules(?Participant $participant = null, bool $enforceUniqueEmail = true): array
     {
         $config = ResourceRegistry::get('participants');
         $id = $participant?->getKey() ?? 'NULL';
 
         return collect($config['rules'])
             ->map(fn (string $rule) => str_replace('{{id}}', (string) $id, $rule))
+            ->map(function (string $rule, string $field) use ($enforceUniqueEmail): string {
+                if ($field !== 'email' || $enforceUniqueEmail) {
+                    return $rule;
+                }
+
+                return collect(explode('|', $rule))
+                    ->reject(fn (string $rulePart) => str_starts_with($rulePart, 'unique:participants,email'))
+                    ->implode('|');
+            })
             ->all();
     }
 

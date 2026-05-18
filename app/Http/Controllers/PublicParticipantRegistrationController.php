@@ -33,7 +33,38 @@ class PublicParticipantRegistrationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $data = $this->registration->validateAndPrepare($request->all());
+        $data = $this->registration->validateAndPrepare($request->all(), null, false);
+        $existingParticipant = $this->registration->existingParticipantForGeneratedCode($data);
+
+        if ($existingParticipant) {
+            $pendingJoinRequest = $this->submitPendingTrainingEventJoinRequest($request, $existingParticipant);
+
+            $this->audit()->logCustom('Public participant registration duplicate loaded existing record', 'participants.public_registration_duplicate', [
+                'auditable_type' => Participant::class,
+                'auditable_id' => $existingParticipant->id,
+                'auditable_label' => $existingParticipant->name,
+                'metadata' => [
+                    'route' => 'participant-registration.store',
+                    'participant_code' => $existingParticipant->participant_code,
+                ],
+            ]);
+
+            $warningMessage = 'A participant with generated ID '.$existingParticipant->participant_code.' already exists. We loaded the previous record instead of creating a duplicate.';
+
+            if ($pendingJoinRequest) {
+                $warningMessage .= $pendingJoinRequest['join_request']
+                    ? ' Your request to join '.$pendingJoinRequest['event_name'].' has also been submitted and is pending approval.'
+                    : ' Your request to join '.$pendingJoinRequest['event_name'].' was already on file.';
+            }
+
+            return redirect()
+                ->route('participant-registration.create')
+                ->with('warning', $warningMessage)
+                ->with('participant_registration', $this->participantRegistrationSession($existingParticipant))
+                ->withInput($this->registration->formInput($existingParticipant));
+        }
+
+        $this->registration->ensureEmailIsAvailable($data['email'] ?? null);
         $participant = $this->registration->create($data);
         $pendingJoinRequest = $this->submitPendingTrainingEventJoinRequest($request, $participant);
 
@@ -56,10 +87,7 @@ class PublicParticipantRegistrationController extends Controller
         return redirect()
             ->route('participant-registration.create')
             ->with('success', $successMessage)
-            ->with('participant_registration', [
-                'participant_code' => $participant->participant_code,
-                'name' => $participant->name,
-            ]);
+            ->with('participant_registration', $this->participantRegistrationSession($participant));
     }
 
     public function organizationOptions(Request $request): JsonResponse
@@ -149,6 +177,14 @@ class PublicParticipantRegistrationController extends Controller
         return [
             'event_name' => $event->event_name ?: 'Event #'.$event->id,
             'join_request' => $joinRequest,
+        ];
+    }
+
+    private function participantRegistrationSession(Participant $participant): array
+    {
+        return [
+            'participant_code' => $participant->participant_code,
+            'name' => $participant->name,
         ];
     }
 }

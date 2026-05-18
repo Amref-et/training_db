@@ -643,6 +643,15 @@
             </div>
         </div>
 
+        @if(session('warning') && is_array($selectedRegistration))
+            <div class="alert alert-warning border-0 shadow-sm mb-4">
+                <div class="fw-semibold">{{ session('warning') }}</div>
+                <div class="small mt-1">Participant: {{ $selectedRegistration['name'] ?? '' }} | ID: {{ $selectedRegistration['participant_code'] ?? '' }}</div>
+            </div>
+        @elseif(session('warning'))
+            <div class="alert alert-warning border-0 shadow-sm mb-4">{{ session('warning') }}</div>
+        @endif
+
         @if(session('success') && is_array($selectedRegistration))
             <div class="alert alert-success border-0 shadow-sm mb-4">
                 <div class="fw-semibold">{{ session('success') }}</div>

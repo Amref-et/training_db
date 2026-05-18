@@ -102,11 +102,31 @@ class Participant extends Model
 
     private static function participantCodeBase(self $participant): string
     {
-        $first = self::initialForCode($participant->first_name);
-        $father = self::initialForCode($participant->father_name);
-        $grandfather = self::initialForCode($participant->grandfather_name);
-        [$year, $month] = self::datePartsForCode($participant->date_of_birth);
-        $last4 = self::last4ForCode($participant->mobile_phone);
+        return self::generatedParticipantCode([
+            'first_name' => $participant->first_name,
+            'father_name' => $participant->father_name,
+            'grandfather_name' => $participant->grandfather_name,
+            'date_of_birth' => $participant->date_of_birth,
+            'age' => $participant->age,
+            'mobile_phone' => $participant->mobile_phone,
+        ]);
+    }
+
+    public static function generatedParticipantCode(array $data): string
+    {
+        $dateOfBirth = $data['date_of_birth'] ?? null;
+
+        if (($dateOfBirth === null || $dateOfBirth === '') && ($data['age'] ?? null) !== null && ($data['age'] ?? '') !== '') {
+            $referenceDate = self::referenceDate();
+            $age = max(0, (int) $data['age']);
+            $dateOfBirth = Carbon::create($referenceDate->year - $age, 7, 1)->toDateString();
+        }
+
+        $first = self::initialForCode($data['first_name'] ?? null);
+        $father = self::initialForCode($data['father_name'] ?? null);
+        $grandfather = self::initialForCode($data['grandfather_name'] ?? null);
+        [$year, $month] = self::datePartsForCode($dateOfBirth);
+        $last4 = self::last4ForCode($data['mobile_phone'] ?? null);
 
         return $first.$father.$grandfather.$year.$month.$last4;
     }
