@@ -8,31 +8,29 @@
 <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
     @if($resource === 'organizations' && auth()->user()->hasPermission('organizations.view'))
         <a href="{{ route('admin.organizations.template') }}" class="btn btn-outline-secondary">Download Template</a>
-        <a href="{{ route('admin.organizations.export') }}" class="btn btn-outline-secondary">Export CSV</a>
+        <a href="{{ route('admin.organizations.export') }}" class="btn btn-outline-secondary">Export All Organization</a>
     @endif
     @if($resource === 'participants' && auth()->user()->hasPermission('participants.view'))
-        <a href="{{ route('admin.participants.export') }}" class="btn btn-outline-secondary">Export CSV</a>
+        <a href="{{ route('admin.participants.export') }}" class="btn btn-outline-secondary">Export All Participant</a>
         <a href="{{ route('admin.participants.training-participation.export') }}" class="btn btn-outline-secondary">Export Training Participation</a>
     @endif
     @if($resource === 'training_organizers' && auth()->user()->hasPermission('training_organizers.view'))
-        <a href="{{ route('admin.training-organizers.export') }}" class="btn btn-outline-secondary">Export CSV</a>
+        <a href="{{ route('admin.training-organizers.export') }}" class="btn btn-outline-secondary">Export Amref Projects</a>
     @endif
-    @if($resource === 'organizations' && auth()->user()->hasPermission('zones.view'))
-        <a href="{{ route('admin.zones.index') }}" class="btn btn-outline-secondary">Zone List</a>
-    @endif
+
     @if($resource === 'organizations' && auth()->user()->hasPermission('organizations.create'))
         <form method="POST" action="{{ route('admin.organizations.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center" data-organization-import-form>
             @csrf
             <input type="hidden" name="import_mode" value="update" data-organization-import-mode-input>
             <input type="file" name="import_file" class="form-control form-control-sm" accept=".csv,.txt" required>
-            <button class="btn btn-outline-dark btn-sm" type="button" data-organization-import-open>Import CSV</button>
+            <button class="btn btn-outline-dark btn-sm" type="button" data-organization-import-open>Import Organization Data</button>
         </form>
     @endif
     @if($resource === 'participants' && auth()->user()->hasPermission('participants.create'))
         <form method="POST" action="{{ route('admin.participants.import') }}" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
             @csrf
             <input type="file" name="import_file" class="form-control form-control-sm" accept=".csv,.txt" required>
-            <button class="btn btn-outline-dark btn-sm" type="submit">Import CSV</button>
+            <button class="btn btn-outline-dark btn-sm" type="submit">Import Participant Data</button>
         </form>
     @endif
     @if($resource === 'training_organizers' && auth()->user()->hasPermission('training_organizers.create'))
