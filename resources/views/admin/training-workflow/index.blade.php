@@ -47,8 +47,8 @@
                     href="{{ route('admin.training-workflow.index', ['event_id' => optional($selectedEvent)->id, 'step' => $stepNumber, 'workshop' => $selectedWorkshop]) }}"
                     class="nav-link {{ $activeStep === $stepNumber ? 'active' : '' }}"
                 >
-                    Step {{ $stepNumber }}: {{ $step['title'] }}
-                    <span class="ms-2 badge {{ $step['complete'] ? 'text-bg-success' : 'text-bg-secondary' }}">
+                    <span class="d-block">Step {{ $stepNumber }}: {{ $step['title'] }}</span>
+                    <span class="d-inline-block mt-1 badge {{ $step['complete'] ? 'text-bg-success' : 'text-bg-secondary' }}" style="font-size: 0.65rem;">
                         {{ $step['complete'] ? 'Complete' : 'Pending' }}
                     </span>
                 </a>
