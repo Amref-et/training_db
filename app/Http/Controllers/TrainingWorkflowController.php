@@ -14,8 +14,9 @@ use App\Models\TrainingOrganizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TrainingWorkflowController extends Controller
 {
@@ -184,6 +185,12 @@ class TrainingWorkflowController extends Controller
                     && $reportSummary['required_workshop_count'] > 0
                     && $reportSummary['with_final_scores'] === $reportSummary['participants_count'],
             ],
+            5 => [
+                'title' => 'Closeout',
+                'complete' => $selectedEvent
+                    && in_array((string) $selectedEvent->status, ['Completed', 'Cancelled'], true)
+                    && filled($selectedEvent->training_event_report_path),
+            ],
         ];
 
         $participantsForEnrollment = Participant::query()
@@ -209,6 +216,93 @@ class TrainingWorkflowController extends Controller
             'organizers' => TrainingOrganizer::query()->orderBy('title')->get(),
             'regions' => Region::query()->orderBy('name')->get(),
         ]);
+    }
+
+    public function updateCloseout(Request $request, TrainingEvent $trainingEvent): RedirectResponse
+    {
+        $data = $request->validate([
+            'status' => 'required|in:'.implode(',', TrainingEvent::STATUSES),
+            'training_event_report' => 'nullable|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,zip,jpg,jpeg,png',
+            'training_event_pictures' => 'nullable|array|max:20',
+            'training_event_pictures.*' => 'image|max:8192',
+            'remove_report' => 'nullable|boolean',
+            'remove_existing_pictures' => 'nullable|array',
+            'remove_existing_pictures.*' => 'string',
+        ]);
+
+        $beforeState = $this->audit()->snapshotModel($trainingEvent, [
+            'status',
+            'training_event_report_path',
+            'training_event_picture_paths',
+        ]);
+
+        $reportPath = $trainingEvent->training_event_report_path;
+        $picturePaths = collect($trainingEvent->training_event_picture_paths ?? [])
+            ->filter(fn ($path) => is_string($path) && trim($path) !== '')
+            ->values()
+            ->all();
+
+        if ($request->boolean('remove_report') && $reportPath) {
+            Storage::disk('public')->delete($reportPath);
+            $reportPath = null;
+        }
+
+        if ($request->hasFile('training_event_report')) {
+            if ($reportPath) {
+                Storage::disk('public')->delete($reportPath);
+            }
+
+            $reportPath = $request
+                ->file('training_event_report')
+                ->store('training-events/'.$trainingEvent->id.'/reports', 'public');
+        }
+
+        $removePicturePaths = collect($data['remove_existing_pictures'] ?? [])
+            ->map(fn ($path) => (string) $path)
+            ->intersect($picturePaths)
+            ->values()
+            ->all();
+
+        if ($removePicturePaths !== []) {
+            Storage::disk('public')->delete($removePicturePaths);
+            $picturePaths = array_values(array_diff($picturePaths, $removePicturePaths));
+        }
+
+        foreach ($request->file('training_event_pictures', []) as $picture) {
+            $picturePaths[] = $picture->store('training-events/'.$trainingEvent->id.'/pictures', 'public');
+        }
+
+        $trainingEvent->forceFill([
+            'status' => $data['status'],
+            'training_event_report_path' => $reportPath,
+            'training_event_picture_paths' => array_values($picturePaths),
+        ])->save();
+        $afterState = $this->audit()->snapshotModel($trainingEvent->fresh(), [
+            'status',
+            'training_event_report_path',
+            'training_event_picture_paths',
+        ]);
+
+        $this->audit()->logCustom('Training event closeout updated', 'training_workflow.closeout.updated', [
+            'auditable_type' => TrainingEvent::class,
+            'auditable_id' => $trainingEvent->id,
+            'auditable_label' => $trainingEvent->event_name,
+            'old_values' => $beforeState,
+            'new_values' => $afterState,
+            'metadata' => [
+                'uploaded_pictures' => count($request->file('training_event_pictures', [])),
+                'removed_pictures' => count($removePicturePaths),
+                'report_uploaded' => $request->hasFile('training_event_report'),
+                'report_removed' => $request->boolean('remove_report'),
+            ],
+        ]);
+
+        return redirect()
+            ->route('admin.training-workflow.index', [
+                'event_id' => $trainingEvent->id,
+                'step' => 5,
+            ])
+            ->with('success', 'Training event closeout updated.');
     }
 
     public function storeEvent(Request $request): RedirectResponse

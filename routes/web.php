@@ -178,6 +178,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
         ->middleware('permission:training_events.view')
         ->name('training-workflow.report.export');
 
+    Route::post('training-workflow/events/{trainingEvent}/closeout', [TrainingWorkflowController::class, 'updateCloseout'])
+        ->middleware('permission:training_events.update')
+        ->name('training-workflow.closeout.update');
+
     Route::get('organizations/export', [ManagedResourceController::class, 'exportOrganizations'])
         ->middleware('permission:organizations.view')
         ->name('organizations.export');

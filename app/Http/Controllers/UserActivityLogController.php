@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\UserActivityLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 class UserActivityLogController extends Controller
@@ -17,6 +18,8 @@ class UserActivityLogController extends Controller
         $method = strtoupper(trim((string) $request->query('method', '')));
         $from = trim((string) $request->query('from', ''));
         $to = trim((string) $request->query('to', ''));
+        $fromDateTime = $this->dateBoundary($from, true);
+        $toDateTime = $this->dateBoundary($to, false);
 
         $logs = UserActivityLog::query()
             ->with('user')
@@ -40,9 +43,8 @@ class UserActivityLogController extends Controller
             ->when($userId !== null && $userId !== '', fn ($query) => $query->where('user_id', (int) $userId))
             ->when($logType !== '', fn ($query) => $query->where('log_type', $logType))
             ->when($method !== '', fn ($query) => $query->where('method', $method))
-            ->when($from !== '', fn ($query) => $query->whereDate('occurred_at', '>=', $from))
-            ->when($to !== '', fn ($query) => $query->whereDate('occurred_at', '<=', $to))
-            ->orderByDesc('occurred_at')
+            ->when($fromDateTime !== null, fn ($query) => $query->where('occurred_at', '>=', $fromDateTime))
+            ->when($toDateTime !== null, fn ($query) => $query->where('occurred_at', '<=', $toDateTime))
             ->orderByDesc('id')
             ->paginate(30)
             ->withQueryString();
@@ -59,5 +61,20 @@ class UserActivityLogController extends Controller
             'logTypes' => ['activity', 'audit', 'auth'],
             'methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
         ]);
+    }
+
+    private function dateBoundary(string $value, bool $startOfDay): ?string
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', $value);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return ($startOfDay ? $date->startOfDay() : $date->endOfDay())->toDateTimeString();
     }
 }

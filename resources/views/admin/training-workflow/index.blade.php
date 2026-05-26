@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @php
-    $activeStep = max(1, min(4, (int) request('step', 1)));
+    $activeStep = max(1, min(5, (int) request('step', 1)));
 @endphp
 
 @section('eyebrow', 'Workflow')
@@ -538,6 +538,105 @@
                 </table>
             </div>
         </div>
+    @endif
+</div>
+@endif
+
+@if($activeStep === 5)
+<div class="panel p-4" id="step-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="h5 mb-0">Step 5: Closeout</h2>
+            <div class="text-secondary small mt-1">Update event status, attach the final report, and upload event pictures.</div>
+        </div>
+    </div>
+
+    @if(!$selectedEvent)
+        <div class="alert alert-warning mb-0">Select or create an event first.</div>
+    @else
+        @php
+            $reportPath = $selectedEvent->training_event_report_path;
+            $picturePaths = collect($selectedEvent->training_event_picture_paths ?? [])
+                ->filter(fn ($path) => is_string($path) && trim($path) !== '')
+                ->values();
+        @endphp
+
+        <form method="POST" action="{{ route('admin.training-workflow.closeout.update', $selectedEvent) }}" enctype="multipart/form-data" class="row g-4">
+            @csrf
+            <div class="col-md-4">
+                <label class="form-label">Training Event Status</label>
+                <select name="status" class="form-select @error('status') is-invalid @enderror" required>
+                    @foreach(\App\Models\TrainingEvent::STATUSES as $status)
+                        <option value="{{ $status }}" @selected(old('status', $selectedEvent->status) === $status)>{{ $status }}</option>
+                    @endforeach
+                </select>
+                @error('status')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+
+            <div class="col-md-8">
+                <label class="form-label">Training Event Report</label>
+                <input
+                    type="file"
+                    name="training_event_report"
+                    class="form-control @error('training_event_report') is-invalid @enderror"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.jpg,.jpeg,.png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/jpeg,image/png"
+                >
+                <div class="form-text">Upload the final report. Uploading a new file replaces the current report.</div>
+                @error('training_event_report')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+
+                @if($reportPath)
+                    <div class="mt-2 d-flex flex-wrap align-items-center gap-3">
+                        <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($reportPath) }}" target="_blank" rel="noopener">Open current report</a>
+                        <label class="form-check mb-0">
+                            <input class="form-check-input" type="checkbox" name="remove_report" value="1">
+                            <span class="form-check-label">Remove current report</span>
+                        </label>
+                    </div>
+                @endif
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Training Event Pictures</label>
+                <input
+                    type="file"
+                    id="training_event_pictures"
+                    name="training_event_pictures[]"
+                    class="form-control @error('training_event_pictures') is-invalid @enderror @error('training_event_pictures.*') is-invalid @enderror"
+                    accept="image/*"
+                    multiple="multiple"
+                >
+                <div class="form-text">Select multiple image files in one upload. Existing pictures remain unless selected for removal.</div>
+                @error('training_event_pictures')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                @error('training_event_pictures.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+            </div>
+
+            @if($picturePaths->isNotEmpty())
+                <div class="col-12">
+                    <div class="row g-3">
+                        @foreach($picturePaths as $picturePath)
+                            <div class="col-sm-6 col-lg-3">
+                                <div class="border rounded p-2 h-100">
+                                    <img
+                                        src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($picturePath) }}"
+                                        alt="Training event picture"
+                                        class="img-fluid rounded mb-2"
+                                        style="aspect-ratio: 4 / 3; object-fit: cover; width: 100%;"
+                                    >
+                                    <label class="form-check small mb-0">
+                                        <input class="form-check-input" type="checkbox" name="remove_existing_pictures[]" value="{{ $picturePath }}">
+                                        <span class="form-check-label">Remove picture</span>
+                                    </label>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-dark">Save Closeout</button>
+            </div>
+        </form>
     @endif
 </div>
 @endif

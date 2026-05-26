@@ -16,6 +16,8 @@ use App\Models\Woreda;
 use App\Models\Zone;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class TrainingWorkflowWorkshopDateTest extends TestCase
@@ -101,6 +103,56 @@ class TrainingWorkflowWorkshopDateTest extends TestCase
 
         $this->assertSame('2026-06-11', $workshop?->start_date?->toDateString());
         $this->assertSame('2026-06-13', $workshop?->end_date?->toDateString());
+    }
+
+    public function test_training_workflow_closeout_updates_status_report_and_pictures(): void
+    {
+        Storage::fake('public');
+        $event = $this->trainingEventWithEnrollment();
+
+        $formResponse = $this
+            ->actingAs($this->adminUser())
+            ->get(route('admin.training-workflow.index', [
+                'event_id' => $event->id,
+                'step' => 5,
+            ]));
+
+        $formResponse
+            ->assertOk()
+            ->assertSee('Step 5: Closeout')
+            ->assertSee('Training Event Report')
+            ->assertSee('Training Event Pictures')
+            ->assertSee('name="training_event_pictures[]"', false)
+            ->assertSee('multiple="multiple"', false);
+
+        $response = $this
+            ->actingAs($this->adminUser())
+            ->post(route('admin.training-workflow.closeout.update', $event), [
+                'status' => 'Completed',
+                'training_event_report' => UploadedFile::fake()->create('final-report.pdf', 100, 'application/pdf'),
+                'training_event_pictures' => [
+                    UploadedFile::fake()->image('session-one.jpg', 640, 480),
+                    UploadedFile::fake()->image('session-two.png', 640, 480),
+                ],
+            ]);
+
+        $response
+            ->assertRedirect(route('admin.training-workflow.index', [
+                'event_id' => $event->id,
+                'step' => 5,
+            ]))
+            ->assertSessionHas('success', 'Training event closeout updated.');
+
+        $event->refresh();
+
+        $this->assertSame('Completed', $event->status);
+        $this->assertNotNull($event->training_event_report_path);
+        Storage::disk('public')->assertExists($event->training_event_report_path);
+        $this->assertCount(2, $event->training_event_picture_paths);
+
+        foreach ($event->training_event_picture_paths as $picturePath) {
+            Storage::disk('public')->assertExists($picturePath);
+        }
     }
 
     private function trainingEventWithEnrollment(): TrainingEvent

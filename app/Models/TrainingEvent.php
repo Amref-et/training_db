@@ -21,10 +21,13 @@ class TrainingEvent extends Model
         'training_id', 'training_organizer_id', 'organizer_type', 'project_subawardee_id', 'training_region_id', 'participant_id',
         'training_city', 'course_venue', 'workshop_count',
         'start_date', 'end_date', 'status',
+        'training_event_report_path',
+        'training_event_picture_paths',
     ];
 
     protected $casts = [
         'workshop_count' => 'integer',
+        'training_event_picture_paths' => 'array',
     ];
 
     protected static function booted(): void
