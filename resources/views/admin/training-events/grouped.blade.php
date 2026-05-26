@@ -5,6 +5,7 @@
 @section('subtitle', 'One row per event. Click an event row to expand participant final scores.')
 
 @section('actions')
+    <a href="{{ route('admin.training-events.grouped-training') }}" class="btn btn-outline-secondary">Grouped Training</a>
     <a href="{{ route('admin.training-events.index') }}" class="btn btn-outline-secondary">Back to Training Events</a>
 @endsection
 

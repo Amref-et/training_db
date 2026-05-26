@@ -237,6 +237,7 @@
                     @if($user?->hasPermission('training_events.view'))
                         <a class="{{ request()->routeIs('admin.training-events-calendar.*') ? 'active' : '' }}" href="{{ route('admin.training-events-calendar.index') }}" title="Event Calendar View" aria-label="Event Calendar View"><i class="bi bi-calendar-week menu-icon" aria-hidden="true"></i><span class="sidebar-label">Event Calendar View</span></a>
                         <a class="{{ request()->routeIs('admin.training-events.grouped') ? 'active' : '' }}" href="{{ route('admin.training-events.grouped') }}" title="Grouped Training Events" aria-label="Grouped Training Events"><i class="bi bi-collection menu-icon" aria-hidden="true"></i><span class="sidebar-label">Grouped Training Events</span></a>
+                        <a class="{{ request()->routeIs('admin.training-events.grouped-training') ? 'active' : '' }}" href="{{ route('admin.training-events.grouped-training') }}" title="Grouped Training" aria-label="Grouped Training"><i class="bi bi-layers menu-icon" aria-hidden="true"></i><span class="sidebar-label">Grouped Training</span></a>
                         <a class="{{ request()->routeIs('admin.training-workflow.*') ? 'active' : '' }}" href="{{ route('admin.training-workflow.index') }}" title="Training Workflow" aria-label="Training Workflow"><i class="bi bi-diagram-3 menu-icon" aria-hidden="true"></i><span class="sidebar-label">Training Workflow</span></a>
                     @endif
                 </nav>

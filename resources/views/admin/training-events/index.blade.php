@@ -5,6 +5,8 @@
 @section('subtitle', 'Grouped by Event, Training, and Project Name with collapsible details.')
 
 @section('actions')
+<a href="{{ route('admin.training-events.grouped-training') }}" class="btn btn-outline-secondary">Grouped Training</a>
+<a href="{{ route('admin.training-events.grouped') }}" class="btn btn-outline-secondary">Grouped Events</a>
 @if(auth()->user()->hasPermission($config['permission'].'.create'))
     <a href="{{ route('admin.'.$config['path'].'.create') }}" class="btn btn-dark">Add {{ $config['singular'] }}</a>
 @endif

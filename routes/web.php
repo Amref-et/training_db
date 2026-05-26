@@ -134,6 +134,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', LogUserActivity::cla
         ->middleware('permission:training_events.view')
         ->name('training-events.grouped');
 
+    Route::get('training-events/grouped-training', [TrainingEventGroupedViewController::class, 'byTrainingTitle'])
+        ->middleware('permission:training_events.view')
+        ->name('training-events.grouped-training');
+
     Route::get('training-events-calendar', [TrainingEventsCalendarController::class, 'index'])
         ->middleware('permission:training_events.view')
         ->name('training-events-calendar.index');

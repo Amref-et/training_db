@@ -275,7 +275,7 @@ class AdminSidebarMenuDefaults
                     ['title' => 'All Events', 'route_name' => 'admin.training-events.index'],
                     ['title' => 'Create Event', 'route_name' => 'admin.training-events.create', 'required_permission' => 'training_events.create'],
                     ['title' => 'Event Calendar View', 'route_name' => 'admin.training-events-calendar.index'],
-                    ['title' => 'Event by Training', 'route_name' => 'admin.training-events.grouped'],
+                    ['title' => 'Grouped Training', 'route_name' => 'admin.training-events.grouped-training'],
                     ['title' => 'Event by Organizer', 'route_name' => 'admin.training-events.grouped'],
                     ['title' => 'Event by Region/Woreda', 'route_name' => 'admin.training-events.grouped'],
                     ['title' => 'Event Status Management', 'route_name' => 'admin.training-events.index'],
@@ -320,7 +320,7 @@ class AdminSidebarMenuDefaults
                 'section_sort_order' => 30,
                 'required_permission' => 'training_events.view',
                 'children' => [
-                    ['title' => 'View Grouped Events (by Training)', 'route_name' => 'admin.training-events.grouped'],
+                    ['title' => 'Grouped Training', 'route_name' => 'admin.training-events.grouped-training'],
                     ['title' => 'Create Event Group', 'route_name' => 'admin.training-events.create', 'required_permission' => 'training_events.create'],
                     ['title' => 'Manage Group Workshops', 'url' => '/admin/training-workflow?step=3'],
                     ['title' => 'Group Performance Report', 'url' => '/admin/training-workflow?step=4'],
