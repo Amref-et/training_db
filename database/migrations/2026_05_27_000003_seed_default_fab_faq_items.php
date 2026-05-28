@@ -16,15 +16,17 @@ return new class extends Migration
         $sort = 10;
 
         foreach ($this->faqTree() as $category) {
-            $categoryId = $this->insertItem(null, 'category', $category['title'], null, $sort, $now);
+            $categoryVisibility = $this->itemVisibility($category);
+            $categoryId = $this->insertItem(null, 'category', $category, $sort, $now);
             $subcategorySort = 10;
 
             foreach ($category['children'] as $subcategory) {
-                $subcategoryId = $this->insertItem($categoryId, 'category', $subcategory['title'], null, $subcategorySort, $now);
+                $subcategoryVisibility = $this->itemVisibility($subcategory, $categoryVisibility);
+                $subcategoryId = $this->insertItem($categoryId, 'category', $subcategory, $subcategorySort, $now, $categoryVisibility);
                 $questionSort = 10;
 
                 foreach ($subcategory['questions'] as $question) {
-                    $this->insertItem($subcategoryId, 'question', $question['title'], $question['answer'], $questionSort, $now);
+                    $this->insertItem($subcategoryId, 'question', $question, $questionSort, $now, $subcategoryVisibility);
                     $questionSort += 10;
                 }
 
@@ -47,18 +49,107 @@ return new class extends Migration
             ->delete();
     }
 
-    private function insertItem(?int $parentId, string $type, string $title, ?string $answer, int $sortOrder, mixed $timestamp): int
+    private function insertItem(?int $parentId, string $type, array $item, int $sortOrder, mixed $timestamp, string $defaultVisibility = 'both'): int
     {
+        $metadata = $this->itemMetadata($item['title']);
+        $linkUrl = $item['link_url'] ?? $metadata['link_url'] ?? null;
+        $linkLabel = $item['link_label'] ?? $metadata['link_label'] ?? null;
+
+        if ($linkUrl === null || trim((string) $linkUrl) === '') {
+            $linkUrl = null;
+            $linkLabel = null;
+        } elseif ($linkLabel === null || trim((string) $linkLabel) === '') {
+            $linkLabel = 'Open link';
+        }
+
         return (int) DB::table('fab_faq_items')->insertGetId([
             'parent_id' => $parentId,
             'type' => $type,
-            'title' => $title,
-            'answer' => $answer,
+            'visibility' => $this->itemVisibility($item, $defaultVisibility),
+            'title' => $item['title'],
+            'answer' => $type === 'question' ? $item['answer'] : null,
+            'link_label' => $linkLabel,
+            'link_url' => $linkUrl,
             'sort_order' => $sortOrder,
             'is_active' => true,
             'created_at' => $timestamp,
             'updated_at' => $timestamp,
         ]);
+    }
+
+    private function itemVisibility(array $item, string $defaultVisibility = 'both'): string
+    {
+        return $item['visibility'] ?? $this->itemMetadata($item['title'])['visibility'] ?? $defaultVisibility;
+    }
+
+    private function itemMetadata(string $title): array
+    {
+        $metadata = [
+            'Participant Support' => ['visibility' => 'both'],
+            'Registration' => ['visibility' => 'public'],
+            'Participant Records' => ['visibility' => 'admin'],
+            'Training Events' => ['visibility' => 'both'],
+            'Calendar And Grouped Views' => ['visibility' => 'both'],
+            'Workflow Steps' => ['visibility' => 'admin'],
+            'Scores And Reports' => ['visibility' => 'admin'],
+            'Administration' => ['visibility' => 'admin'],
+            'Data Management' => ['visibility' => 'admin'],
+            'Website And Content' => ['visibility' => 'admin'],
+            'Projects And Learning Materials' => ['visibility' => 'admin'],
+            'Reference Data' => ['visibility' => 'admin'],
+            'System Monitoring' => ['visibility' => 'admin'],
+
+            'How do I register as a participant?' => ['visibility' => 'public', 'link_label' => 'Open registration', 'link_url' => '/participant-registration'],
+            'What happens if my generated participant ID already exists?' => ['visibility' => 'public', 'link_label' => 'Open registration', 'link_url' => '/participant-registration'],
+            'Can I join a training event from the public website?' => ['visibility' => 'public', 'link_label' => 'Request enrollment', 'link_url' => '/training-event-join-request'],
+            'Can admins search existing participants during enrollment?' => ['visibility' => 'admin', 'link_label' => 'Create participant', 'link_url' => '/admin/participants/create'],
+            'Can participant training participation be exported?' => ['visibility' => 'admin', 'link_label' => 'Export participation', 'link_url' => '/admin/participants/training-participation/export'],
+            'What does the training calendar show by default?' => ['visibility' => 'public', 'link_label' => 'Open calendar', 'link_url' => '/embed/training-events-calendar'],
+            'How are grouped training events displayed?' => ['visibility' => 'admin', 'link_label' => 'Open grouped training', 'link_url' => '/admin/training-events/grouped-training'],
+            'Can I edit events from grouped views?' => ['visibility' => 'admin', 'link_label' => 'Open grouped events', 'link_url' => '/admin/training-events/grouped'],
+            'What is the training workflow used for?' => ['visibility' => 'admin', 'link_label' => 'Open workflow', 'link_url' => '/admin/training-workflow'],
+            'What can admins do in Step 5 Closeout?' => ['visibility' => 'admin', 'link_label' => 'Open closeout', 'link_url' => '/admin/training-workflow?step=5'],
+            'Can event pictures be uploaded in bulk?' => ['visibility' => 'admin', 'link_label' => 'Open closeout', 'link_url' => '/admin/training-workflow?step=5'],
+            'How are final scores calculated?' => ['visibility' => 'admin', 'link_label' => 'Open workflow', 'link_url' => '/admin/training-workflow?step=4'],
+            'Can workshop score sheets be imported or exported?' => ['visibility' => 'admin', 'link_label' => 'Open scores', 'link_url' => '/admin/training-workflow?step=4'],
+            'What reports are available for training participation?' => ['visibility' => 'admin', 'link_label' => 'Open participants', 'link_url' => '/admin/participants'],
+            'Can dashboards be shared?' => ['visibility' => 'admin', 'link_label' => 'Open dashboard', 'link_url' => '/admin'],
+            'Can admins import users?' => ['visibility' => 'admin', 'link_label' => 'Open users', 'link_url' => '/admin/users'],
+            'How are temporary passwords shared?' => ['visibility' => 'admin', 'link_label' => 'Open users', 'link_url' => '/admin/users'],
+            'How are roles assigned?' => ['visibility' => 'admin', 'link_label' => 'Open roles', 'link_url' => '/admin/roles'],
+            'How do I enable the floating FAQ chatbot?' => ['visibility' => 'admin', 'link_label' => 'Open appearance', 'link_url' => '/admin/appearance'],
+            'How do I manage chatbot FAQ content?' => ['visibility' => 'admin', 'link_label' => 'Manage FAQs', 'link_url' => '/admin/fab-faqs'],
+            'Can FAQs have more than one level?' => ['visibility' => 'admin', 'link_label' => 'Manage FAQs', 'link_url' => '/admin/fab-faqs'],
+            'Can organization data be imported?' => ['visibility' => 'admin', 'link_label' => 'Open organizations', 'link_url' => '/admin/organizations'],
+            'Can participant data be imported?' => ['visibility' => 'admin', 'link_label' => 'Open participants', 'link_url' => '/admin/participants'],
+            'Does the system expose API documentation?' => ['visibility' => 'admin', 'link_label' => 'Open API docs', 'link_url' => '/admin/api-management/docs'],
+            'Can training event data be synced to DHIS2?' => ['visibility' => 'admin', 'link_label' => 'Open API management', 'link_url' => '/admin/api-management'],
+            'Can admins manage website pages?' => ['visibility' => 'admin', 'link_label' => 'Open pages', 'link_url' => '/admin/pages'],
+            'Can the public website menu be managed from admin?' => ['visibility' => 'admin', 'link_label' => 'Open menus', 'link_url' => '/admin/menus'],
+            'Can the admin sidebar menu be customized?' => ['visibility' => 'admin', 'link_label' => 'Open sidebar menus', 'link_url' => '/admin/sidebar-menus'],
+            'What can be changed from Appearance settings?' => ['visibility' => 'admin', 'link_label' => 'Open appearance', 'link_url' => '/admin/appearance'],
+            'Can custom CSS and JavaScript be added?' => ['visibility' => 'admin', 'link_label' => 'Open appearance', 'link_url' => '/admin/appearance'],
+            'Can the public login page be branded?' => ['visibility' => 'admin', 'link_label' => 'Open appearance', 'link_url' => '/admin/appearance'],
+            'What project information can be tracked?' => ['visibility' => 'admin', 'link_label' => 'Open projects', 'link_url' => '/admin/projects'],
+            'Can project categories be managed?' => ['visibility' => 'admin', 'link_label' => 'Open project categories', 'link_url' => '/admin/project-categories'],
+            'Can participant projects be linked?' => ['visibility' => 'admin', 'link_label' => 'Open projects', 'link_url' => '/admin/projects'],
+            'Can training materials be uploaded?' => ['visibility' => 'admin', 'link_label' => 'Open materials', 'link_url' => '/admin/trainingmaterials'],
+            'Can training materials use external links?' => ['visibility' => 'admin', 'link_label' => 'Open materials', 'link_url' => '/admin/trainingmaterials'],
+            'Can materials be ordered or hidden?' => ['visibility' => 'admin', 'link_label' => 'Open materials', 'link_url' => '/admin/trainingmaterials'],
+            'What location data does the system manage?' => ['visibility' => 'admin', 'link_label' => 'Open regions', 'link_url' => '/admin/regions'],
+            'How are organizations connected to locations?' => ['visibility' => 'admin', 'link_label' => 'Open organizations', 'link_url' => '/admin/organizations'],
+            'Can imported location IDs be preserved?' => ['visibility' => 'admin', 'link_label' => 'Open organizations', 'link_url' => '/admin/organizations'],
+            'What is the difference between Trainings and Training Events?' => ['visibility' => 'admin', 'link_label' => 'Open trainings', 'link_url' => '/admin/trainings'],
+            'Can training categories be managed?' => ['visibility' => 'admin', 'link_label' => 'Open training categories', 'link_url' => '/admin/trainingcategories'],
+            'Can professions be managed?' => ['visibility' => 'admin', 'link_label' => 'Open professions', 'link_url' => '/admin/professions'],
+            'Can admins review user activity?' => ['visibility' => 'admin', 'link_label' => 'Open activity logs', 'link_url' => '/admin/user-activity-logs'],
+            'Why was the activity log query optimized?' => ['visibility' => 'admin', 'link_label' => 'Open activity logs', 'link_url' => '/admin/user-activity-logs'],
+            'Can environment settings be managed from admin?' => ['visibility' => 'admin', 'link_label' => 'Open env settings', 'link_url' => '/admin/settings/env'],
+            'What is API Management used for?' => ['visibility' => 'admin', 'link_label' => 'Open API management', 'link_url' => '/admin/api-management'],
+            'Who can access system administration features?' => ['visibility' => 'admin', 'link_label' => 'Open roles', 'link_url' => '/admin/roles'],
+        ];
+
+        return $metadata[$title] ?? [];
     }
 
     private function faqTree(): array

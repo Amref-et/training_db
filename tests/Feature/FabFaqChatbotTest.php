@@ -45,14 +45,20 @@ class FabFaqChatbotTest extends TestCase
         $this->assertDatabaseHas('fab_faq_items', [
             'type' => FabFaqItem::TYPE_QUESTION,
             'title' => 'Can admins import users?',
+            'visibility' => FabFaqItem::VISIBILITY_ADMIN,
+            'link_url' => '/admin/users',
         ]);
         $this->assertDatabaseHas('fab_faq_items', [
             'type' => FabFaqItem::TYPE_QUESTION,
             'title' => 'How do I enable the floating FAQ chatbot?',
+            'visibility' => FabFaqItem::VISIBILITY_ADMIN,
+            'link_url' => '/admin/appearance',
         ]);
         $this->assertDatabaseHas('fab_faq_items', [
             'type' => FabFaqItem::TYPE_QUESTION,
-            'title' => 'What is the difference between Trainings and Training Events?',
+            'title' => 'How do I register as a participant?',
+            'visibility' => FabFaqItem::VISIBILITY_PUBLIC,
+            'link_url' => '/participant-registration',
         ]);
     }
 
@@ -94,6 +100,7 @@ class FabFaqChatbotTest extends TestCase
             ->actingAs($admin)
             ->post(route('admin.fab-faqs.store'), [
                 'type' => FabFaqItem::TYPE_CATEGORY,
+                'visibility' => FabFaqItem::VISIBILITY_BOTH,
                 'title' => 'Training',
                 'sort_order' => 10,
                 'is_active' => '1',
@@ -107,6 +114,7 @@ class FabFaqChatbotTest extends TestCase
             ->post(route('admin.fab-faqs.store'), [
                 'parent_id' => $category->id,
                 'type' => FabFaqItem::TYPE_CATEGORY,
+                'visibility' => FabFaqItem::VISIBILITY_BOTH,
                 'title' => 'Enrollment',
                 'sort_order' => 10,
                 'is_active' => '1',
@@ -120,8 +128,11 @@ class FabFaqChatbotTest extends TestCase
             ->post(route('admin.fab-faqs.store'), [
                 'parent_id' => $subcategory->id,
                 'type' => FabFaqItem::TYPE_QUESTION,
+                'visibility' => FabFaqItem::VISIBILITY_PUBLIC,
                 'title' => 'How do I join a training?',
                 'answer' => 'Use the public training request form.',
+                'link_label' => 'Request enrollment',
+                'link_url' => '/training-event-join-request',
                 'sort_order' => 20,
                 'is_active' => '1',
             ])
@@ -130,6 +141,7 @@ class FabFaqChatbotTest extends TestCase
         $secondQuestion = FabFaqItem::query()->create([
             'parent_id' => $subcategory->id,
             'type' => FabFaqItem::TYPE_QUESTION,
+            'visibility' => FabFaqItem::VISIBILITY_PUBLIC,
             'title' => 'Where do I see my status?',
             'answer' => 'The team will contact you after review.',
             'sort_order' => 30,
@@ -152,7 +164,9 @@ class FabFaqChatbotTest extends TestCase
             ->assertOk()
             ->assertSee('Training')
             ->assertSee('Enrollment')
-            ->assertSee('How do I join a training?');
+            ->assertSee('How do I join a training?')
+            ->assertSee('Public')
+            ->assertSee('Request enrollment');
     }
 
     public function test_public_page_renders_enabled_fab_chatbot_with_active_faq_tree(): void
@@ -160,6 +174,7 @@ class FabFaqChatbotTest extends TestCase
         WebsiteSetting::current()->forceFill(['fab_chat_enabled' => true])->save();
         $category = FabFaqItem::query()->create([
             'type' => FabFaqItem::TYPE_CATEGORY,
+            'visibility' => FabFaqItem::VISIBILITY_BOTH,
             'title' => 'Training',
             'sort_order' => 10,
             'is_active' => true,
@@ -167,6 +182,7 @@ class FabFaqChatbotTest extends TestCase
         $subcategory = FabFaqItem::query()->create([
             'parent_id' => $category->id,
             'type' => FabFaqItem::TYPE_CATEGORY,
+            'visibility' => FabFaqItem::VISIBILITY_BOTH,
             'title' => 'Enrollment',
             'sort_order' => 10,
             'is_active' => true,
@@ -174,8 +190,22 @@ class FabFaqChatbotTest extends TestCase
         FabFaqItem::query()->create([
             'parent_id' => $subcategory->id,
             'type' => FabFaqItem::TYPE_QUESTION,
+            'visibility' => FabFaqItem::VISIBILITY_PUBLIC,
             'title' => 'How do I join?',
             'answer' => 'Use the public training request form.',
+            'link_label' => 'Request enrollment',
+            'link_url' => '/training-event-join-request',
+            'sort_order' => 10,
+            'is_active' => true,
+        ]);
+        FabFaqItem::query()->create([
+            'parent_id' => $subcategory->id,
+            'type' => FabFaqItem::TYPE_QUESTION,
+            'visibility' => FabFaqItem::VISIBILITY_ADMIN,
+            'title' => 'Can admins import users?',
+            'answer' => 'Open Users to import accounts.',
+            'link_label' => 'Open users',
+            'link_url' => '/admin/users',
             'sort_order' => 10,
             'is_active' => true,
         ]);
@@ -184,11 +214,27 @@ class FabFaqChatbotTest extends TestCase
             ->get(route('home'))
             ->assertOk()
             ->assertSee('data-fab-chatbot', false)
+            ->assertSee('data-fab-audience="public"', false)
             ->assertSee('FAQ Assistant')
             ->assertSee('Training')
             ->assertSee('Enrollment')
             ->assertSee('How do I join?')
-            ->assertSee('Use the public training request form.');
+            ->assertSee('Use the public training request form.')
+            ->assertSee('Request enrollment')
+            ->assertSee('\/training-event-join-request', false)
+            ->assertDontSee('Can admins import users?')
+            ->assertDontSee('\/admin\/users', false);
+
+        $adminHtml = view('website.partials.fab-chatbot', [
+            'settings' => WebsiteSetting::current(),
+            'audience' => 'admin',
+        ])->render();
+
+        $this->assertStringContainsString('data-fab-audience="admin"', $adminHtml);
+        $this->assertStringContainsString('Can admins import users?', $adminHtml);
+        $this->assertStringContainsString('\/admin\/users', $adminHtml);
+        $this->assertStringNotContainsString('How do I join?', $adminHtml);
+        $this->assertStringNotContainsString('\/training-event-join-request', $adminHtml);
 
         WebsiteSetting::current()->forceFill(['fab_chat_enabled' => false])->save();
 

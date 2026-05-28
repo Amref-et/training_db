@@ -343,6 +343,7 @@
             });
         });
     </script>
+    @include('website.partials.fab-chatbot', ['settings' => $appearance, 'audience' => 'admin'])
     @yield('scripts')
 </body>
 </html>

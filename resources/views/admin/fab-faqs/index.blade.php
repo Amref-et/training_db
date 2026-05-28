@@ -2,7 +2,7 @@
 
 @section('eyebrow', 'Appearance')
 @section('title', 'FAB Chatbot FAQs')
-@section('subtitle', 'Manage the hierarchical FAQ menu shown inside the public floating chatbot.')
+@section('subtitle', 'Manage the hierarchical FAQ menus shown inside the floating chatbot.')
 
 @section('actions')
 <div class="d-flex gap-2">
@@ -27,8 +27,10 @@
                 <tr>
                     <th>Item</th>
                     <th>Type</th>
+                    <th>Visibility</th>
                     <th>Status</th>
                     <th>Sort</th>
+                    <th>Link</th>
                     <th>Answer Preview</th>
                     <th class="text-end">Actions</th>
                 </tr>
@@ -45,8 +47,16 @@
                                 {{ ucfirst($item->type) }}
                             </span>
                         </td>
+                        <td>{{ ucfirst($item->visibility ?: \App\Models\FabFaqItem::VISIBILITY_BOTH) }}</td>
                         <td>{{ $item->is_active ? 'Active' : 'Hidden' }}</td>
                         <td>{{ $item->sort_order }}</td>
+                        <td class="small">
+                            @if($item->link_url)
+                                <a href="{{ $item->link_url }}" target="_blank" rel="noopener">{{ $item->link_label ?: 'Open link' }}</a>
+                            @else
+                                <span class="text-secondary">-</span>
+                            @endif
+                        </td>
                         <td class="text-secondary small" style="max-width: 28rem;">
                             {{ $item->answer ? \Illuminate\Support\Str::limit($item->answer, 120) : '-' }}
                         </td>
@@ -73,7 +83,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="text-center text-secondary py-4">No FAQ items found. Add a category to start the chatbot menu.</td>
+                        <td colspan="8" class="text-center text-secondary py-4">No FAQ items found. Add a category to start the chatbot menu.</td>
                     </tr>
                 @endforelse
             </tbody>

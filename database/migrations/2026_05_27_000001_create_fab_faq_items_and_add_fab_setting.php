@@ -19,14 +19,18 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('parent_id')->nullable()->constrained('fab_faq_items')->cascadeOnDelete();
                 $table->string('type', 20)->default('category');
+                $table->string('visibility', 20)->default('both');
                 $table->string('title');
                 $table->longText('answer')->nullable();
+                $table->string('link_label')->nullable();
+                $table->string('link_url')->nullable();
                 $table->unsignedInteger('sort_order')->default(0);
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
 
                 $table->index(['parent_id', 'sort_order'], 'fab_faq_items_parent_sort_idx');
                 $table->index(['type', 'is_active'], 'fab_faq_items_type_active_idx');
+                $table->index(['visibility', 'is_active'], 'fab_faq_items_visibility_active_idx');
             });
         }
     }

@@ -1,13 +1,14 @@
 @php
     $fabSettings = $settings ?? \App\Models\WebsiteSetting::current();
     $fabEnabled = (bool) ($fabSettings->fab_chat_enabled ?? false);
+    $fabAudience = in_array(($audience ?? 'public'), ['public', 'admin'], true) ? ($audience ?? 'public') : 'public';
     $fabFaqTree = $fabEnabled
-        ? \App\Models\FabFaqItem::tree(true)->map(fn ($item) => $item->toChatbotNode())->values()->all()
+        ? \App\Models\FabFaqItem::tree(true, $fabAudience)->map(fn ($item) => $item->toChatbotNode())->values()->all()
         : [];
 @endphp
 
 @if($fabEnabled)
-<div class="hil-fab-chatbot" data-fab-chatbot>
+<div class="hil-fab-chatbot" data-fab-chatbot data-fab-audience="{{ $fabAudience }}">
     <button class="hil-fab-chatbot__button" type="button" aria-label="Open FAQ chatbot" aria-expanded="false" data-fab-toggle>
         <span aria-hidden="true">?</span>
     </button>
@@ -151,6 +152,25 @@
         color: #475569;
         background: #f8fafc;
     }
+    .hil-fab-chatbot__link {
+        justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        max-width: 88%;
+        border-radius: 10px;
+        padding: .62rem .8rem;
+        background: #0f172a;
+        color: #fff;
+        text-decoration: none;
+        font-size: .9rem;
+        font-weight: 700;
+    }
+    .hil-fab-chatbot__link:hover,
+    .hil-fab-chatbot__link:focus {
+        color: #fff;
+        filter: brightness(1.08);
+    }
     @media (max-width: 575.98px) {
         .hil-fab-chatbot {
             right: 1rem;
@@ -195,6 +215,25 @@
                 bubble.className = `hil-fab-chatbot__message hil-fab-chatbot__message--${from}`;
                 bubble.textContent = text;
                 messages.appendChild(bubble);
+                scrollMessages();
+            };
+
+            const addLink = (item) => {
+                if (!item.link_url) {
+                    return;
+                }
+
+                const link = document.createElement('a');
+                link.className = 'hil-fab-chatbot__link';
+                link.href = item.link_url;
+                link.textContent = item.link_label || 'Open link';
+
+                if (/^https?:\/\//i.test(item.link_url)) {
+                    link.target = '_blank';
+                    link.rel = 'noopener';
+                }
+
+                messages.appendChild(link);
                 scrollMessages();
             };
 
@@ -246,6 +285,7 @@
                 }
 
                 addMessage(item.answer || 'No answer has been added for this question yet.');
+                addLink(item);
                 renderOptions(stack.length > 0 ? currentItems : tree);
             };
 

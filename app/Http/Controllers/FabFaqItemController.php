@@ -22,6 +22,7 @@ class FabFaqItemController extends Controller
         return view('admin.fab-faqs.form', [
             'item' => new FabFaqItem([
                 'type' => FabFaqItem::TYPE_CATEGORY,
+                'visibility' => FabFaqItem::VISIBILITY_BOTH,
                 'sort_order' => $this->nextSortOrder(null),
                 'is_active' => true,
             ]),
@@ -38,7 +39,7 @@ class FabFaqItemController extends Controller
             'auditable_type' => FabFaqItem::class,
             'auditable_id' => $item->id,
             'auditable_label' => $item->title,
-            'new_values' => $item->only(['parent_id', 'type', 'title', 'answer', 'sort_order', 'is_active']),
+            'new_values' => $item->only(['parent_id', 'type', 'visibility', 'title', 'answer', 'link_label', 'link_url', 'sort_order', 'is_active']),
         ]);
 
         return redirect()->route('admin.fab-faqs.index')->with('success', 'FAQ item created successfully.');
@@ -72,7 +73,7 @@ class FabFaqItemController extends Controller
 
     public function destroy(FabFaqItem $fabFaq): RedirectResponse
     {
-        $beforeValues = $fabFaq->only(['parent_id', 'type', 'title', 'answer', 'sort_order', 'is_active']);
+        $beforeValues = $fabFaq->only(['parent_id', 'type', 'visibility', 'title', 'answer', 'link_label', 'link_url', 'sort_order', 'is_active']);
         $itemId = $fabFaq->id;
         $itemTitle = $fabFaq->title;
 
@@ -129,8 +130,25 @@ class FabFaqItemController extends Controller
                 Rule::notIn($excludedParentIds),
             ],
             'type' => ['required', Rule::in(FabFaqItem::TYPES)],
+            'visibility' => ['required', Rule::in(FabFaqItem::VISIBILITIES)],
             'title' => ['required', 'string', 'max:255'],
             'answer' => [Rule::requiredIf($request->input('type') === FabFaqItem::TYPE_QUESTION), 'nullable', 'string'],
+            'link_label' => ['nullable', 'string', 'max:255'],
+            'link_url' => [
+                'nullable',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (blank($value)) {
+                        return;
+                    }
+
+                    $url = (string) $value;
+                    if (! str_starts_with($url, '/') && ! preg_match('/^https?:\/\//i', $url)) {
+                        $fail('The navigation link URL must start with /, http://, or https://.');
+                    }
+                },
+            ],
             'sort_order' => ['required', 'integer', 'min:0', 'max:1000000'],
         ]);
 
@@ -140,6 +158,13 @@ class FabFaqItemController extends Controller
 
         if ($data['type'] === FabFaqItem::TYPE_CATEGORY) {
             $data['answer'] = null;
+        }
+
+        if (blank($data['link_url'] ?? null)) {
+            $data['link_label'] = null;
+            $data['link_url'] = null;
+        } elseif (blank($data['link_label'] ?? null)) {
+            $data['link_label'] = 'Open link';
         }
 
         return $data;
