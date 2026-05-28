@@ -445,6 +445,7 @@
 @section('actions')
 <div class="appearance-actions">
     <a href="{{ route('home') }}" target="_blank" class="btn btn-outline-dark">Preview Website</a>
+    <a href="{{ route('admin.fab-faqs.index') }}" class="btn btn-outline-secondary">Manage FAB FAQs</a>
     <a href="{{ route('admin.settings.env.edit') }}" class="btn btn-outline-secondary">Env Settings</a>
 </div>
 @endsection
@@ -499,6 +500,7 @@
                                 <a href="#footer-system">Footer</a>
                                 <a href="#login-system">Login Page</a>
                                 <a href="#advanced-system">Advanced</a>
+                                <a href="{{ route('admin.fab-faqs.index') }}">FAB FAQs</a>
                             </div>
                         </div>
                         <div class="col-lg-6">
@@ -950,6 +952,15 @@
                                     <span class="appearance-toggle-copy">Expose a standard login link in the public navigation experience.</span>
                                 </label>
                                 <input class="form-check-input" type="checkbox" name="show_login_link" value="1" id="show_login_link" @checked(old('show_login_link', $settings->show_login_link))>
+                            </div>
+                        </div>
+                        <div class="appearance-toggle-card">
+                            <div class="form-check form-switch">
+                                <label class="form-check-label" for="fab_chat_enabled">
+                                    <span class="appearance-toggle-title">Enable FAQ Chatbot FAB</span>
+                                    <span class="appearance-toggle-copy">Show a floating help button on public pages that opens the managed FAQ chatbot.</span>
+                                </label>
+                                <input class="form-check-input" type="checkbox" name="fab_chat_enabled" value="1" id="fab_chat_enabled" @checked(old('fab_chat_enabled', $settings->fab_chat_enabled))>
                             </div>
                         </div>
                     </div>

@@ -99,6 +99,7 @@ class AdminSidebarMenuDefaults
                     ['title' => 'Layout Builder', 'route_name' => 'admin.appearance.edit'],
                     ['title' => 'Menu Manager', 'route_name' => 'admin.menus.index', 'required_permission' => 'menus.view'],
                     ['title' => 'Header & Footer', 'route_name' => 'admin.appearance.edit'],
+                    ['title' => 'FAB FAQs', 'route_name' => 'admin.fab-faqs.index'],
                     ['title' => 'Custom CSS', 'route_name' => 'admin.appearance.custom-css'],
                     ['title' => 'Custom JS', 'route_name' => 'admin.appearance.custom-js'],
                     ['title' => 'Env Settings', 'route_name' => 'admin.settings.env.edit'],

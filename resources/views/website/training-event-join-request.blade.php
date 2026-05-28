@@ -984,5 +984,6 @@
             });
         });
     </script>
+    @include('website.partials.fab-chatbot', ['settings' => $settings])
 </body>
 </html>

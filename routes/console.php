@@ -6,6 +6,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -64,6 +65,41 @@ Artisan::command('organizations:import-hierarchy {path : Absolute path to the CS
 
     return self::SUCCESS;
 })->purpose('Import region, zone, woreda, and organization hierarchy from a CSV file');
+
+Artisan::command('fab-faqs:seed-default {--force : Delete all existing FAB FAQ items before seeding defaults}', function () {
+    if (! Schema::hasTable('fab_faq_items')) {
+        $this->error('The fab_faq_items table does not exist. Run php artisan migrate first.');
+
+        return self::FAILURE;
+    }
+
+    $existingCount = DB::table('fab_faq_items')->count();
+    if ($existingCount > 0 && ! $this->option('force')) {
+        $this->error('Refusing to overwrite '.$existingCount.' existing FAQ item(s). Re-run with --force to delete and reseed the table.');
+
+        return self::FAILURE;
+    }
+
+    if ($existingCount > 0) {
+        Schema::disableForeignKeyConstraints();
+
+        try {
+            DB::table('fab_faq_items')->truncate();
+        } finally {
+            Schema::enableForeignKeyConstraints();
+        }
+
+        $this->warn('Deleted '.$existingCount.' existing FAQ item(s).');
+    }
+
+    $migration = require database_path('migrations/2026_05_27_000003_seed_default_fab_faq_items.php');
+    $migration->up();
+
+    $seededCount = DB::table('fab_faq_items')->count();
+    $this->info('Default FAB FAQ items seeded. Current FAQ item count: '.$seededCount.'.');
+
+    return self::SUCCESS;
+})->purpose('Seed default FAB chatbot FAQs, optionally overwriting existing items');
 
 Artisan::command('hil:prepare-legacy-import {path : Absolute path to the legacy HIL SQL dump} {--output= : Optional absolute output directory}', function (string $path) {
     if (! File::exists($path)) {

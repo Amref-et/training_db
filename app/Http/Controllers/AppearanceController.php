@@ -106,6 +106,7 @@ class AppearanceController extends Controller
 
         $settings->show_admin_link = $request->boolean('show_admin_link');
         $settings->show_login_link = $request->boolean('show_login_link');
+        $settings->fab_chat_enabled = $request->boolean('fab_chat_enabled');
         $settings->save();
         $settings->refresh();
         $this->audit()->logModelUpdated($settings, $beforeState, 'Appearance settings updated');

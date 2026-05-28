@@ -46,6 +46,7 @@ class WebsiteSetting extends Model
         'footer_copyright',
         'show_admin_link',
         'show_login_link',
+        'fab_chat_enabled',
         'public_home_dashboard_tab_id',
         'login_eyebrow',
         'login_title',
@@ -71,6 +72,7 @@ class WebsiteSetting extends Model
     protected $casts = [
         'show_admin_link' => 'boolean',
         'show_login_link' => 'boolean',
+        'fab_chat_enabled' => 'boolean',
         'radius_sm' => 'integer',
         'radius_md' => 'integer',
         'radius_lg' => 'integer',
@@ -118,6 +120,7 @@ class WebsiteSetting extends Model
             'footer_copyright' => 'All rights reserved.',
             'show_admin_link' => true,
             'show_login_link' => true,
+            'fab_chat_enabled' => false,
             'public_home_dashboard_tab_id' => null,
             'login_eyebrow' => 'Admin Access',
             'login_title' => null,

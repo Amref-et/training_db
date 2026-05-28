@@ -1142,6 +1142,7 @@
     </script>
     @endif
     @endif
+    @include('website.partials.fab-chatbot', ['settings' => $settings])
     @if($customJs !== '')
         <script id="website-custom-js">
 {!! $safeCustomJs !!}
@@ -1149,7 +1150,6 @@
     @endif
 </body>
 </html>
-
 
 
 
