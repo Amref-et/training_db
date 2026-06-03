@@ -2,6 +2,9 @@
     RewriteEngine On
     RewriteBase /test/hil-v2/
 
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     RewriteRule ^public/ - [L]
     RewriteRule ^(build/.*|storage/.*|favicon\.ico|robots\.txt)$ public/$1 [L]
 

@@ -1,6 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\ApiDashboardSummaryController;
 use App\Http\Controllers\Api\Dhis2ExportController;
+use App\Http\Controllers\Api\Mobile\AppearanceController as MobileAppearanceController;
+use App\Http\Controllers\Api\Mobile\AuthController as MobileAuthController;
+use App\Http\Controllers\Api\Mobile\EnrollmentController as MobileEnrollmentController;
+use App\Http\Controllers\Api\Mobile\ParticipantRegistrationController as MobileParticipantRegistrationController;
+use App\Http\Controllers\Api\Mobile\TrainingEventJoinRequestController as MobileTrainingEventJoinRequestController;
 use App\Http\Controllers\Api\V1\MetaController;
 use App\Http\Controllers\Api\V1\OrganizationsController;
 use App\Http\Controllers\Api\V1\ParticipantsController;
@@ -12,7 +18,6 @@ use App\Http\Controllers\Api\V1\TrainingRoundsController;
 use App\Http\Controllers\Api\V1\TrainingsController;
 use App\Http\Controllers\Api\V1\WoredasController;
 use App\Http\Controllers\Api\V1\ZonesController;
-use App\Http\Controllers\Api\ApiDashboardSummaryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +36,33 @@ $registerResourceRoutes = function (): void {
     Route::apiResource('training-rounds', TrainingRoundsController::class)->middleware('api_scope:reference-data');
     Route::get('dashboard', [ApiDashboardSummaryController::class, 'index'])->middleware('api_scope:reference-data');
 };
+
+Route::prefix('mobile')->as('api.mobile.')->group(function (): void {
+    Route::get('appearance', [MobileAppearanceController::class, 'show'])->name('appearance.show');
+    Route::post('login', [MobileAuthController::class, 'login'])->name('login');
+
+    Route::middleware('auth:sanctum')->group(function (): void {
+        Route::get('me', [MobileAuthController::class, 'me'])->name('me');
+        Route::post('logout', [MobileAuthController::class, 'logout'])->name('logout');
+        Route::post('training-events/{trainingEvent}/enrollments', [MobileEnrollmentController::class, 'store'])
+            ->middleware('permission:training_event_participants.create')
+            ->name('training-events.enrollments.store');
+    });
+
+    Route::get('participant-registration/options', [MobileParticipantRegistrationController::class, 'options'])
+        ->name('participant-registration.options');
+    Route::get('participant-registration/organization-options', [MobileParticipantRegistrationController::class, 'organizationOptions'])
+        ->name('participant-registration.organization-options');
+    Route::post('participant-registration', [MobileParticipantRegistrationController::class, 'store'])
+        ->name('participant-registration.store');
+
+    Route::get('training-event-join-request/options', [MobileTrainingEventJoinRequestController::class, 'options'])
+        ->name('training-event-join-request.options');
+    Route::get('training-event-join-request/participant-options', [MobileTrainingEventJoinRequestController::class, 'participantOptions'])
+        ->name('training-event-join-request.participant-options');
+    Route::post('training-event-join-request', [MobileTrainingEventJoinRequestController::class, 'store'])
+        ->name('training-event-join-request.store');
+});
 
 Route::middleware(['auth:sanctum'])->group(function () use ($registerResourceRoutes) {
     $registerResourceRoutes();

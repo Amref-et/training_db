@@ -1,0 +1,48 @@
+:root {
+  --ion-color-primary: #0f766e;
+  --ion-color-primary-rgb: 15, 118, 110;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #0d6861;
+  --ion-color-primary-tint: #27847d;
+
+  --ion-color-secondary: #2563eb;
+  --ion-color-secondary-rgb: 37, 99, 235;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #2157cf;
+  --ion-color-secondary-tint: #3b73ed;
+
+  --ion-background-color: #f8fafc;
+  --ion-text-color: #1f2937;
+  --ion-font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ion-border-color: rgba(15, 23, 42, 0.12);
+  --ion-card-background: #ffffff;
+  --ion-toolbar-background: #ffffff;
+  --ion-tab-bar-background: #ffffff;
+  --hil-mobile-toolbar-text: #0f172a;
+  --hil-mobile-tab-bg: #ffffff;
+  --hil-mobile-tab-text: #334155;
+  --hil-mobile-tab-selected: #0f766e;
+  --hil-mobile-panel: #ffffff;
+  --hil-mobile-panel-text: #0f172a;
+  --hil-mobile-muted: #334155;
+  --hil-mobile-card-title: #475569;
+  --hil-mobile-footer-bg: #0f172a;
+  --hil-mobile-login-start: #082f49;
+  --hil-mobile-login-end: #0f766e;
+  --hil-mobile-login-accent: #d97706;
+  --hil-mobile-login-card: #ffffff;
+  --hil-mobile-login-card-text: #0f172a;
+  --hil-radius-sm: 10px;
+  --hil-radius-md: 14px;
+  --hil-radius-lg: 18px;
+  --hil-radius-xl: 24px;
+  --hil-radius-pill: 999px;
+}
+
+ion-card,
+ion-list[inset],
+ion-item {
+  --border-radius: var(--hil-radius-sm);
+}

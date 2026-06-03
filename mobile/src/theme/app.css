@@ -1,0 +1,719 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--ion-background-color);
+  color: var(--ion-text-color);
+}
+
+.screen-shell {
+  width: min(100%, 840px);
+  margin: 0 auto;
+  padding: 16px;
+}
+
+ion-toolbar {
+  --background: var(--ion-toolbar-background);
+  --color: var(--hil-mobile-toolbar-text);
+  --border-color: rgba(15, 23, 42, 0.08);
+}
+
+ion-toolbar ion-button {
+  --color: var(--hil-mobile-toolbar-text);
+}
+
+ion-tab-bar {
+  --background: var(--hil-mobile-tab-bg);
+  --color: var(--hil-mobile-tab-text);
+  --color-selected: var(--hil-mobile-tab-selected);
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+
+ion-tab-button {
+  --color: var(--hil-mobile-tab-text);
+  --color-selected: var(--hil-mobile-tab-selected);
+}
+
+ion-tab-button.tab-selected {
+  font-weight: 700;
+}
+
+ion-button {
+  --border-radius: var(--hil-radius-sm);
+}
+
+ion-item {
+  --background: var(--hil-mobile-panel);
+  --color: var(--hil-mobile-panel-text);
+  --border-color: rgba(15, 23, 42, 0.11);
+}
+
+.mobile-toolbar-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding-left: 10px;
+}
+
+.offline-status {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 1000;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: min(calc(100% - 24px), 540px);
+  padding: 9px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  border-radius: var(--hil-radius-sm);
+  background: var(--hil-mobile-panel);
+  color: var(--hil-mobile-panel-text);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  transform: translateX(-50%);
+}
+
+.offline-status.offline {
+  border-color: rgba(146, 64, 14, 0.28);
+  background: #fffbeb;
+  color: #78350f;
+}
+
+.offline-status.online {
+  border-color: rgba(21, 128, 61, 0.24);
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.offline-status ion-icon {
+  font-size: 1.1rem;
+}
+
+.offline-status ion-text {
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.offline-status ion-button {
+  min-height: 28px;
+  margin: 0;
+  --padding-start: 8px;
+  --padding-end: 8px;
+}
+
+.login-screen {
+  --background:
+    radial-gradient(circle at 50% -10%, rgba(var(--ion-color-primary-rgb), 0.32), transparent 34%),
+    linear-gradient(
+      155deg,
+      var(--hil-mobile-login-start) 0%,
+      var(--hil-mobile-login-end) 68%,
+      var(--hil-mobile-login-accent) 145%
+    );
+}
+
+.login-panel {
+  min-height: 100%;
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: calc(26px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 16px;
+  color: #ffffff;
+}
+
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  min-height: 70px;
+  margin: 0 auto;
+  border-radius: var(--hil-radius-sm);
+  background: #ffffff;
+  padding: 10px 14px;
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.18);
+}
+
+.brand-logo img {
+  display: block;
+  max-width: 176px;
+  object-fit: contain;
+}
+
+.brand-logo.compact {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 5px;
+  background: transparent;
+}
+
+.brand-logo.compact img {
+  max-width: 92px;
+}
+
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--hil-radius-sm);
+  background: var(--ion-color-primary);
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.brand-block .brand-mark {
+  width: 70px;
+  height: 70px;
+  background: #ffffff;
+  color: var(--ion-color-primary);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.18);
+}
+
+.brand-mark.compact {
+  width: 34px;
+  height: 34px;
+  font-size: 0.72rem;
+}
+
+.brand-block h1,
+.section-heading h1,
+ion-modal h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.brand-block p,
+.section-heading p,
+ion-card p {
+  margin: 4px 0 0;
+}
+
+.brand-block p {
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.45;
+}
+
+.login-eyebrow {
+  display: block;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.login-intro {
+  display: block;
+  margin-bottom: 16px;
+  background: transparent;
+  color: var(--hil-mobile-login-card-text);
+}
+
+.login-intro h2 {
+  margin: 0;
+  font-size: 1.18rem;
+  line-height: 1.25;
+}
+
+.login-intro p {
+  margin: 5px 0 0;
+  color: var(--hil-mobile-muted);
+}
+
+.login-card {
+  color: var(--hil-mobile-login-card-text);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: var(--hil-radius-md);
+  background: var(--hil-mobile-login-card);
+  box-shadow: 0 24px 56px rgba(2, 6, 23, 0.22);
+}
+
+.login-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.login-panel ion-item.login-field {
+  --background: var(--hil-mobile-login-card);
+  --color: var(--hil-mobile-login-card-text);
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+  --min-height: 62px;
+  border: 1px solid rgba(15, 23, 42, 0.13);
+  border-radius: var(--hil-radius-sm);
+  overflow: hidden;
+}
+
+.login-field ion-icon {
+  align-self: center;
+  margin-right: 10px;
+  color: var(--ion-color-primary);
+  font-size: 1.15rem;
+}
+
+.login-submit {
+  margin-top: 14px;
+  min-height: 46px;
+  font-weight: 700;
+}
+
+.login-connection {
+  margin-top: 14px;
+  color: var(--ion-text-color);
+}
+
+.login-connection summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--hil-mobile-muted);
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+  list-style: none;
+}
+
+.login-connection summary::-webkit-details-marker {
+  display: none;
+}
+
+.login-connection summary ion-icon {
+  color: var(--ion-color-primary);
+}
+
+.login-connection[open] {
+  display: grid;
+  gap: 10px;
+}
+
+.login-connection[open] summary {
+  margin-bottom: 10px;
+}
+
+.login-features {
+  display: grid;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.login-features span {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.login-features ion-icon {
+  margin-top: 1px;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 16px;
+}
+
+.section-heading h1 {
+  color: var(--ion-text-color);
+}
+
+.section-heading p {
+  color: var(--hil-mobile-muted);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(144px, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  --background: var(--hil-mobile-panel);
+  --color: var(--hil-mobile-panel-text);
+  margin: 0;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--hil-radius-sm);
+  box-shadow: none;
+}
+
+.metric-card ion-card-title {
+  font-size: 0.85rem;
+  color: var(--hil-mobile-card-title);
+  font-weight: 700;
+}
+
+.metric-card strong {
+  font-size: 1.8rem;
+  line-height: 1;
+  color: var(--hil-mobile-panel-text);
+}
+
+.record-list {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.record-list ion-item {
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+}
+
+.record-list h2,
+ion-card-title {
+  color: var(--hil-mobile-panel-text);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.card-list {
+  display: grid;
+  gap: 12px;
+}
+
+.card-list ion-card {
+  --background: var(--hil-mobile-panel);
+  --color: var(--hil-mobile-panel-text);
+  margin: 0;
+  border: 1px solid var(--ion-border-color);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--hil-mobile-muted);
+  font-size: 0.9rem;
+}
+
+.selected-participant-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--ion-border-color);
+  border-left: 4px solid var(--ion-color-primary);
+  border-radius: var(--hil-radius-sm);
+  background: var(--hil-mobile-panel);
+}
+
+.selected-participant-banner span {
+  display: block;
+  color: var(--hil-mobile-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.selected-participant-banner h2 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.selected-participant-banner p {
+  margin: 3px 0 0;
+  color: var(--hil-mobile-muted);
+}
+
+.selected-enrollment-summary {
+  padding: 14px;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--hil-radius-sm);
+  background: var(--hil-mobile-panel);
+}
+
+.selected-enrollment-summary span {
+  display: block;
+  color: var(--hil-mobile-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.selected-enrollment-summary h2 {
+  margin: 3px 0 0;
+  font-size: 1.05rem;
+}
+
+.selected-enrollment-summary p {
+  margin: 4px 0 0;
+  color: var(--hil-mobile-muted);
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.form-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.registration-form {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 12px;
+}
+
+.registration-hero {
+  padding: 15px 16px;
+  border: 1px solid var(--ion-border-color);
+  border-left: 4px solid var(--ion-color-primary);
+  border-radius: var(--hil-radius-sm);
+  background: var(--hil-mobile-panel);
+  color: var(--hil-mobile-panel-text);
+}
+
+.registration-hero span {
+  display: block;
+  color: var(--hil-mobile-card-title);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.registration-hero h1 {
+  margin: 4px 0 0;
+  font-size: 1.25rem;
+  line-height: 1.25;
+}
+
+.registration-hero p {
+  margin: 5px 0 0;
+  color: var(--hil-mobile-muted);
+  line-height: 1.45;
+}
+
+.registration-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--hil-radius-sm);
+  background: var(--hil-mobile-panel);
+  color: var(--hil-mobile-panel-text);
+}
+
+.registration-section-heading {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.registration-section-heading > ion-icon {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: var(--hil-radius-sm);
+  background: rgba(var(--ion-color-primary-rgb), 0.1);
+  color: var(--ion-color-primary);
+}
+
+.registration-section-heading h2 {
+  margin: 0 0 0 10px;
+  color: var(--hil-mobile-panel-text);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.registration-section-heading p {
+  margin: 3px 0 0 10px;
+  color: var(--hil-mobile-muted);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.registration-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.registration-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+ion-item.form-field {
+  --background: color-mix(in srgb, var(--hil-mobile-panel) 92%, var(--ion-background-color));
+  --color: var(--hil-mobile-panel-text);
+  --border-color: transparent;
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+  --min-height: 62px;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--hil-radius-sm);
+  overflow: hidden;
+}
+
+ion-item.form-field ion-label {
+  color: var(--hil-mobile-card-title);
+  font-weight: 700;
+}
+
+ion-item.form-field ion-icon {
+  align-self: center;
+  margin-right: 8px;
+  color: var(--ion-color-primary);
+}
+
+.organization-combobox {
+  position: relative;
+  min-width: 0;
+}
+
+.organization-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 260px;
+  margin: 0;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--hil-radius-sm);
+  background: var(--hil-mobile-panel);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+  overflow-y: auto;
+}
+
+.organization-dropdown ion-item {
+  --background: var(--hil-mobile-panel);
+  --color: var(--hil-mobile-panel-text);
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+}
+
+.organization-dropdown h2 {
+  color: var(--hil-mobile-panel-text);
+  font-size: 0.95rem;
+}
+
+.organization-dropdown p {
+  color: var(--hil-mobile-muted);
+}
+
+.registration-loading,
+.form-notice {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--hil-radius-sm);
+  background: var(--hil-mobile-panel);
+  color: var(--hil-mobile-panel-text);
+}
+
+.form-notice.success {
+  border-color: rgba(22, 101, 52, 0.24);
+  background: #ecfdf5;
+  color: #14532d;
+}
+
+.form-notice.success ion-icon {
+  color: #16a34a;
+}
+
+.registration-actions {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--ion-border-color);
+  border-radius: var(--hil-radius-sm);
+  background: color-mix(in srgb, var(--hil-mobile-panel) 92%, transparent);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+.registration-actions ion-button {
+  min-height: 46px;
+  font-weight: 800;
+}
+
+.two-column-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 0.42fr);
+  gap: 10px;
+}
+
+.field-error {
+  display: block;
+  padding: 4px 2px;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--hil-mobile-muted);
+  padding: 24px;
+}
+
+.empty-state ion-icon {
+  font-size: 2rem;
+}
+
+.empty-state h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.empty-state p {
+  margin: 6px 0 0;
+}
+
+@media (max-width: 420px) {
+  .screen-shell {
+    padding: 12px;
+  }
+
+  .section-heading,
+  .two-column-form,
+  .registration-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-grid .span-2 {
+    grid-column: auto;
+  }
+
+  .section-heading {
+    display: grid;
+  }
+}

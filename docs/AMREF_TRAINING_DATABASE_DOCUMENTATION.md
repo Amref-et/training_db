@@ -125,6 +125,25 @@ Key examples:
 - `/admin/training-workflow`
 - `/admin/training-organizers` : exposed in the UI as `Projects`
 
+### Mobile API routes
+
+The application exposes mobile-ready JSON endpoints under `/api/mobile` for Ionic/Capacitor clients:
+
+- `POST /api/mobile/login` : authenticate with email, password, and optional `device_name`; returns a Sanctum bearer token
+- `GET /api/mobile/me` : return the authenticated mobile user and current token metadata
+- `POST /api/mobile/logout` : revoke the current mobile token
+- `GET /api/mobile/appearance` : site name, tagline, resolved logo/favicon URLs, colors, radii, and login-page copy from Appearance settings
+- `GET /api/mobile/participant-registration/options` : region, zone, woreda, profession, and selected-organization form data
+- `GET /api/mobile/participant-registration/organization-options` : organization search/autofill options
+- `POST /api/mobile/participant-registration` : public participant registration; can include `training_event_id` and `requested_message`
+- `GET /api/mobile/training-event-join-request/options` : requestable training events
+- `GET /api/mobile/training-event-join-request/participant-options` : participant search options
+- `POST /api/mobile/training-event-join-request` : submit a join request for an existing participant
+
+Set `CORS_ALLOWED_ORIGINS` for Ionic web development and deployed mobile web clients. The default local configuration allows `http://localhost:8100`, Vite dev origins, `capacitor://localhost`, and `ionic://localhost`. Mobile API tokens expire after `MOBILE_TOKEN_EXPIRATION_DAYS`, defaulting to 30 days.
+
+The Ionic React + Capacitor client lives in `mobile/`. Use `npm --prefix mobile run dev` for local browser development and `npm --prefix mobile run build` before Capacitor sync. The client fetches `/api/mobile/appearance` on startup and applies the configured Laravel logo, favicon, colors, radii, site text, and login copy.
+
 ## 5. Architectural Design
 
 ## 5.1 Metadata-driven CRUD
