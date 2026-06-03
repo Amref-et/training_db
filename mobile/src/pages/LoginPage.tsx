@@ -157,10 +157,11 @@ export default function LoginPage() {
               </summary>
               <IonItem className="login-field" lines="none">
                 <IonIcon icon={settingsOutline} slot="start" aria-hidden="true" />
-                <IonLabel position="stacked">API URL</IonLabel>
+                <IonLabel position="stacked">Laravel URL</IonLabel>
                 <IonInput
                   autocomplete="url"
                   inputmode="url"
+                  placeholder="http://192.168.1.10/test/hil-v2"
                   value={apiBaseUrl}
                   onIonInput={(event) => setApiBaseUrl(String(event.detail.value || ''))}
                 />

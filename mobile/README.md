@@ -16,7 +16,9 @@ Run the Ionic web dev server:
 npm --prefix mobile run dev
 ```
 
-The app defaults to `VITE_API_BASE_URL=http://localhost:8000`. You can also set the API URL on the login screen.
+The app defaults to `VITE_API_BASE_URL=http://localhost/test/hil-v2`. You can also set the Laravel URL on the login screen.
+
+For an installed Android APK, do not use `localhost` unless Laravel is running on the device itself. Use the Laravel server address reachable from the phone, for example `http://192.168.1.10/test/hil-v2`. The app accepts either the Laravel app root or the same URL ending in `/api`.
 
 ## Build
 

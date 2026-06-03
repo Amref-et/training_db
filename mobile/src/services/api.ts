@@ -239,6 +239,11 @@ export async function getApiBaseUrl(): Promise<string> {
   const { value } = await Preferences.get({ key: API_BASE_URL_KEY });
 
   const storedBaseUrl = value ? normalizeBaseUrl(value) : null;
+  const storedValue = value ? value.trim().replace(/\/+$/, '') : null;
+
+  if (storedBaseUrl && storedValue && storedBaseUrl !== storedValue) {
+    await Preferences.set({ key: API_BASE_URL_KEY, value: storedBaseUrl });
+  }
 
   if (storedBaseUrl && obsoleteDefaultBaseUrls.includes(storedBaseUrl)) {
     await Preferences.set({ key: API_BASE_URL_KEY, value: normalizeBaseUrl(defaultBaseUrl) });
@@ -691,7 +696,39 @@ function isOfflineError(err: unknown): boolean {
 }
 
 function normalizeBaseUrl(value: string): string {
-  return value.trim().replace(/\/+$/, '');
+  const trimmed = value.trim().replace(/\/+$/, '');
+
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const apiIndex = url.pathname.toLowerCase().indexOf('/api/mobile');
+
+    if (apiIndex !== -1) {
+      url.pathname = url.pathname.slice(0, apiIndex) || '/';
+      url.search = '';
+      url.hash = '';
+
+      return url.toString().replace(/\/+$/, '');
+    }
+
+    if (url.pathname.toLowerCase().endsWith('/api')) {
+      url.pathname = url.pathname.slice(0, -4) || '/';
+      url.search = '';
+      url.hash = '';
+
+      return url.toString().replace(/\/+$/, '');
+    }
+  } catch {
+    // Keep non-URL values usable in browser development while still removing API suffixes.
+  }
+
+  return trimmed
+    .replace(/\/api\/mobile(?:\/.*)?$/i, '')
+    .replace(/\/api$/i, '')
+    .replace(/\/+$/, '');
 }
 
 function errorMessage(payload: unknown, response: Response): string {
