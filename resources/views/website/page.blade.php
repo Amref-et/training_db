@@ -230,7 +230,7 @@
         .site-mobile-app-copy p { margin: .35rem 0 .5rem; color: rgba(226, 232, 240, .78); font-size: .875rem; line-height: 1.35; }
         .site-mobile-app-link { font-size: .875rem; font-weight: 700; }
         .site-mobile-app-qr { display: inline-flex; padding: .35rem; border-radius: var(--radius-sm); background: #ffffff; box-shadow: 0 10px 24px rgba(15, 23, 42, .18); }
-        .site-mobile-app-qr img { display: block; width: 112px; height: 112px; }
+        .site-mobile-app-qr img { display: block; width: 164px; height: 164px; }
         .site-footer-bottom { border-top: 1px solid rgba(226, 232, 240, .2); }
         @media (max-width: 575.98px) {
             .site-mobile-app-download { grid-template-columns: 1fr; }
@@ -1163,7 +1163,6 @@
     @endif
 </body>
 </html>
-
 
 
 

@@ -523,8 +523,8 @@
 
         .site-mobile-app-qr img {
             display: block;
-            width: 112px;
-            height: 112px;
+            width: 164px;
+            height: 164px;
         }
 
         .site-footer-bottom {
