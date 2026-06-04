@@ -11,6 +11,6 @@
         <a href="{{ $mobileAppDownloadUrl }}" class="site-mobile-app-link" download>Download APK</a>
     </div>
     <a href="{{ $mobileAppDownloadUrl }}" class="site-mobile-app-qr" download aria-label="Download {{ $mobileAppName }}">
-        <img src="{{ $mobileAppQrUrl }}" alt="QR code to download {{ $mobileAppName }}" width="164" height="164">
+        <img src="{{ $mobileAppQrUrl }}" alt="QR code to download {{ $mobileAppName }}" width="112" height="112">
     </a>
 </div>
