@@ -264,11 +264,22 @@ export default function RegisterPage() {
                   onIonInput={(event) => update('age', valueOf(event))}
                 />
               </IonItem>
-              <IonItem className="form-field span-2" lines="none">
+              <IonItem className="form-field" lines="none">
                 <IonLabel position="stacked">Gender</IonLabel>
                 <IonSelect value={form.gender} onIonChange={(event) => update('gender', String(event.detail.value || ''))}>
                   <IonSelectOption value="female">Female</IonSelectOption>
                   <IonSelectOption value="male">Male</IonSelectOption>
+                </IonSelect>
+              </IonItem>
+              <IonItem className="form-field" lines="none">
+                <IonIcon icon={briefcaseOutline} slot="start" aria-hidden="true" />
+                <IonLabel position="stacked">Profession</IonLabel>
+                <IonSelect value={form.profession} onIonChange={(event) => update('profession', String(event.detail.value || ''))}>
+                  {options.professions.map((profession) => (
+                    <IonSelectOption value={profession.name} key={profession.name}>
+                      {profession.name}
+                    </IonSelectOption>
+                  ))}
                 </IonSelect>
               </IonItem>
             </div>
@@ -279,7 +290,7 @@ export default function RegisterPage() {
               <IonIcon icon={businessOutline} aria-hidden="true" />
               <IonText>
                 <h2>Organization</h2>
-                <p>Workplace and professional role</p>
+                <p>Workplace details</p>
               </IonText>
             </div>
             <div className="registration-grid">
@@ -317,18 +328,6 @@ export default function RegisterPage() {
                   </IonList>
                 ) : null}
               </div>
-
-              <IonItem className="form-field span-2" lines="none">
-                <IonIcon icon={briefcaseOutline} slot="start" aria-hidden="true" />
-                <IonLabel position="stacked">Profession</IonLabel>
-                <IonSelect value={form.profession} onIonChange={(event) => update('profession', String(event.detail.value || ''))}>
-                  {options.professions.map((profession) => (
-                    <IonSelectOption value={profession.name} key={profession.name}>
-                      {profession.name}
-                    </IonSelectOption>
-                  ))}
-                </IonSelect>
-              </IonItem>
             </div>
           </section>
 

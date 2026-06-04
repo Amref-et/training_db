@@ -10,6 +10,7 @@ use App\Http\Controllers\EnvSettingsController;
 use App\Http\Controllers\FabFaqItemController;
 use App\Http\Controllers\ManagedResourceController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\MobileAppDownloadController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\PublicParticipantRegistrationController;
 use App\Http\Controllers\PublicTrainingEventJoinRequestController;
@@ -39,6 +40,8 @@ Route::get('/training-event-join-request', [PublicTrainingEventJoinRequestContro
 Route::post('/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'store'])->name('training-event-join-requests.store');
 Route::post('/training-event-join-request/register', [PublicTrainingEventJoinRequestController::class, 'startRegistration'])->name('training-event-join-requests.register');
 Route::get('/training-event-join-request/participant-options', [PublicTrainingEventJoinRequestController::class, 'participantOptions'])->name('training-event-join-requests.participant-options');
+Route::get('/mobile-app/download', [MobileAppDownloadController::class, 'download'])->name('mobile-app.download');
+Route::get('/mobile-app/download/qr.svg', [MobileAppDownloadController::class, 'qr'])->name('mobile-app.qr');
 Route::get('/public/participant-registration', [PublicParticipantRegistrationController::class, 'create']);
 Route::get('/public/participant-registration/organization-options', [PublicParticipantRegistrationController::class, 'organizationOptions']);
 Route::get('/public/training-event-join-request', [PublicTrainingEventJoinRequestController::class, 'create']);

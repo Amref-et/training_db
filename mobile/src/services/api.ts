@@ -1,3 +1,4 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 
 const TOKEN_KEY = 'hil_mobile_token';
@@ -8,6 +9,8 @@ const OFFLINE_STATUS_EVENT = 'hil-mobile-offline-status';
 
 const defaultBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost/test/hil-v2';
 const obsoleteDefaultBaseUrls = ['http://localhost:8000'];
+
+export const visibleTrainingEventStatuses = ['Ongoing', 'Up coming'];
 
 export type ApiUser = {
   id: number;
@@ -177,6 +180,12 @@ type RequestOptions = {
   body?: unknown;
   token?: string | null;
   baseUrl?: string | null;
+};
+
+type ApiTransportResponse = {
+  ok: boolean;
+  status: number;
+  payload: unknown;
 };
 
 type QueuedTokenMode = 'stored' | 'none';
@@ -427,12 +436,16 @@ export async function participants(query = '') {
   return response;
 }
 
-export async function trainingEvents(query = '') {
+export async function trainingEvents(query = '', statuses: string[] = []) {
   const params = new URLSearchParams({ per_page: '25' });
 
   if (query.trim() !== '') {
     params.set('q', query.trim());
   }
+
+  statuses.forEach((status) => {
+    params.append('statuses[]', status);
+  });
 
   const response = await requestWithCache<{ data: TrainingEvent[]; meta: Record<string, number> }>(
     `/api/v1/training-events?${params.toString()}`
@@ -564,42 +577,90 @@ async function requestOrQueue<T>(
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const baseUrl = options.baseUrl ? normalizeBaseUrl(options.baseUrl) : await getApiBaseUrl();
   const token = options.token === undefined ? await getStoredToken() : options.token;
-  const headers = new Headers({ Accept: 'application/json' });
+  const method = options.method || 'GET';
+  const url = `${baseUrl}${path}`;
+  const headers: Record<string, string> = { Accept: 'application/json' };
 
   if (!(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
+    headers['Content-Type'] = 'application/json';
   }
 
   if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  let response: Response;
+  let response: ApiTransportResponse;
 
   try {
-    response = await fetch(`${baseUrl}${path}`, {
-      method: options.method || 'GET',
-      headers,
-      body: options.body instanceof FormData ? options.body : JSON.stringify(options.body),
-    });
+    response = Capacitor.isNativePlatform()
+      ? await nativeHttpRequest(url, method, headers, options.body)
+      : await browserFetchRequest(url, method, headers, options.body);
   } catch {
-    throw new ApiError('Network unavailable. The request will be retried when you are back online.', 0, {
+    throw new ApiError(networkUnavailableMessage(baseUrl), 0, {
       offline: true,
+      base_url: baseUrl,
+      url,
+      native: Capacitor.isNativePlatform(),
     });
   }
 
-  const payload = await response.json().catch(() => ({}));
+  const payload = response.payload ?? {};
 
   if (!response.ok) {
     if (response.status === 401 && token) {
       await setStoredToken(null);
-      window.dispatchEvent(new CustomEvent('hil-mobile-unauthorized'));
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('hil-mobile-unauthorized'));
+      }
     }
 
-    throw new ApiError(errorMessage(payload, response), response.status, payload);
+    throw new ApiError(errorMessage(payload, response.status), response.status, payload);
   }
 
   return payload as T;
+}
+
+async function browserFetchRequest(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body: unknown
+): Promise<ApiTransportResponse> {
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: body instanceof FormData ? body : body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    payload: await response.json().catch(() => ({})),
+  };
+}
+
+async function nativeHttpRequest(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body: unknown
+): Promise<ApiTransportResponse> {
+  const response = await CapacitorHttp.request({
+    url,
+    method,
+    headers,
+    data: body instanceof FormData ? undefined : body,
+    responseType: 'json',
+    connectTimeout: 15000,
+    readTimeout: 30000,
+  });
+
+  return {
+    ok: response.status >= 200 && response.status < 300,
+    status: response.status,
+    payload: parseNativePayload(response.data),
+  };
 }
 
 async function cacheKey(path: string, baseUrl?: string | null): Promise<string> {
@@ -731,7 +792,31 @@ function normalizeBaseUrl(value: string): string {
     .replace(/\/+$/, '');
 }
 
-function errorMessage(payload: unknown, response: Response): string {
+function parseNativePayload(value: unknown): unknown {
+  if (typeof value !== 'string') {
+    return value ?? {};
+  }
+
+  if (value.trim() === '') {
+    return {};
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return { message: value };
+  }
+}
+
+function networkUnavailableMessage(baseUrl: string): string {
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?(?:\/|$)/i.test(baseUrl)) {
+    return 'The installed app cannot reach localhost on your computer. Open Connection and use your computer LAN IP, for example http://192.168.1.10/test/hil-v2.';
+  }
+
+  return `Cannot reach Laravel at ${baseUrl}. Check that the phone is on the same network, the URL is correct, and Windows or Laragon allows LAN access.`;
+}
+
+function errorMessage(payload: unknown, status: number): string {
   if (isRecord(payload)) {
     if (typeof payload.message === 'string') {
       return payload.message;
@@ -746,7 +831,7 @@ function errorMessage(payload: unknown, response: Response): string {
     }
   }
 
-  return `Request failed with status ${response.status}`;
+  return `Request failed with status ${status}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -124,7 +124,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: color-mix(in srgb, #ffffff 86%, var(--header-bg));
+            background: transparent;
             border: 1px solid rgba(15, 23, 42, .14);
             border-radius: var(--radius-sm);
             padding: .25rem .45rem;
@@ -483,8 +483,62 @@
             object-fit: cover;
         }
 
+        .site-mobile-app-download {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: .9rem;
+            align-items: center;
+            padding: .95rem;
+            border: 1px solid rgba(226, 232, 240, .22);
+            border-radius: var(--radius-md);
+            background: rgba(255, 255, 255, .08);
+        }
+
+        .site-mobile-app-copy h3 {
+            margin: 0;
+            color: var(--footer-text);
+            font-size: 1rem;
+            line-height: 1.25;
+        }
+
+        .site-mobile-app-copy p {
+            margin: .35rem 0 .5rem;
+            color: rgba(226, 232, 240, .78);
+            font-size: .875rem;
+            line-height: 1.35;
+        }
+
+        .site-mobile-app-link {
+            font-size: .875rem;
+            font-weight: 700;
+        }
+
+        .site-mobile-app-qr {
+            display: inline-flex;
+            padding: .35rem;
+            border-radius: var(--radius-sm);
+            background: #ffffff;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
+        }
+
+        .site-mobile-app-qr img {
+            display: block;
+            width: 112px;
+            height: 112px;
+        }
+
         .site-footer-bottom {
             border-top: 1px solid rgba(226, 232, 240, .2);
+        }
+
+        @media (max-width: 575.98px) {
+            .site-mobile-app-download {
+                grid-template-columns: 1fr;
+            }
+
+            .site-mobile-app-qr {
+                width: max-content;
+            }
         }
 
         @media (max-width: 991.98px) {
@@ -707,7 +761,7 @@
     <footer class="site-footer py-5">
         <div class="container">
             <div class="row g-4">
-                <div class="col-lg-5">
+                <div class="col-lg-4">
                     @if($footerLogoUrl)
                         <img src="{{ $footerLogoUrl }}" alt="{{ $siteName }}" class="site-footer-logo mb-3">
                     @endif
@@ -716,7 +770,7 @@
                         <div class="small text-white-50">{{ $renderCmsHtml($settings->footer_about) }}</div>
                     @endif
                 </div>
-                <div class="col-lg-3">
+                <div class="col-lg-2">
                     <h3 class="h6 text-uppercase text-white-50 mb-3">Quick Links</h3>
                     <ul class="list-unstyled small mb-0 d-grid gap-2">
                         <li><a href="{{ route('home') }}">Home</a></li>
@@ -728,13 +782,16 @@
                         @endforeach
                     </ul>
                 </div>
-                <div class="col-lg-4">
+                <div class="col-lg-3">
                     <h3 class="h6 text-uppercase text-white-50 mb-3">Contact</h3>
                     <div class="small d-grid gap-2">
                         @if(!empty($settings->footer_address))<div>{{ $settings->footer_address }}</div>@endif
                         @if(!empty($settings->footer_email))<div><a href="mailto:{{ $settings->footer_email }}">{{ $settings->footer_email }}</a></div>@endif
                         @if(!empty($settings->footer_phone))<div><a href="tel:{{ preg_replace('/\\s+/', '', $settings->footer_phone) }}">{{ $settings->footer_phone }}</a></div>@endif
                     </div>
+                </div>
+                <div class="col-lg-3">
+                    @include('website.partials.mobile-app-download')
                 </div>
             </div>
             <div class="site-footer-bottom mt-4 pt-3 d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-start">

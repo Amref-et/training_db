@@ -140,7 +140,7 @@ The application exposes mobile-ready JSON endpoints under `/api/mobile` for Ioni
 - `GET /api/mobile/training-event-join-request/participant-options` : participant search options
 - `POST /api/mobile/training-event-join-request` : submit a join request for an existing participant
 
-Set `CORS_ALLOWED_ORIGINS` for Ionic web development and deployed mobile web clients. The default local configuration allows `http://localhost:8100`, Vite dev origins, `capacitor://localhost`, and `ionic://localhost`. Mobile API tokens expire after `MOBILE_TOKEN_EXPIRATION_DAYS`, defaulting to 30 days.
+Set `CORS_ALLOWED_ORIGINS` for Ionic web development and deployed mobile web clients. The default local configuration allows `http://localhost:8100`, Vite dev origins, `https://localhost`, `capacitor://localhost`, and `ionic://localhost`. Mobile API tokens expire after `MOBILE_TOKEN_EXPIRATION_DAYS`, defaulting to 30 days.
 
 The Ionic React + Capacitor client lives in `mobile/`. Use `npm --prefix mobile run dev` for local browser development and `npm --prefix mobile run build` before Capacitor sync. The client fetches `/api/mobile/appearance` on startup and applies the configured Laravel logo, favicon, colors, radii, site text, and login copy.
 

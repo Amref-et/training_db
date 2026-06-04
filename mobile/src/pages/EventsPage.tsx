@@ -26,6 +26,7 @@ import {
   submitJoinRequest,
   TrainingEvent,
   trainingEvents,
+  visibleTrainingEventStatuses,
 } from '../services/api';
 
 type SelectedParticipant = {
@@ -55,7 +56,7 @@ export default function EventsPage() {
     setError(null);
 
     try {
-      const response = await trainingEvents(search);
+      const response = await trainingEvents(search, visibleTrainingEventStatuses);
       setEvents(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Training events unavailable.');
@@ -120,7 +121,9 @@ export default function EventsPage() {
 
         if (syncedEvent) {
           setEvents((currentEvents) =>
-            currentEvents.map((event) => (event.id === activeEvent.id ? syncedEvent : event))
+            currentEvents
+              .map((event) => (event.id === activeEvent.id ? syncedEvent : event))
+              .filter((event) => visibleTrainingEventStatuses.includes(event.status))
           );
         }
         closeModal();

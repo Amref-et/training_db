@@ -192,6 +192,68 @@ class MobileApiTest extends TestCase
         $this->assertSame(1, TrainingEventParticipant::query()->count());
     }
 
+    public function test_mobile_training_events_can_be_filtered_to_ongoing_and_upcoming(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $user = User::factory()->create([
+            'email' => 'events@example.test',
+        ]);
+        $user->syncRoles(['Admin']);
+
+        [, $upcomingEvent] = $this->participantAndEvent();
+        $upcomingEvent->update([
+            'event_name' => 'Upcoming Training',
+            'status' => 'Up coming',
+            'start_date' => now()->addDays(7)->toDateString(),
+            'end_date' => now()->addDays(9)->toDateString(),
+        ]);
+
+        $ongoingEvent = TrainingEvent::query()->create([
+            'event_name' => 'Ongoing Training',
+            'training_id' => $upcomingEvent->training_id,
+            'training_organizer_id' => $upcomingEvent->training_organizer_id,
+            'training_region_id' => $upcomingEvent->training_region_id,
+            'training_city' => $upcomingEvent->training_city,
+            'course_venue' => $upcomingEvent->course_venue,
+            'start_date' => now()->subDay()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+            'status' => 'Ongoing',
+        ]);
+
+        $completedEvent = TrainingEvent::query()->create([
+            'event_name' => 'Completed Training',
+            'training_id' => $upcomingEvent->training_id,
+            'training_organizer_id' => $upcomingEvent->training_organizer_id,
+            'training_region_id' => $upcomingEvent->training_region_id,
+            'training_city' => $upcomingEvent->training_city,
+            'course_venue' => $upcomingEvent->course_venue,
+            'start_date' => now()->subDays(10)->toDateString(),
+            'end_date' => now()->subDays(8)->toDateString(),
+            'status' => 'Completed',
+        ]);
+
+        $loginResponse = $this->postJson('/api/mobile/login', [
+            'email' => 'events@example.test',
+            'password' => 'password',
+            'device_name' => 'Ionic Dev App',
+        ]);
+
+        $token = (string) $loginResponse->json('data.access_token');
+
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/v1/training-events?per_page=25&statuses[]=Ongoing&statuses[]=Up%20coming');
+
+        $response->assertOk();
+
+        $eventIds = collect($response->json('data'))->pluck('id');
+
+        $this->assertTrue($eventIds->contains($ongoingEvent->id));
+        $this->assertTrue($eventIds->contains($upcomingEvent->id));
+        $this->assertFalse($eventIds->contains($completedEvent->id));
+    }
+
     public function test_mobile_public_option_endpoints_return_json_for_ionic_forms(): void
     {
         [$participant, $event] = $this->participantAndEvent();

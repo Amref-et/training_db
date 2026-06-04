@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'org.amref.hil',
-  appName: 'HIL Mobile',
+  appName: 'Amref training DB',
   webDir: 'dist',
   server: {
     androidScheme: 'https',

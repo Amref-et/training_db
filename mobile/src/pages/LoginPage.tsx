@@ -18,6 +18,7 @@ import FieldError from '../components/FieldError';
 import { getApiBaseUrl, syncQueuedRequests } from '../services/api';
 import { useAppearance } from '../services/appearance';
 import { useAuth } from '../services/auth';
+import { DEFAULT_DEVICE_NAME, getAutomaticDeviceName } from '../services/device';
 
 export default function LoginPage() {
   const auth = useAuth();
@@ -27,7 +28,7 @@ export default function LoginPage() {
   const [apiBaseUrl, setApiBaseUrl] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [deviceName, setDeviceName] = useState('HIL Ionic App');
+  const [deviceName, setDeviceName] = useState(DEFAULT_DEVICE_NAME);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,6 +37,22 @@ export default function LoginPage() {
       setApiBaseUrl(value);
       void appearance.refresh(value);
     });
+
+    let cancelled = false;
+
+    void getAutomaticDeviceName().then((detectedDeviceName) => {
+      if (cancelled) {
+        return;
+      }
+
+      setDeviceName((currentDeviceName) =>
+        currentDeviceName === DEFAULT_DEVICE_NAME ? detectedDeviceName : currentDeviceName
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -56,10 +73,10 @@ export default function LoginPage() {
 
     const normalizedEmail = email.trim();
     const normalizedApiBaseUrl = apiBaseUrl.trim();
-    const normalizedDeviceName = deviceName.trim() || 'HIL Ionic App';
+    const normalizedDeviceName = deviceName.trim() || DEFAULT_DEVICE_NAME;
 
     if (!normalizedApiBaseUrl) {
-      setError('Enter the API URL before signing in.');
+      setError('Enter the Laravel URL before signing in.');
 
       return;
     }
@@ -169,7 +186,7 @@ export default function LoginPage() {
 
               <IonItem className="login-field" lines="none">
                 <IonIcon icon={phonePortraitOutline} slot="start" aria-hidden="true" />
-                <IonLabel position="stacked">Device Name</IonLabel>
+                <IonLabel position="stacked">Detected Device</IonLabel>
                 <IonInput
                   value={deviceName}
                   onIonInput={(event) => setDeviceName(String(event.detail.value || ''))}

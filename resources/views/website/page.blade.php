@@ -187,7 +187,7 @@
         .site-brand-copy { display: flex; flex-direction: column; min-width: 0; }
         .site-brand-name { font-weight: 700; font-size: 1.1rem; line-height: 1.25; color: var(--header-text); }
         .site-brand-tagline { margin-top: .12rem; font-size: .82rem; line-height: 1.35; color: color-mix(in srgb, var(--header-text) 58%, #ffffff 42%); font-weight: 500; }
-        .site-brand-logo-shell { display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, #ffffff 86%, var(--header-bg)); border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); padding: .25rem .45rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .12); flex: 0 0 auto; max-width: min(42vw, 240px); overflow: hidden; }
+        .site-brand-logo-shell { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); padding: .25rem .45rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .12); flex: 0 0 auto; max-width: min(42vw, 240px); overflow: hidden; }
         .site-brand-logo { width: auto; height: var(--header-logo-height); max-width: min(38vw, 220px); object-fit: contain; display: block; }
         .site-nav-panel { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; margin-left: auto; flex-wrap: wrap; }
         .site-menu-toggle { display: none; align-items: center; gap: .5rem; border: 1px solid rgba(15, 23, 42, .14); border-radius: var(--radius-sm); background: color-mix(in srgb, #ffffff 88%, var(--header-bg)); color: #000000; font: inherit; font-weight: 600; line-height: 1; padding: .55rem .75rem; box-shadow: 0 8px 14px rgba(15, 23, 42, .08); }
@@ -225,7 +225,17 @@
         .site-footer a:hover { color: #ffffff; }
         .site-footer-title { color: var(--footer-text); }
         .site-footer-logo { max-width: 64px; max-height: 64px; border-radius: var(--radius-sm); border: 1px solid rgba(226, 232, 240, .28); object-fit: cover; }
+        .site-mobile-app-download { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .9rem; align-items: center; padding: .95rem; border: 1px solid rgba(226, 232, 240, .22); border-radius: var(--radius-md); background: rgba(255, 255, 255, .08); }
+        .site-mobile-app-copy h3 { margin: 0; color: var(--footer-text); font-size: 1rem; line-height: 1.25; }
+        .site-mobile-app-copy p { margin: .35rem 0 .5rem; color: rgba(226, 232, 240, .78); font-size: .875rem; line-height: 1.35; }
+        .site-mobile-app-link { font-size: .875rem; font-weight: 700; }
+        .site-mobile-app-qr { display: inline-flex; padding: .35rem; border-radius: var(--radius-sm); background: #ffffff; box-shadow: 0 10px 24px rgba(15, 23, 42, .18); }
+        .site-mobile-app-qr img { display: block; width: 112px; height: 112px; }
         .site-footer-bottom { border-top: 1px solid rgba(226, 232, 240, .2); }
+        @media (max-width: 575.98px) {
+            .site-mobile-app-download { grid-template-columns: 1fr; }
+            .site-mobile-app-qr { width: max-content; }
+        }
         @media (max-width: 991.98px) {
             .site-brand { max-width: calc(100% - 5.25rem); }
             .site-brand-logo-shell { max-width: min(46vw, 200px); }
@@ -685,7 +695,7 @@
     <footer class="site-footer py-5">
         <div class="container">
             <div class="row g-4">
-                <div class="col-lg-5">
+                <div class="col-lg-4">
                     @if($footerLogoUrl)
                         <img src="{{ $footerLogoUrl }}" alt="{{ $siteName }}" class="site-footer-logo mb-3">
                     @endif
@@ -694,7 +704,7 @@
                         <div class="small text-white-50">{{ $renderCmsHtml($settings->footer_about) }}</div>
                     @endif
                 </div>
-                <div class="col-lg-3">
+                <div class="col-lg-2">
                     <h3 class="h6 text-uppercase text-white-50 mb-3">Quick Links</h3>
                     <ul class="list-unstyled small mb-0 d-grid gap-2">
                         <li><a href="{{ route('home') }}">Home</a></li>
@@ -704,13 +714,16 @@
                         @endforeach
                     </ul>
                 </div>
-                <div class="col-lg-4">
+                <div class="col-lg-3">
                     <h3 class="h6 text-uppercase text-white-50 mb-3">Contact</h3>
                     <div class="small d-grid gap-2">
                         @if(!empty($settings->footer_address))<div>{{ $settings->footer_address }}</div>@endif
                         @if(!empty($settings->footer_email))<div><a href="mailto:{{ $settings->footer_email }}">{{ $settings->footer_email }}</a></div>@endif
                         @if(!empty($settings->footer_phone))<div><a href="tel:{{ preg_replace('/\\s+/', '', $settings->footer_phone) }}">{{ $settings->footer_phone }}</a></div>@endif
                     </div>
+                </div>
+                <div class="col-lg-3">
+                    @include('website.partials.mobile-app-download')
                 </div>
             </div>
             <div class="site-footer-bottom mt-4 pt-3 d-flex flex-column flex-lg-row gap-3 justify-content-between align-items-start">
@@ -1150,8 +1163,6 @@
     @endif
 </body>
 </html>
-
-
 
 
 

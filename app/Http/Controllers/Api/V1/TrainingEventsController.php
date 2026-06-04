@@ -31,7 +31,11 @@ class TrainingEventsController extends ApiController
             $query->where('organizer_type', (string) $request->query('organizer_type'));
         }
 
-        if ($request->filled('status')) {
+        $statuses = $this->statusFilters($request);
+
+        if ($statuses !== []) {
+            $query->whereIn('status', $statuses);
+        } elseif ($request->filled('status')) {
             $query->where('status', (string) $request->query('status'));
         }
 
@@ -44,6 +48,26 @@ class TrainingEventsController extends ApiController
         }
 
         return $this->paginatedResponse($query->paginate($this->perPage($request)), TrainingEventResource::class);
+    }
+
+    private function statusFilters(Request $request): array
+    {
+        $statuses = $request->query('statuses', []);
+
+        if (is_string($statuses)) {
+            $statuses = explode(',', $statuses);
+        }
+
+        if (! is_array($statuses)) {
+            return [];
+        }
+
+        return collect($statuses)
+            ->map(fn ($status) => trim((string) $status))
+            ->filter()
+            ->intersect(TrainingEvent::STATUSES)
+            ->values()
+            ->all();
     }
 
     public function store(Request $request)

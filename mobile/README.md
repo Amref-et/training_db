@@ -51,6 +51,6 @@ The Laravel app must expose:
 - `POST /api/mobile/training-event-join-request`
 - `/api/v1` resource endpoints for authenticated dashboard, participants, and training events
 
-Set `CORS_ALLOWED_ORIGINS` in the Laravel environment to include the Ionic dev origin, usually `http://localhost:8100`, and native WebView origins `capacitor://localhost` and `ionic://localhost`.
+Set `CORS_ALLOWED_ORIGINS` in the Laravel environment to include the Ionic dev origin, usually `http://localhost:8100`, and native WebView origins `https://localhost`, `capacitor://localhost`, and `ionic://localhost`. The installed Android APK uses Capacitor native HTTP for API calls, which avoids WebView CORS failures, but the origins are still useful for browser and WebView compatibility.
 
 The mobile client fetches `/api/mobile/appearance` at startup and after API URL changes on the login screen. Logo URLs, favicon, colors, border radii, site name/tagline, and login copy are applied from Laravel Appearance settings.
