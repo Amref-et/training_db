@@ -16,15 +16,23 @@ Run the Ionic web dev server:
 npm --prefix mobile run dev
 ```
 
-The app defaults to `VITE_API_BASE_URL=http://localhost/test/hil-v2`. You can also set the Laravel URL on the login screen.
+The app defaults to `VITE_API_BASE_URL=https://et-dhis.amref.org/hil2`. You can also set the Laravel URL on the login screen.
 
-For an installed Android APK, do not use `localhost` unless Laravel is running on the device itself. Use the Laravel server address reachable from the phone, for example `http://192.168.1.10/test/hil-v2`. The app accepts either the Laravel app root or the same URL ending in `/api`.
+For an installed Android APK, do not use `localhost` unless Laravel is running on the device itself. Use the Laravel server address reachable from the phone, for example `https://et-dhis.amref.org/hil2`. The app accepts either the Laravel app root or the same URL ending in `/api`.
 
 ## Build
 
 ```bash
 npm --prefix mobile run build
 ```
+
+## Offline Behavior
+
+The mobile app caches successful GET responses in Capacitor Preferences and reuses them when the API is unreachable. This covers appearance, logged-in user details, dashboard, participants, events, registration options, join-request options, and training workflow views after they have been loaded once.
+
+The app queues JSON write requests while offline and retries them when the device comes back online. Queued actions include participant registration, join requests, enrolment, workflow approvals/rejections, workshop count changes, workshop score entry, and closeout status/removal updates.
+
+Closeout report and picture uploads require an active connection because file `FormData` is not persisted in the offline queue.
 
 ## Native Shells
 

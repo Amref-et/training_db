@@ -7,8 +7,13 @@ const CACHE_PREFIX = 'hil_mobile_cache:';
 const QUEUE_KEY = 'hil_mobile_sync_queue';
 const OFFLINE_STATUS_EVENT = 'hil-mobile-offline-status';
 
-const defaultBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost/test/hil-v2';
-const obsoleteDefaultBaseUrls = ['http://localhost:8000'];
+const defaultBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://et-dhis.amref.org/hil2';
+const obsoleteDefaultBaseUrls = [
+  'http://localhost:8000',
+  'http://127.0.0.1:8000',
+  'http://localhost/test/hil-v2',
+  'http://127.0.0.1/test/hil-v2',
+];
 
 export const visibleTrainingEventStatuses = ['Ongoing', 'Up coming'];
 
@@ -339,6 +344,10 @@ export type QueuedMutationResponse = {
   message: string;
 };
 
+export function isQueuedMutationResponse(response: unknown): response is QueuedMutationResponse {
+  return isRecord(response) && isRecord(response.data) && response.data.queued === true;
+}
+
 let syncing = false;
 let lastSyncAt: string | null = null;
 let lastSyncError: string | null = null;
@@ -665,36 +674,42 @@ export async function trainingWorkflowEvent(trainingEventId: number) {
 }
 
 export async function approveWorkflowJoinRequest(trainingEventId: number, joinRequestId: number, reviewerNotes = '') {
-  const response = await request<{ data: WorkflowDetail; message?: string }>(
+  const response = await requestOrQueue<{ data: WorkflowDetail; message?: string } | QueuedMutationResponse>(
     `/api/mobile/training-workflow/events/${trainingEventId}/join-requests/${joinRequestId}/approve`,
     {
       method: 'POST',
       body: { reviewer_notes: reviewerNotes },
-    }
+    },
+    'Join request approval',
+    'stored'
   );
 
   return response;
 }
 
 export async function rejectWorkflowJoinRequest(trainingEventId: number, joinRequestId: number, reviewerNotes = '') {
-  const response = await request<{ data: WorkflowDetail; message?: string }>(
+  const response = await requestOrQueue<{ data: WorkflowDetail; message?: string } | QueuedMutationResponse>(
     `/api/mobile/training-workflow/events/${trainingEventId}/join-requests/${joinRequestId}/reject`,
     {
       method: 'POST',
       body: { reviewer_notes: reviewerNotes },
-    }
+    },
+    'Join request rejection',
+    'stored'
   );
 
   return response;
 }
 
 export async function updateWorkflowWorkshopCount(trainingEventId: number, workshopCount: number) {
-  const response = await request<{ data: WorkflowDetail; message?: string }>(
+  const response = await requestOrQueue<{ data: WorkflowDetail; message?: string } | QueuedMutationResponse>(
     `/api/mobile/training-workflow/events/${trainingEventId}/workshop-count`,
     {
       method: 'POST',
       body: { workshop_count: workshopCount },
-    }
+    },
+    'Workshop structure',
+    'stored'
   );
 
   return response;
@@ -714,18 +729,34 @@ export async function saveWorkflowScores(
     }[];
   }
 ) {
-  const response = await request<{ data: WorkflowDetail; message?: string }>(
+  const response = await requestOrQueue<{ data: WorkflowDetail; message?: string } | QueuedMutationResponse>(
     `/api/mobile/training-workflow/events/${trainingEventId}/workshops`,
     {
       method: 'POST',
       body: payload,
-    }
+    },
+    'Workshop scores',
+    'stored'
   );
 
   return response;
 }
 
 export async function updateWorkflowCloseout(trainingEventId: number, payload: FormData | Record<string, unknown>) {
+  if (!(payload instanceof FormData)) {
+    const response = await requestOrQueue<{ data: WorkflowDetail; message?: string } | QueuedMutationResponse>(
+      `/api/mobile/training-workflow/events/${trainingEventId}/closeout`,
+      {
+        method: 'POST',
+        body: payload,
+      },
+      'Training event closeout',
+      'stored'
+    );
+
+    return response;
+  }
+
   const response = await request<{ data: WorkflowDetail; message?: string }>(
     `/api/mobile/training-workflow/events/${trainingEventId}/closeout`,
     {

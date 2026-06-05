@@ -22,12 +22,14 @@ import FieldError from '../components/FieldError';
 import PageHeader from '../components/PageHeader';
 import {
   approveWorkflowJoinRequest,
+  isQueuedMutationResponse,
   rejectWorkflowJoinRequest,
   saveWorkflowScores,
   trainingWorkflowEvent,
   trainingWorkflowEvents,
   updateWorkflowCloseout,
   updateWorkflowWorkshopCount,
+  QueuedMutationResponse,
   WorkflowCloseout,
   WorkflowDetail,
   WorkflowEnrollment,
@@ -148,6 +150,17 @@ export default function WorkflowPage() {
     setError(null);
   };
 
+  const handleQueued = (response: unknown): response is QueuedMutationResponse => {
+    if (!isQueuedMutationResponse(response)) {
+      return false;
+    }
+
+    setNotice(response.message);
+    setError(null);
+
+    return true;
+  };
+
   const selectStep = (step: number) => {
     setActiveView(viewForStep(step));
     setNotice(null);
@@ -161,6 +174,12 @@ export default function WorkflowPage() {
 
     try {
       const response = await approveWorkflowJoinRequest(detail.event.id, joinRequestId);
+      if (handleQueued(response)) {
+        setActiveView('enrollment');
+
+        return;
+      }
+
       refreshDetail(response.data, response.message || 'Join request approved.');
       setActiveView('enrollment');
     } catch (err) {
@@ -175,6 +194,12 @@ export default function WorkflowPage() {
 
     try {
       const response = await rejectWorkflowJoinRequest(detail.event.id, joinRequestId);
+      if (handleQueued(response)) {
+        setActiveView('enrollment');
+
+        return;
+      }
+
       refreshDetail(response.data, response.message || 'Join request rejected.');
       setActiveView('enrollment');
     } catch (err) {
@@ -197,6 +222,12 @@ export default function WorkflowPage() {
 
     try {
       const response = await updateWorkflowWorkshopCount(detail.event.id, count);
+      if (handleQueued(response)) {
+        setActiveView('workshops');
+
+        return;
+      }
+
       refreshDetail(response.data, response.message || 'Workshop structure updated.');
       setSelectedWorkshop(Math.min(selectedWorkshop, count));
       setActiveView('workshops');
@@ -226,6 +257,12 @@ export default function WorkflowPage() {
           };
         }),
       });
+
+      if (handleQueued(response)) {
+        setActiveView('workshops');
+
+        return;
+      }
 
       refreshDetail(response.data, response.message || 'Workshop scores saved.');
       setActiveView('workshops');
@@ -270,6 +307,12 @@ export default function WorkflowPage() {
       }
 
       const response = await updateWorkflowCloseout(detail.event.id, payload);
+      if (handleQueued(response)) {
+        setActiveView('closeout');
+
+        return;
+      }
+
       refreshDetail(response.data, response.message || 'Training event closeout updated.');
       setActiveView('closeout');
     } catch (err) {

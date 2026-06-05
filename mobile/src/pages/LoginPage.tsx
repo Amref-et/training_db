@@ -178,7 +178,7 @@ export default function LoginPage() {
                 <IonInput
                   autocomplete="url"
                   inputmode="url"
-                  placeholder="http://192.168.1.10/test/hil-v2"
+                  placeholder="https://et-dhis.amref.org/hil2"
                   value={apiBaseUrl}
                   onIonInput={(event) => setApiBaseUrl(String(event.detail.value || ''))}
                 />
