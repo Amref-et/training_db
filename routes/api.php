@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Mobile\AppearanceController as MobileAppearanceCont
 use App\Http\Controllers\Api\Mobile\AuthController as MobileAuthController;
 use App\Http\Controllers\Api\Mobile\EnrollmentController as MobileEnrollmentController;
 use App\Http\Controllers\Api\Mobile\ParticipantRegistrationController as MobileParticipantRegistrationController;
+use App\Http\Controllers\Api\Mobile\TrainingWorkflowController as MobileTrainingWorkflowController;
 use App\Http\Controllers\Api\Mobile\TrainingEventJoinRequestController as MobileTrainingEventJoinRequestController;
 use App\Http\Controllers\Api\V1\MetaController;
 use App\Http\Controllers\Api\V1\OrganizationsController;
@@ -47,6 +48,27 @@ Route::prefix('mobile')->as('api.mobile.')->group(function (): void {
         Route::post('training-events/{trainingEvent}/enrollments', [MobileEnrollmentController::class, 'store'])
             ->middleware('permission:training_event_participants.create')
             ->name('training-events.enrollments.store');
+        Route::get('training-workflow/events', [MobileTrainingWorkflowController::class, 'index'])
+            ->middleware('permission:training_events.view')
+            ->name('training-workflow.events.index');
+        Route::get('training-workflow/events/{trainingEvent}', [MobileTrainingWorkflowController::class, 'show'])
+            ->middleware('permission:training_events.view')
+            ->name('training-workflow.events.show');
+        Route::post('training-workflow/events/{trainingEvent}/join-requests/{joinRequest}/approve', [MobileTrainingWorkflowController::class, 'approveJoinRequest'])
+            ->middleware('permission:training_event_participants.create')
+            ->name('training-workflow.join-requests.approve');
+        Route::post('training-workflow/events/{trainingEvent}/join-requests/{joinRequest}/reject', [MobileTrainingWorkflowController::class, 'rejectJoinRequest'])
+            ->middleware('permission:training_event_participants.update')
+            ->name('training-workflow.join-requests.reject');
+        Route::post('training-workflow/events/{trainingEvent}/workshop-count', [MobileTrainingWorkflowController::class, 'storeWorkshopCount'])
+            ->middleware('permission:training_events.update')
+            ->name('training-workflow.workshop-count.store');
+        Route::post('training-workflow/events/{trainingEvent}/workshops', [MobileTrainingWorkflowController::class, 'saveWorkshopScores'])
+            ->middleware('permission:training_event_workshop_scores.update')
+            ->name('training-workflow.workshops.save');
+        Route::post('training-workflow/events/{trainingEvent}/closeout', [MobileTrainingWorkflowController::class, 'updateCloseout'])
+            ->middleware('permission:training_events.update')
+            ->name('training-workflow.closeout.update');
     });
 
     Route::get('participant-registration/options', [MobileParticipantRegistrationController::class, 'options'])

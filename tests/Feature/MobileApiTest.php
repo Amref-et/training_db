@@ -10,6 +10,7 @@ use App\Models\Training;
 use App\Models\TrainingEvent;
 use App\Models\TrainingEventJoinRequest;
 use App\Models\TrainingEventParticipant;
+use App\Models\TrainingEventWorkshopScore;
 use App\Models\TrainingOrganizer;
 use App\Models\User;
 use App\Models\WebsiteSetting;
@@ -17,6 +18,8 @@ use App\Models\Woreda;
 use App\Models\Zone;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\PersonalAccessToken;
 use Tests\TestCase;
 
@@ -252,6 +255,151 @@ class MobileApiTest extends TestCase
         $this->assertTrue($eventIds->contains($ongoingEvent->id));
         $this->assertTrue($eventIds->contains($upcomingEvent->id));
         $this->assertFalse($eventIds->contains($completedEvent->id));
+    }
+
+    public function test_mobile_training_workflow_can_review_requests_and_save_workshop_scores(): void
+    {
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $user = User::factory()->create([
+            'email' => 'workflow@example.test',
+        ]);
+        $user->syncRoles(['Admin']);
+
+        [$participant, $event] = $this->participantAndEvent();
+
+        $joinRequest = TrainingEventJoinRequest::query()->create([
+            'training_event_id' => $event->id,
+            'participant_id' => $participant->id,
+            'status' => TrainingEventJoinRequest::STATUS_PENDING,
+            'requested_message' => 'Please approve me.',
+            'requested_at' => now(),
+        ]);
+
+        $loginResponse = $this->postJson('/api/mobile/login', [
+            'email' => 'workflow@example.test',
+            'password' => 'password',
+            'device_name' => 'Ionic Dev App',
+        ]);
+
+        $token = (string) $loginResponse->json('data.access_token');
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/mobile/training-workflow/events')
+            ->assertOk()
+            ->assertJsonPath('data.events.0.event.id', $event->id)
+            ->assertJsonPath('data.events.0.pending_join_requests_count', 1);
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/mobile/training-workflow/events/'.$event->id.'/join-requests/'.$joinRequest->id.'/approve')
+            ->assertOk()
+            ->assertJsonPath('data.join_requests.0.status', TrainingEventJoinRequest::STATUS_APPROVED)
+            ->assertJsonPath('data.enrollments.0.participant.id', $participant->id);
+
+        $enrollment = TrainingEventParticipant::query()->firstOrFail();
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/mobile/training-workflow/events/'.$event->id.'/workshop-count', [
+                'workshop_count' => 2,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.event.workshop_count', 2)
+            ->assertJsonPath('data.workshops.1.workshop_number', 2);
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/mobile/training-workflow/events/'.$event->id.'/workshops', [
+                'workshop_number' => 1,
+                'scores' => [
+                    [
+                        'enrollment_id' => $enrollment->id,
+                        'pre_test_score' => 40,
+                        'mid_test_score' => 50,
+                        'post_test_score' => 60,
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.workshops.0.progress.completed', 1)
+            ->assertJsonPath('data.enrollments.0.scores.0.post_test_score', 60);
+
+        $this->assertDatabaseHas('training_event_workshop_scores', [
+            'training_event_participant_id' => $enrollment->id,
+            'workshop_number' => 1,
+            'pre_test_score' => 40,
+            'mid_test_score' => 50,
+            'post_test_score' => 60,
+        ]);
+
+        $this->assertNull($enrollment->fresh()->final_score);
+
+        $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/mobile/training-workflow/events/'.$event->id.'/workshops', [
+                'workshop_number' => 2,
+                'scores' => [
+                    [
+                        'enrollment_id' => $enrollment->id,
+                        'pre_test_score' => 50,
+                        'post_test_score' => 80,
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.summary.with_final_scores', 1)
+            ->assertJsonPath('data.enrollments.0.final_score', 70);
+
+        $this->assertSame(2, TrainingEventWorkshopScore::query()->count());
+        $this->assertSame('70.00', (string) $enrollment->fresh()->final_score);
+    }
+
+    public function test_mobile_training_workflow_can_update_closeout(): void
+    {
+        Storage::fake('public');
+
+        $this->seed(RolesAndPermissionsSeeder::class);
+
+        $user = User::factory()->create([
+            'email' => 'closeout@example.test',
+        ]);
+        $user->syncRoles(['Admin']);
+
+        [, $event] = $this->participantAndEvent();
+
+        $loginResponse = $this->postJson('/api/mobile/login', [
+            'email' => 'closeout@example.test',
+            'password' => 'password',
+            'device_name' => 'Ionic Dev App',
+        ]);
+
+        $token = (string) $loginResponse->json('data.access_token');
+
+        $response = $this
+            ->withHeader('Authorization', 'Bearer '.$token)
+            ->withHeader('Accept', 'application/json')
+            ->post('/api/mobile/training-workflow/events/'.$event->id.'/closeout', [
+                'status' => 'Completed',
+                'training_event_report' => UploadedFile::fake()->create('final-report.pdf', 64, 'application/pdf'),
+                'training_event_pictures' => [
+                    UploadedFile::fake()->image('event-photo.jpg'),
+                ],
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.event.status', 'Completed')
+            ->assertJsonPath('data.closeout.pictures.0.path', fn ($path) => is_string($path) && str_contains($path, 'training-events/'.$event->id.'/pictures/'))
+            ->assertJsonPath('message', 'Training event closeout updated.');
+
+        $event->refresh();
+
+        $this->assertNotNull($event->training_event_report_path);
+        $this->assertCount(1, $event->training_event_picture_paths);
+        Storage::disk('public')->assertExists($event->training_event_report_path);
+        Storage::disk('public')->assertExists($event->training_event_picture_paths[0]);
     }
 
     public function test_mobile_public_option_endpoints_return_json_for_ionic_forms(): void

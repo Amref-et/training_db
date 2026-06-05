@@ -74,10 +74,125 @@ export type TrainingEvent = {
   start_date: string;
   end_date: string;
   status: string;
+  workshop_count?: number | null;
   training?: { id: number; title: string } | null;
   project?: { id: number; project_code: string | null; project_name: string | null } | null;
   training_region?: Region | null;
   participants_count?: number | null;
+};
+
+export type WorkflowStep = {
+  step: number;
+  title: string;
+  complete: boolean;
+};
+
+export type WorkflowEventSummary = {
+  event: TrainingEvent;
+  pending_join_requests_count: number;
+  enrollments_count: number;
+  workshop_count: number;
+};
+
+export type WorkflowJoinRequest = {
+  id: number;
+  status: 'pending' | 'approved' | 'rejected' | string;
+  requested_message: string | null;
+  reviewer_notes: string | null;
+  requested_at: string | null;
+  reviewed_at: string | null;
+  participant: {
+    id: number;
+    name: string;
+    mobile_phone: string | null;
+    participant_code: string | null;
+  } | null;
+};
+
+export type WorkflowScore = {
+  workshop_number: number;
+  pre_test_score: number | null;
+  mid_test_score: number | null;
+  post_test_score: number | null;
+};
+
+export type WorkflowEnrollment = {
+  id: number;
+  training_event_id: number;
+  participant_id: number;
+  final_score: number | null;
+  participant: {
+    id: number;
+    name: string;
+    mobile_phone: string | null;
+    participant_code: string | null;
+  } | null;
+  scores: WorkflowScore[];
+};
+
+export type WorkflowWorkshop = {
+  workshop_number: number;
+  start_date: string | null;
+  end_date: string | null;
+  progress: {
+    completed: number;
+    total: number;
+    is_complete: boolean;
+  };
+};
+
+export type WorkflowSummary = {
+  participants_count: number;
+  with_final_scores: number;
+  avg_final_score: number | null;
+  avg_pre_score: number | null;
+  avg_post_score: number | null;
+  required_workshop_count: number;
+};
+
+export type WorkflowReportWorkshop = {
+  workshop_number: number;
+  start_date: string | null;
+  end_date: string | null;
+  avg_pre_score: number | null;
+  avg_post_score: number | null;
+};
+
+export type WorkflowReportParticipant = {
+  enrollment_id: number;
+  participant: {
+    id: number;
+    name: string;
+    mobile_phone: string | null;
+    participant_code: string | null;
+  } | null;
+  avg_pre_score: number | null;
+  avg_post_score: number | null;
+  final_score: number | null;
+};
+
+export type WorkflowCloseoutPicture = {
+  path: string;
+  url: string | null;
+};
+
+export type WorkflowCloseout = {
+  statuses: string[];
+  report_path: string | null;
+  report_url: string | null;
+  pictures: WorkflowCloseoutPicture[];
+};
+
+export type WorkflowDetail = {
+  event: TrainingEvent;
+  steps: WorkflowStep[];
+  join_requests: WorkflowJoinRequest[];
+  enrollments: WorkflowEnrollment[];
+  workshops: WorkflowWorkshop[];
+  summary: WorkflowSummary;
+  report_workshops: WorkflowReportWorkshop[];
+  report_participants: WorkflowReportParticipant[];
+  closeout: WorkflowCloseout;
 };
 
 export type JoinRequestResponse = {
@@ -526,6 +641,102 @@ export async function enrollParticipant(trainingEventId: number, participantId: 
   }, 'Training event enrolment', 'stored');
 }
 
+export async function trainingWorkflowEvents(query = '') {
+  const params = new URLSearchParams();
+
+  if (query.trim() !== '') {
+    params.set('q', query.trim());
+  }
+
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const response = await requestWithCache<{ data: { events: WorkflowEventSummary[] } }>(
+    `/api/mobile/training-workflow/events${suffix}`
+  );
+
+  return response.data.events;
+}
+
+export async function trainingWorkflowEvent(trainingEventId: number) {
+  const response = await requestWithCache<{ data: WorkflowDetail }>(
+    `/api/mobile/training-workflow/events/${trainingEventId}`
+  );
+
+  return response.data;
+}
+
+export async function approveWorkflowJoinRequest(trainingEventId: number, joinRequestId: number, reviewerNotes = '') {
+  const response = await request<{ data: WorkflowDetail; message?: string }>(
+    `/api/mobile/training-workflow/events/${trainingEventId}/join-requests/${joinRequestId}/approve`,
+    {
+      method: 'POST',
+      body: { reviewer_notes: reviewerNotes },
+    }
+  );
+
+  return response;
+}
+
+export async function rejectWorkflowJoinRequest(trainingEventId: number, joinRequestId: number, reviewerNotes = '') {
+  const response = await request<{ data: WorkflowDetail; message?: string }>(
+    `/api/mobile/training-workflow/events/${trainingEventId}/join-requests/${joinRequestId}/reject`,
+    {
+      method: 'POST',
+      body: { reviewer_notes: reviewerNotes },
+    }
+  );
+
+  return response;
+}
+
+export async function updateWorkflowWorkshopCount(trainingEventId: number, workshopCount: number) {
+  const response = await request<{ data: WorkflowDetail; message?: string }>(
+    `/api/mobile/training-workflow/events/${trainingEventId}/workshop-count`,
+    {
+      method: 'POST',
+      body: { workshop_count: workshopCount },
+    }
+  );
+
+  return response;
+}
+
+export async function saveWorkflowScores(
+  trainingEventId: number,
+  payload: {
+    workshop_number: number;
+    workshop_start_date?: string | null;
+    workshop_end_date?: string | null;
+    scores: {
+      enrollment_id: number;
+      pre_test_score: number | null;
+      mid_test_score: number | null;
+      post_test_score: number | null;
+    }[];
+  }
+) {
+  const response = await request<{ data: WorkflowDetail; message?: string }>(
+    `/api/mobile/training-workflow/events/${trainingEventId}/workshops`,
+    {
+      method: 'POST',
+      body: payload,
+    }
+  );
+
+  return response;
+}
+
+export async function updateWorkflowCloseout(trainingEventId: number, payload: FormData | Record<string, unknown>) {
+  const response = await request<{ data: WorkflowDetail; message?: string }>(
+    `/api/mobile/training-workflow/events/${trainingEventId}/closeout`,
+    {
+      method: 'POST',
+      body: payload,
+    }
+  );
+
+  return response;
+}
+
 async function requestWithCache<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const key = await cacheKey(path, options.baseUrl);
 
@@ -592,7 +803,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   let response: ApiTransportResponse;
 
   try {
-    response = Capacitor.isNativePlatform()
+    response = Capacitor.isNativePlatform() && !(options.body instanceof FormData)
       ? await nativeHttpRequest(url, method, headers, options.body)
       : await browserFetchRequest(url, method, headers, options.body);
   } catch {

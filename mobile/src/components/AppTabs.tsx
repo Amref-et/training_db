@@ -6,13 +6,14 @@ import {
   IonTabButton,
   IonTabs,
 } from '@ionic/react';
-import { calendarOutline, homeOutline, peopleOutline, personAddOutline } from 'ionicons/icons';
+import { calendarOutline, gitNetworkOutline, homeOutline, peopleOutline, personAddOutline } from 'ionicons/icons';
 import { Redirect, Route } from 'react-router-dom';
 
 import DashboardPage from '../pages/DashboardPage';
 import EventsPage from '../pages/EventsPage';
 import ParticipantsPage from '../pages/ParticipantsPage';
 import RegisterPage from '../pages/RegisterPage';
+import WorkflowPage from '../pages/WorkflowPage';
 
 export default function AppTabs() {
   return (
@@ -21,6 +22,7 @@ export default function AppTabs() {
         <Route exact path="/tabs/dashboard" component={DashboardPage} />
         <Route exact path="/tabs/participants" component={ParticipantsPage} />
         <Route exact path="/tabs/events" component={EventsPage} />
+        <Route exact path="/tabs/workflow" component={WorkflowPage} />
         <Route exact path="/tabs/register" component={RegisterPage} />
         <Route exact path="/login">
           <Redirect to="/tabs/dashboard" />
@@ -41,6 +43,10 @@ export default function AppTabs() {
         <IonTabButton tab="events" href="/tabs/events">
           <IonIcon icon={calendarOutline} />
           <IonLabel>Events</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="workflow" href="/tabs/workflow">
+          <IonIcon icon={gitNetworkOutline} />
+          <IonLabel>Workflow</IonLabel>
         </IonTabButton>
         <IonTabButton tab="register" href="/tabs/register">
           <IonIcon icon={personAddOutline} />
