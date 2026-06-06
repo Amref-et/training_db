@@ -20,8 +20,11 @@ class MobileAppDownloadController extends Controller
 
         abort_unless(is_file($path), 404, 'Mobile app APK file was not found.');
 
-        return response()->download($path, config('mobile.app_name').'.apk', [
+        $downloadName = basename((string) config('mobile.apk_public_path', 'mobile/amref-training-db.apk'));
+
+        return response()->download($path, $downloadName, [
             'Content-Type' => 'application/vnd.android.package-archive',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
