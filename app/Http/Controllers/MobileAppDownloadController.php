@@ -24,13 +24,17 @@ class MobileAppDownloadController extends Controller
 
         return response()->download($path, $downloadName, [
             'Content-Type' => 'application/vnd.android.package-archive',
+            'Content-Length' => (string) filesize($path),
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
     public function qr(Request $request): Response
     {
-        $svg = $this->downloadQrSvg(route('mobile-app.download'));
+        $svg = $this->downloadQrSvg($this->downloadUrl());
 
         return response($svg, 200, [
             'Content-Type' => 'image/svg+xml; charset=UTF-8',
@@ -64,5 +68,13 @@ class MobileAppDownloadController extends Controller
         }
 
         return QrCodeSvg::svg($downloadUrl, 5, 4);
+    }
+
+    private function downloadUrl(): string
+    {
+        $path = public_path(config('mobile.apk_public_path'));
+        $version = is_file($path) ? (string) filemtime($path) : (string) time();
+
+        return route('mobile-app.download', ['v' => $version]);
     }
 }

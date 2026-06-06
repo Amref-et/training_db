@@ -1,6 +1,8 @@
 @php
     $mobileAppName = config('mobile.app_name', 'Amref training DB');
-    $mobileAppDownloadUrl = route('mobile-app.download');
+    $mobileAppApkPath = public_path(config('mobile.apk_public_path', 'mobile/amref-training-db.apk'));
+    $mobileAppDownloadVersion = is_file($mobileAppApkPath) ? filemtime($mobileAppApkPath) : time();
+    $mobileAppDownloadUrl = route('mobile-app.download', ['v' => $mobileAppDownloadVersion]);
     $mobileAppQrUrl = route('mobile-app.qr');
 @endphp
 
